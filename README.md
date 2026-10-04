@@ -1,6 +1,5 @@
-AI Generator 
-100% Free AI Generator tool for enhancing, upscaling, editing, images and videos
-
+AI Generator
+*100% Free AI Generator tool for enhancing, upscaling, editing, images and videos
 
 Features
 - Renamed the program from Smart Face Swapper to AI Generator
@@ -156,7 +155,7 @@ The following new selections are persisted in config.json:
 - Prompt steps
 - Video prompt-processing option
 
-Install
+Install:
 Extract the complete AI Generator folder.
 Install 64-bit Python 3.11.
 Run Setup.bat once.
