@@ -161,8 +161,7 @@ Extract the complete AI Generator folder.
 Install 64-bit Python 3.11.
 Run Setup.bat once.
 Run Install_NVIDIA_Prompt.bat only if prompt editing is wanted.
-Use Run.bat thereafter.
-
+Use Run.bat to launch program.
 Prerequisites
 -Python 3.11
 
