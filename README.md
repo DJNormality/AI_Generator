@@ -1,5 +1,6 @@
 AI Generator
--100% Free AI Generator tool for enhancing, upscaling, editing, images and videos
+
+100% Free AI Generator tool for enhancing, upscaling, editing, images and videos
 
 Features
 - Renamed the program from Smart Face Swapper to AI Generator
