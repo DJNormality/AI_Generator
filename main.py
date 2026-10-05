@@ -282,6 +282,8 @@ class FaceSwapApp:
         self.cloud_image_model = tk.StringVar(value='gpt-image-2.5-sunburst')
         self.cloud_image_quality = tk.StringVar(value='high')
         self.qwen_image_model = tk.StringVar(value='Qwen/Qwen-Image-Edit')
+        self.a2e_image_model = tk.StringVar(value='qwen-image-3.0-pro')
+        self.a2e_resolution = tk.StringVar(value='2K')
         self.edit_prompt = tk.StringVar()
         self.negative_prompt = tk.StringVar()
         self.prompt_steps = tk.IntVar(value=20)
@@ -528,7 +530,7 @@ class FaceSwapApp:
                         variable=self.enable_prompt_edit, style='Modern.TCheckbutton').grid(
             row=0, column=0, columnspan=2, sticky='w', pady=(0, 6))
         self._tab_label(prompt, "Prompt engine", 1)
-        self._tab_combo(prompt, self.prompt_engine, ['Local', 'Cloud', 'Qwen Cloud'], 1)
+        self._tab_combo(prompt, self.prompt_engine, ['A2E', 'Local', 'Cloud', 'Qwen Cloud'], 1)
         self._tab_label(prompt, "Cloud model", 2)
         self._tab_combo(prompt, self.cloud_image_model,
                         ['gpt-image-2.5-sunburst', 'gpt-image-2.5-flare'], 2)
@@ -538,20 +540,26 @@ class FaceSwapApp:
         self._tab_label(prompt, "Qwen model", 4)
         self._tab_combo(prompt, self.qwen_image_model,
                         ['Qwen/Qwen-Image-Edit-2511', 'Qwen/Qwen-Image-Edit'], 4)
+        self._tab_label(prompt, "A2E model", 5)
+        self._tab_combo(prompt, self.a2e_image_model,
+                        ['qwen-image-3.0-pro', 'qwen-image-3.0',
+                         'qwen-image-2.0-pro', 'qwen-image-2.0'], 5)
+        self._tab_label(prompt, "A2E resolution", 6)
+        self._tab_combo(prompt, self.a2e_resolution, ['2K', '1K'], 6)
         ttk.Entry(prompt, textvariable=self.edit_prompt,
-                  style='Modern.TEntry').grid(row=5, column=1, sticky='ew', pady=6)
-        self._tab_label(prompt, "Edit prompt", 5)
-        self._tab_label(prompt, "Negative prompt", 6)
+                  style='Modern.TEntry').grid(row=7, column=1, sticky='ew', pady=6)
+        self._tab_label(prompt, "Edit prompt", 7)
+        self._tab_label(prompt, "Negative prompt", 8)
         ttk.Entry(prompt, textvariable=self.negative_prompt,
-                  style='Modern.TEntry').grid(row=6, column=1, sticky='ew', pady=6)
-        self._tab_label(prompt, "Local / Qwen steps", 7)
+                  style='Modern.TEntry').grid(row=8, column=1, sticky='ew', pady=6)
+        self._tab_label(prompt, "Local / Qwen steps", 9)
         ttk.Spinbox(prompt, from_=10, to=50, textvariable=self.prompt_steps,
-                    width=8, style='Modern.TSpinbox').grid(row=7, column=1, sticky='w', pady=6)
+                    width=8, style='Modern.TSpinbox').grid(row=9, column=1, sticky='w', pady=6)
         ttk.Checkbutton(prompt, text="Apply to video frames (slow and may flicker)",
                         variable=self.prompt_for_videos, style='Modern.TCheckbutton').grid(
-            row=8, column=0, columnspan=2, sticky='w', pady=6)
+            row=10, column=0, columnspan=2, sticky='w', pady=6)
         ttk.Label(prompt, text="Example: give her straight hair, subtle makeup and glasses",
-                  style='Hint.TLabel').grid(row=9, column=0, columnspan=2, sticky='w', pady=(8, 0))
+                  style='Hint.TLabel').grid(row=11, column=0, columnspan=2, sticky='w', pady=(8, 0))
 
         ttk.Label(crop, text="Manual crop", style='Panel.TLabel',
                   font=('Segoe UI Semibold', 11)).grid(
@@ -673,6 +681,8 @@ class FaceSwapApp:
             'cloud_image_model': self.cloud_image_model.get(),
             'cloud_image_quality': self.cloud_image_quality.get(),
             'qwen_image_model': self.qwen_image_model.get(),
+            'a2e_image_model': self.a2e_image_model.get(),
+            'a2e_resolution': self.a2e_resolution.get(),
             'edit_prompt': self.edit_prompt.get(),
             'negative_prompt': self.negative_prompt.get(),
             'prompt_steps': self.prompt_steps.get(),
@@ -715,6 +725,8 @@ class FaceSwapApp:
             self.cloud_image_model.set(settings.get('cloud_image_model', 'gpt-image-2.5-sunburst'))
             self.cloud_image_quality.set(settings.get('cloud_image_quality', 'high'))
             self.qwen_image_model.set(settings.get('qwen_image_model', 'Qwen/Qwen-Image-Edit'))
+            self.a2e_image_model.set(settings.get('a2e_image_model', 'qwen-image-3.0-pro'))
+            self.a2e_resolution.set(settings.get('a2e_resolution', '2K'))
             self.edit_prompt.set(settings.get('edit_prompt', ''))
             self.negative_prompt.set(settings.get('negative_prompt', 'blurry, distorted, deformed'))
             self.prompt_steps.set(settings.get('prompt_steps', 20))
@@ -743,6 +755,8 @@ class FaceSwapApp:
             self.cloud_image_model.set('gpt-image-2.5-sunburst')
             self.cloud_image_quality.set('high')
             self.qwen_image_model.set('Qwen/Qwen-Image-Edit')
+            self.a2e_image_model.set('qwen-image-3.0-pro')
+            self.a2e_resolution.set('2K')
             self.negative_prompt.set('blurry, distorted, deformed')
             self.prompt_steps.set(20); self.prompt_for_videos.set(False)
             self.reprocess_existing.set(False)
@@ -1263,6 +1277,8 @@ class FaceSwapApp:
             'CLOUD_IMAGE_MODEL': self.cloud_image_model.get(),
             'CLOUD_IMAGE_QUALITY': self.cloud_image_quality.get(),
             'QWEN_IMAGE_MODEL': self.qwen_image_model.get(),
+            'A2E_IMAGE_MODEL': self.a2e_image_model.get(),
+            'A2E_RESOLUTION': self.a2e_resolution.get(),
             'EDIT_PROMPT': self.edit_prompt.get().strip(),
             'NEGATIVE_PROMPT': self.negative_prompt.get().strip(),
             'PROMPT_STEPS': max(10, min(50, self.prompt_steps.get())),
@@ -2019,9 +2035,193 @@ class QwenCloudImageEditor:
         return result
 
 
+class A2EImageEditor:
+    """Prompt-guided Qwen image editing through the official A2E REST API."""
+    API_ROOT = 'https://api.a2e.ai'
+
+    def __init__(self, model, resolution, log):
+        self.token = (os.environ.get('A2E_API_TOKEN') or
+                      os.environ.get('A2E_TOKEN') or '').strip()
+        if not self.token:
+            raise RuntimeError(
+                'A2E_API_TOKEN is not set. Run Configure_A2E_API_Token.bat '
+                'before selecting the A2E prompt engine.'
+            )
+        self.model = model
+        self.resolution = resolution
+        self.log = log
+        self.headers = {
+            'Authorization': f'Bearer {self.token}',
+            'Content-Type': 'application/json',
+        }
+        log(f'    A2E editor ready: {model} at {resolution}')
+
+    @staticmethod
+    def _response_json(response, action):
+        try:
+            payload = response.json()
+        except Exception:
+            payload = {'message': response.text[:500]}
+        if not response.ok:
+            message = payload.get('message') or payload.get('msg') or payload
+            raise RuntimeError(f'A2E {action} failed ({response.status_code}): {message}')
+        if isinstance(payload, dict) and payload.get('code') not in (None, 0, 200):
+            message = payload.get('message') or payload.get('msg') or payload
+            raise RuntimeError(f'A2E {action} failed: {message}')
+        return payload
+
+    @staticmethod
+    def _find_value(value, keys):
+        if isinstance(value, dict):
+            for key in keys:
+                if key in value and value[key] not in (None, ''):
+                    return value[key]
+            for child in value.values():
+                found = A2EImageEditor._find_value(child, keys)
+                if found not in (None, ''):
+                    return found
+        elif isinstance(value, list):
+            for child in value:
+                found = A2EImageEditor._find_value(child, keys)
+                if found not in (None, ''):
+                    return found
+        return None
+
+    @staticmethod
+    def _output_url(payload, input_url):
+        priority_keys = (
+            'result_url', 'output_url', 'generated_image_url', 'image_url',
+            'resultUrl', 'outputUrl', 'generatedImageUrl', 'imageUrl', 'url'
+        )
+        candidates = []
+
+        def walk(value, parent_key=''):
+            if isinstance(value, dict):
+                for key, child in value.items():
+                    if (key in priority_keys and isinstance(child, str) and
+                            child.startswith(('http://', 'https://'))):
+                        score = 2 if any(word in key.lower() for word in
+                                         ('result', 'output', 'generated')) else 1
+                        candidates.append((score, child))
+                    walk(child, key)
+            elif isinstance(value, list):
+                for child in value:
+                    walk(child, parent_key)
+            elif isinstance(value, str) and value.startswith(('http://', 'https://')):
+                if any(ext in value.lower().split('?')[0] for ext in
+                       ('.png', '.jpg', '.jpeg', '.webp')):
+                    candidates.append((0, value))
+
+        walk(payload)
+        candidates.sort(key=lambda item: item[0], reverse=True)
+        return next((url for _, url in candidates if url != input_url), None)
+
+    def _upload_png(self, image_bytes):
+        object_key = f'ai-generator/{int(time.time() * 1000)}-{hashlib.sha256(image_bytes).hexdigest()[:12]}.png'
+        response = requests.post(
+            f'{self.API_ROOT}/v1/r2/upload-presigned-url',
+            headers=self.headers,
+            json={
+                'key': object_key,
+                'purpose': 'STAGING',
+                'expiresIn': 300,
+                'contentType': 'image/png',
+                'fileSize': len(image_bytes),
+            },
+            timeout=60,
+        )
+        payload = self._response_json(response, 'upload preparation')
+        data = payload.get('data') or {}
+        upload_url, cdn_url = data.get('uploadUrl'), data.get('cdnUrl')
+        if not upload_url or not cdn_url:
+            raise RuntimeError('A2E upload preparation returned no uploadUrl/cdnUrl.')
+        uploaded = requests.put(
+            upload_url,
+            data=image_bytes,
+            headers={'Content-Type': 'image/png', 'Content-Length': str(len(image_bytes))},
+            timeout=180,
+        )
+        if not uploaded.ok:
+            raise RuntimeError(f'A2E image upload failed ({uploaded.status_code}).')
+        return cdn_url
+
+    def _size_for_image(self, width, height):
+        is_2k = self.resolution == '2K' and self.model == 'qwen-image-3.0-pro'
+        if is_2k:
+            if abs(width - height) / max(width, height) < 0.12:
+                return '2048*2048'
+            return '2048*1365' if width > height else '1365*2048'
+        if abs(width - height) / max(width, height) < 0.12:
+            return '1024*1024'
+        return '1328*880' if width > height else '880*1328'
+
+    def edit(self, bgr_image, prompt, negative_prompt='', steps=20):
+        original_h, original_w = bgr_image.shape[:2]
+        success, encoded = cv2.imencode('.png', bgr_image)
+        if not success:
+            raise RuntimeError('Could not encode the image for A2E editing.')
+        input_url = self._upload_png(encoded.tobytes())
+        full_prompt = prompt.strip()
+        if negative_prompt.strip():
+            full_prompt += ' Avoid: ' + negative_prompt.strip() + '.'
+        body = {
+            'name': 'AI Generator prompt edit',
+            'prompt': full_prompt,
+            'creation_mode': 'image-edit',
+            'model': self.model,
+            'input_images': [input_url],
+            'size': self._size_for_image(original_w, original_h),
+            'minor_suspected_skip': False,
+        }
+        response = requests.post(
+            f'{self.API_ROOT}/v1/userQwen2Image/start',
+            headers=self.headers, json=body, timeout=90,
+        )
+        payload = self._response_json(response, 'task submission')
+        task_id = self._find_value(payload, ('_id', 'task_id', 'taskId', 'id'))
+        if not task_id:
+            raise RuntimeError(f'A2E accepted the request but returned no task ID: {payload}')
+        self.log(f'    A2E edit submitted; waiting for task {task_id}.')
+
+        deadline = time.time() + 900
+        last_status = ''
+        while time.time() < deadline:
+            time.sleep(3)
+            detail_response = requests.get(
+                f'{self.API_ROOT}/v1/userQwen2Image/detail/{task_id}',
+                headers=self.headers, timeout=60,
+            )
+            detail = self._response_json(detail_response, 'task status')
+            status_value = self._find_value(
+                detail, ('status', 'task_status', 'taskStatus', 'state')
+            )
+            status = str(status_value or '').lower()
+            if status and status != last_status:
+                self.log(f'    A2E task status: {status}')
+                last_status = status
+            if status in ('failed', 'error', 'cancelled', 'canceled', 'rejected'):
+                message = self._find_value(detail, ('error', 'message', 'msg', 'fail_reason'))
+                raise RuntimeError(f'A2E image edit failed: {message or detail}')
+            result_url = self._output_url(detail, input_url)
+            if result_url and (status in ('', 'success', 'succeeded', 'completed', 'done', 'finished')
+                               or status_value is None):
+                result_response = requests.get(result_url, timeout=180)
+                result_response.raise_for_status()
+                result = cv2.imdecode(
+                    np.frombuffer(result_response.content, dtype=np.uint8), cv2.IMREAD_COLOR
+                )
+                if result is None:
+                    raise RuntimeError('A2E returned an unreadable output image.')
+                # Keep A2E's generated resolution (including 2K) so the later
+                # face-swap/restoration stages do not discard cloud detail.
+                return result
+        raise RuntimeError('A2E image edit timed out after 15 minutes.')
+
+
 _PROMPT_EDITOR_CACHE = None
 _CLOUD_EDITOR_CACHE = {}
 _QWEN_EDITOR_CACHE = {}
+_A2E_EDITOR_CACHE = {}
 
 
 def get_prompt_editor(log):
@@ -2042,6 +2242,13 @@ def get_qwen_cloud_editor(model, log):
     if model not in _QWEN_EDITOR_CACHE:
         _QWEN_EDITOR_CACHE[model] = QwenCloudImageEditor(model, log)
     return _QWEN_EDITOR_CACHE[model]
+
+
+def get_a2e_editor(model, resolution, log):
+    key = (model, resolution)
+    if key not in _A2E_EDITOR_CACHE:
+        _A2E_EDITOR_CACHE[key] = A2EImageEditor(model, resolution, log)
+    return _A2E_EDITOR_CACHE[key]
 
 
 class PostProcessChain:
@@ -2104,6 +2311,12 @@ class PostProcessChain:
                     elif prompt_engine == 'Qwen Cloud':
                         self.prompt_editor = get_qwen_cloud_editor(
                             config.get('QWEN_IMAGE_MODEL', 'Qwen/Qwen-Image-Edit'),
+                            log,
+                        )
+                    elif prompt_engine == 'A2E':
+                        self.prompt_editor = get_a2e_editor(
+                            config.get('A2E_IMAGE_MODEL', 'qwen-image-3.0-pro'),
+                            config.get('A2E_RESOLUTION', '2K'),
                             log,
                         )
                     else:
