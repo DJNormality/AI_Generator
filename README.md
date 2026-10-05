@@ -1,4 +1,5 @@
-<img width="1920" height="999" alt="pythonw3 13_PWySitoobt" src="https://github.com/user-attachments/assets/096ad373-e362-4242-bacb-4fa0dd3a1425" />
+<img width="1261" height="999" alt="pythonw3 13_NozENWqvnU" src="https://github.com/user-attachments/assets/5b6afbea-4fa4-48e4-a77b-31c5214bb52f" />
+
 
 
 
