@@ -282,7 +282,7 @@ class FaceSwapApp:
         self.cloud_image_model = tk.StringVar(value='gpt-image-2.5-sunburst')
         self.cloud_image_quality = tk.StringVar(value='high')
         self.qwen_image_model = tk.StringVar(value='Qwen/Qwen-Image-Edit')
-        self.a2e_image_model = tk.StringVar(value='qwen-image-3.0-pro')
+        self.a2e_image_model = tk.StringVar(value='gpt-image-2.5-sunburst')
         self.a2e_resolution = tk.StringVar(value='2K')
         self.edit_prompt = tk.StringVar()
         self.negative_prompt = tk.StringVar()
@@ -542,7 +542,9 @@ class FaceSwapApp:
                         ['Qwen/Qwen-Image-Edit-2511', 'Qwen/Qwen-Image-Edit'], 4)
         self._tab_label(prompt, "A2E model", 5)
         self._tab_combo(prompt, self.a2e_image_model,
-                        ['qwen-image-3.0-pro', 'qwen-image-3.0',
+                        ['gpt-image-2.5-sunburst', 'gpt-image-2.5-flare',
+                         'gpt-image-2', 'gpt-image-1.5',
+                         'qwen-image-3.0-pro', 'qwen-image-3.0',
                          'qwen-image-2.0-pro', 'qwen-image-2.0'], 5)
         self._tab_label(prompt, "A2E resolution", 6)
         self._tab_combo(prompt, self.a2e_resolution, ['2K', '1K'], 6)
@@ -725,7 +727,7 @@ class FaceSwapApp:
             self.cloud_image_model.set(settings.get('cloud_image_model', 'gpt-image-2.5-sunburst'))
             self.cloud_image_quality.set(settings.get('cloud_image_quality', 'high'))
             self.qwen_image_model.set(settings.get('qwen_image_model', 'Qwen/Qwen-Image-Edit'))
-            self.a2e_image_model.set(settings.get('a2e_image_model', 'qwen-image-3.0-pro'))
+            self.a2e_image_model.set(settings.get('a2e_image_model', 'gpt-image-2.5-sunburst'))
             self.a2e_resolution.set(settings.get('a2e_resolution', '2K'))
             self.edit_prompt.set(settings.get('edit_prompt', ''))
             self.negative_prompt.set(settings.get('negative_prompt', 'blurry, distorted, deformed'))
@@ -755,7 +757,7 @@ class FaceSwapApp:
             self.cloud_image_model.set('gpt-image-2.5-sunburst')
             self.cloud_image_quality.set('high')
             self.qwen_image_model.set('Qwen/Qwen-Image-Edit')
-            self.a2e_image_model.set('qwen-image-3.0-pro')
+            self.a2e_image_model.set('gpt-image-2.5-sunburst')
             self.a2e_resolution.set('2K')
             self.negative_prompt.set('blurry, distorted, deformed')
             self.prompt_steps.set(20); self.prompt_for_videos.set(False)
@@ -2164,17 +2166,31 @@ class A2EImageEditor:
         full_prompt = prompt.strip()
         if negative_prompt.strip():
             full_prompt += ' Avoid: ' + negative_prompt.strip() + '.'
+        is_gpt = self.model.startswith('gpt-image-')
         body = {
             'name': 'AI Generator prompt edit',
             'prompt': full_prompt,
             'creation_mode': 'image-edit',
             'model': self.model,
             'input_images': [input_url],
-            'size': self._size_for_image(original_w, original_h),
             'minor_suspected_skip': False,
         }
+        if is_gpt:
+            body.update({
+                'aspect_ratio': 'auto',
+                'resolution': self.resolution,
+                'save_as_png': True,
+                'background': 'opaque',
+                'force_generate': False,
+            })
+            start_path = '/v1/userGptImage/start'
+            detail_path = '/v1/userGptImage/detail/{id}'
+        else:
+            body['size'] = self._size_for_image(original_w, original_h)
+            start_path = '/v1/userQwen2Image/start'
+            detail_path = '/v1/userQwen2Image/detail/{id}'
         response = requests.post(
-            f'{self.API_ROOT}/v1/userQwen2Image/start',
+            f'{self.API_ROOT}{start_path}',
             headers=self.headers, json=body, timeout=90,
         )
         payload = self._response_json(response, 'task submission')
@@ -2188,7 +2204,7 @@ class A2EImageEditor:
         while time.time() < deadline:
             time.sleep(3)
             detail_response = requests.get(
-                f'{self.API_ROOT}/v1/userQwen2Image/detail/{task_id}',
+                f'{self.API_ROOT}{detail_path.format(id=task_id)}',
                 headers=self.headers, timeout=60,
             )
             detail = self._response_json(detail_response, 'task status')
@@ -2315,7 +2331,7 @@ class PostProcessChain:
                         )
                     elif prompt_engine == 'A2E':
                         self.prompt_editor = get_a2e_editor(
-                            config.get('A2E_IMAGE_MODEL', 'qwen-image-3.0-pro'),
+                            config.get('A2E_IMAGE_MODEL', 'gpt-image-2.5-sunburst'),
                             config.get('A2E_RESOLUTION', '2K'),
                             log,
                         )
@@ -2911,9 +2927,10 @@ def swap_single_image(config, log):
             mean_change = float(np.mean(cv2.absdiff(target_img, before_prompt)))
             log(f'    Prompt edit pixel-change score: {mean_change:.2f}')
             if mean_change < 1.0:
+                engine_name = config.get('PROMPT_ENGINE', 'prompt provider')
                 log(
-                    '    Warning: the prompt provider returned an almost unchanged image. '
-                    'Try Qwen/Qwen-Image-Edit-2511 and a shorter, direct prompt.'
+                    f'    Warning: {engine_name} returned an almost unchanged image. '
+                    'Try another cloud model and a shorter, direct prompt.'
                 )
         log(f'    Pre-swap prompt preview saved to: {preview_path}')
     target_faces = face_analyzer.get(target_img)
