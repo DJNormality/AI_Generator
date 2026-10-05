@@ -1,8 +1,9 @@
+<img width="902" height="917" alt="pythonw3 13_i6n1eJhB27" src="https://github.com/user-attachments/assets/de6c5d3f-c373-4f32-99fc-5ddcff408bd7" />
 <img width="902" height="917" alt="pythonw3 13_BnChohb81H" src="https://github.com/user-attachments/assets/de504239-91f9-44e8-89ac-7d562b63c1c2" />
 <img width="902" height="917" alt="pythonw3 13_6l2RDQZZXz" src="https://github.com/user-attachments/assets/861bcd1d-1179-4044-a00e-97dcb6b52808" />
 <img width="902" height="917" alt="pythonw3 13_9amD0S5L2Z" src="https://github.com/user-attachments/assets/a934fa39-c1bb-4c89-98c8-7f4d097acaeb" />
 <img width="902" height="917" alt="pythonw3 13_3rwLFU4B9v" src="https://github.com/user-attachments/assets/91e9043a-1c02-4f59-a1cd-0ebd32bb1b8a" />
-<img width="902" height="917" alt="pythonw3 13_i6n1eJhB27" src="https://github.com/user-attachments/assets/de6c5d3f-c373-4f32-99fc-5ddcff408bd7" />
+
 
 AI Generator
 
