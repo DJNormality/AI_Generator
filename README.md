@@ -45,8 +45,6 @@ The interface is designed around a folder-based workflow: place identity portrai
 - Internet connection for installation, automatic model downloads, and cloud prompt engines
 - Several gigabytes of free storage for Python packages, ONNX models, temporary video frames, and local Diffusers models
 
-An NVIDIA Quadro P5000 with 64 GB of system RAM can run face swapping, ONNX enhancement, and upscaling. Local Diffusers editing may be slower and more memory-constrained than current-generation GPUs; cloud A2E editing is recommended when output quality is the priority.
-
 ## New-user installation
 
 ### 1. Prepare the application folder
