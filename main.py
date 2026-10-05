@@ -1696,7 +1696,7 @@ def step_2_index_source_faces(config, log):
         try:
             with open(cache_path, 'rb') as f:
                 cache = pickle.load(f)
-            if (cache.get('version') == 1 and
+            if (cache.get('version') in (1, 2) and
                     cache.get('source_dir') == source_dir):
                 cached_records = cache.get('records', {})
             else:
@@ -1710,6 +1710,7 @@ def step_2_index_source_faces(config, log):
     new_cache_records = {}
     pending = []
     reused_count = 0
+    cached_skip_count = 0
     image_files = sorted(
         f for f in os.listdir(config['SOURCE_IMAGES_DIR'])
         if f.lower().endswith(('.png', '.jpg', '.jpeg')))
@@ -1731,18 +1732,40 @@ def step_2_index_source_faces(config, log):
         signature = {'size': stat.st_size, 'mtime_ns': stat.st_mtime_ns}
         cached = cached_records.get(filename)
         if (cached and cached.get('size') == signature['size'] and
-                cached.get('mtime_ns') == signature['mtime_ns'] and
-                cached.get('embedding') is not None):
-            record = {'filename': filename, 'embedding': cached['embedding']}
-            source_face_data.append(record)
+                cached.get('mtime_ns') == signature['mtime_ns']):
+            if cached.get('embedding') is not None:
+                record = {'filename': filename, 'embedding': cached['embedding']}
+                source_face_data.append(record)
+                reused_count += 1
+            elif cached.get('status') in ('no_face', 'unreadable'):
+                # Remember unchanged failures so hundreds of unsuitable files
+                # are not fully scanned again every time the app launches.
+                cached_skip_count += 1
+            else:
+                pending.append((filename, image_path, signature))
+                continue
             new_cache_records[filename] = cached
-            reused_count += 1
             completed_images += 1
             if progress and total_images:
                 progress(completed_images / total_images * 100,
                          f'Indexing source faces: {completed_images} of {total_images}')
         else:
             pending.append((filename, image_path, signature))
+
+    os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+
+    def save_index_checkpoint():
+        """Atomically preserve progress so an interrupted run resumes cleanly."""
+        cache_temp = cache_path + '.part'
+        with open(cache_temp, 'wb') as f:
+            pickle.dump({'version': 2, 'source_dir': source_dir,
+                         'records': new_cache_records}, f)
+        os.replace(cache_temp, cache_path)
+        if source_face_data:
+            index_temp = config['INDEX_FILE_PATH'] + '.part'
+            with open(index_temp, 'wb') as f:
+                pickle.dump(source_face_data, f)
+            os.replace(index_temp, config['INDEX_FILE_PATH'])
 
     face_analyzer = None
     if pending:
@@ -1755,23 +1778,57 @@ def step_2_index_source_faces(config, log):
             face_analyzer.prepare(ctx_id=0, det_thresh=0.10, det_size=(1024, 1024))
 
     indexed_count = 0
+    skipped_count = 0
+    processed_since_checkpoint = 0
     for filename, image_path, signature in pending:
         image = cv2.imread(image_path)
         if image is None:
             log(f"    Warning: Could not read {filename}. Skipping.")
+            new_cache_records[filename] = {
+                'size': signature['size'],
+                'mtime_ns': signature['mtime_ns'],
+                'embedding': None,
+                'status': 'unreadable',
+            }
+            skipped_count += 1
+            completed_images += 1
+            processed_since_checkpoint += 1
+            if processed_since_checkpoint >= 25:
+                save_index_checkpoint()
+                processed_since_checkpoint = 0
+            if progress and total_images:
+                progress(completed_images / total_images * 100,
+                         f'Indexing source faces: {completed_images} of {total_images}')
+            continue
+        # Try several identity-safe orientations and a contrast-enhanced pass.
+        # Only the embedding is retained, so transformed landmarks are unused.
+        detection_passes = [
+            ('original', image),
+            ('mirrored', cv2.flip(image, 1)),
+            ('rotated right', cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)),
+            ('rotated left', cv2.rotate(image, cv2.ROTATE_90_COUNTERCLOCKWISE)),
+            ('rotated 180', cv2.rotate(image, cv2.ROTATE_180)),
+        ]
+        lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB)
+        lightness, channel_a, channel_b = cv2.split(lab)
+        lightness = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(lightness)
+        enhanced = cv2.cvtColor(cv2.merge((lightness, channel_a, channel_b)), cv2.COLOR_LAB2BGR)
+        detection_passes.append(('contrast enhanced', enhanced))
+        faces = []
+        detection_method = 'original'
+        try:
+            for method, candidate in detection_passes:
+                faces = face_analyzer.get(candidate)
+                if faces:
+                    detection_method = method
+                    break
+        except Exception as e:
+            log(f"    Warning: Face detection failed for {filename}: {e}. Will retry next run.")
             completed_images += 1
             if progress and total_images:
                 progress(completed_images / total_images * 100,
                          f'Indexing source faces: {completed_images} of {total_images}')
             continue
-        faces = face_analyzer.get(image)
-        used_flip = False
-        if not faces:
-            # Mirroring can recover strongly stylized or tilted portraits. A
-            # source face contributes its identity embedding only, so flipped
-            # landmark coordinates are not used in the target image.
-            faces = face_analyzer.get(cv2.flip(image, 1))
-            used_flip = bool(faces)
         source_face = select_largest_face(faces)
         if source_face is not None:
             embedding = source_face.normed_embedding
@@ -1780,16 +1837,28 @@ def step_2_index_source_faces(config, log):
                 'size': signature['size'],
                 'mtime_ns': signature['mtime_ns'],
                 'embedding': embedding,
+                'status': 'indexed',
             }
             indexed_count += 1
             log(f"    Indexed face from: {filename}")
             if len(faces) > 1:
                 log(f"      Detected {len(faces)} candidates; selected the largest face.")
-            elif used_flip:
-                log("      Face recovered using mirrored detection.")
+            elif detection_method != 'original':
+                log(f"      Face recovered using {detection_method} detection.")
         else:
             log(f"    Warning: Could not detect a usable face in {filename}. Skipping.")
+            new_cache_records[filename] = {
+                'size': signature['size'],
+                'mtime_ns': signature['mtime_ns'],
+                'embedding': None,
+                'status': 'no_face',
+            }
+            skipped_count += 1
         completed_images += 1
+        processed_since_checkpoint += 1
+        if processed_since_checkpoint >= 25:
+            save_index_checkpoint()
+            processed_since_checkpoint = 0
         if progress and total_images:
             progress(completed_images / total_images * 100,
                      f'Indexing source faces: {completed_images} of {total_images}')
@@ -1798,18 +1867,10 @@ def step_2_index_source_faces(config, log):
             "No source faces were indexed. Processing was stopped before face matching. "
             "Check that the Source Images Folder contains readable portraits."
         )
-    os.makedirs(os.path.dirname(cache_path), exist_ok=True)
-    cache_temp = cache_path + '.part'
-    with open(cache_temp, 'wb') as f:
-        pickle.dump({'version': 1, 'source_dir': source_dir,
-                     'records': new_cache_records}, f)
-    os.replace(cache_temp, cache_path)
-    index_temp = config['INDEX_FILE_PATH'] + '.part'
-    with open(index_temp, 'wb') as f:
-        pickle.dump(source_face_data, f)
-    os.replace(index_temp, config['INDEX_FILE_PATH'])
+    save_index_checkpoint()
     log(f"    Indexing complete: {reused_count} cached, {indexed_count} newly indexed, "
-        f"{len(source_face_data)} total faces.")
+        f"{len(source_face_data)} total faces; {cached_skip_count} cached skips, "
+        f"{skipped_count} new skips.")
 
 def step_3_swap_faces(config, log, pause_event, stop_event):
     log("--> STEP 3: Initial Face Swap Pass...")
