@@ -16,6 +16,8 @@ import time
 import shutil
 import hashlib
 import webbrowser
+import base64
+from io import BytesIO
 from types import SimpleNamespace
 from insightface.utils import face_align
 
@@ -274,6 +276,9 @@ class FaceSwapApp:
         self.gamma = tk.DoubleVar(value=1.0)
         self.enable_smart_masking = tk.BooleanVar(value=False)
         self.enable_prompt_edit = tk.BooleanVar(value=False)
+        self.prompt_engine = tk.StringVar(value='Local')
+        self.cloud_image_model = tk.StringVar(value='gpt-image-2.5-sunburst')
+        self.cloud_image_quality = tk.StringVar(value='high')
         self.edit_prompt = tk.StringVar()
         self.negative_prompt = tk.StringVar()
         self.prompt_steps = tk.IntVar(value=20)
@@ -495,23 +500,31 @@ class FaceSwapApp:
         ttk.Label(enhance, text="Uses Occluder, FaceParser and XSeg together.",
                   style='Hint.TLabel').grid(row=8, column=0, columnspan=2, sticky='w', pady=(8, 0))
 
-        ttk.Checkbutton(prompt, text="Enable local prompt editing (NVIDIA)",
+        ttk.Checkbutton(prompt, text="Enable prompt editing",
                         variable=self.enable_prompt_edit, style='Modern.TCheckbutton').grid(
             row=0, column=0, columnspan=2, sticky='w', pady=(0, 6))
-        self._tab_label(prompt, "Edit prompt", 1)
+        self._tab_label(prompt, "Prompt engine", 1)
+        self._tab_combo(prompt, self.prompt_engine, ['Local', 'Cloud'], 1)
+        self._tab_label(prompt, "Cloud model", 2)
+        self._tab_combo(prompt, self.cloud_image_model,
+                        ['gpt-image-2.5-sunburst', 'gpt-image-2.5-flare'], 2)
+        self._tab_label(prompt, "Cloud quality", 3)
+        self._tab_combo(prompt, self.cloud_image_quality,
+                        ['low', 'medium', 'high', 'xhigh', 'max'], 3)
+        self._tab_label(prompt, "Edit prompt", 4)
         ttk.Entry(prompt, textvariable=self.edit_prompt,
-                  style='Modern.TEntry').grid(row=1, column=1, sticky='ew', pady=6)
-        self._tab_label(prompt, "Negative prompt", 2)
+                  style='Modern.TEntry').grid(row=4, column=1, sticky='ew', pady=6)
+        self._tab_label(prompt, "Negative prompt", 5)
         ttk.Entry(prompt, textvariable=self.negative_prompt,
-                  style='Modern.TEntry').grid(row=2, column=1, sticky='ew', pady=6)
-        self._tab_label(prompt, "Inference steps", 3)
+                  style='Modern.TEntry').grid(row=5, column=1, sticky='ew', pady=6)
+        self._tab_label(prompt, "Local inference steps", 6)
         ttk.Spinbox(prompt, from_=10, to=50, textvariable=self.prompt_steps,
-                    width=8, style='Modern.TSpinbox').grid(row=3, column=1, sticky='w', pady=6)
+                    width=8, style='Modern.TSpinbox').grid(row=6, column=1, sticky='w', pady=6)
         ttk.Checkbutton(prompt, text="Apply to video frames (slow and may flicker)",
                         variable=self.prompt_for_videos, style='Modern.TCheckbutton').grid(
-            row=4, column=0, columnspan=2, sticky='w', pady=6)
+            row=7, column=0, columnspan=2, sticky='w', pady=6)
         ttk.Label(prompt, text="Example: give her straight hair, subtle makeup and glasses",
-                  style='Hint.TLabel').grid(row=5, column=0, columnspan=2, sticky='w', pady=(8, 0))
+                  style='Hint.TLabel').grid(row=8, column=0, columnspan=2, sticky='w', pady=(8, 0))
 
     def create_settings_widgets(self, parent):
         tk.Label(parent, text="GPU Provider:").grid(row=0, column=0, sticky='w', padx=5, pady=2)
@@ -591,6 +604,9 @@ class FaceSwapApp:
             'gamma': self.gamma.get(),
             'enable_smart_masking': self.enable_smart_masking.get(),
             'enable_prompt_edit': self.enable_prompt_edit.get(),
+            'prompt_engine': self.prompt_engine.get(),
+            'cloud_image_model': self.cloud_image_model.get(),
+            'cloud_image_quality': self.cloud_image_quality.get(),
             'edit_prompt': self.edit_prompt.get(),
             'negative_prompt': self.negative_prompt.get(),
             'prompt_steps': self.prompt_steps.get(),
@@ -621,6 +637,9 @@ class FaceSwapApp:
             self.gamma.set(settings.get('gamma', 1.0))
             self.enable_smart_masking.set(settings.get('enable_smart_masking', False))
             self.enable_prompt_edit.set(settings.get('enable_prompt_edit', False))
+            self.prompt_engine.set(settings.get('prompt_engine', 'Local'))
+            self.cloud_image_model.set(settings.get('cloud_image_model', 'gpt-image-2.5-sunburst'))
+            self.cloud_image_quality.set(settings.get('cloud_image_quality', 'high'))
             self.edit_prompt.set(settings.get('edit_prompt', ''))
             self.negative_prompt.set(settings.get('negative_prompt', 'blurry, distorted, deformed'))
             self.prompt_steps.set(settings.get('prompt_steps', 20))
@@ -637,6 +656,9 @@ class FaceSwapApp:
             self.brightness.set(0.0); self.gamma.set(1.0)
             self.enable_smart_masking.set(False)
             self.enable_prompt_edit.set(False); self.edit_prompt.set('')
+            self.prompt_engine.set('Local')
+            self.cloud_image_model.set('gpt-image-2.5-sunburst')
+            self.cloud_image_quality.set('high')
             self.negative_prompt.set('blurry, distorted, deformed')
             self.prompt_steps.set(20); self.prompt_for_videos.set(False)
 
@@ -898,6 +920,9 @@ class FaceSwapApp:
             'GAMMA': max(0.2, min(3.0, self.gamma.get())),
             'ENABLE_SMART_MASKING': self.enable_smart_masking.get(),
             'ENABLE_PROMPT_EDIT': self.enable_prompt_edit.get(),
+            'PROMPT_ENGINE': self.prompt_engine.get(),
+            'CLOUD_IMAGE_MODEL': self.cloud_image_model.get(),
+            'CLOUD_IMAGE_QUALITY': self.cloud_image_quality.get(),
             'EDIT_PROMPT': self.edit_prompt.get().strip(),
             'NEGATIVE_PROMPT': self.negative_prompt.get().strip(),
             'PROMPT_STEPS': max(10, min(50, self.prompt_steps.get())),
@@ -1447,7 +1472,86 @@ class LocalPromptEditor:
         return result
 
 
+class CloudImageEditor:
+    """High-fidelity reference image editing through the OpenAI Images API."""
+    def __init__(self, model, quality, log):
+        api_key = os.environ.get('OPENAI_API_KEY', '').strip()
+        if not api_key:
+            raise RuntimeError(
+                "OPENAI_API_KEY is not set. Configure the key before enabling Cloud prompt editing."
+            )
+        try:
+            from openai import OpenAI
+        except ImportError as e:
+            raise RuntimeError(
+                "Cloud prompt editing requires the OpenAI package. Install it with: "
+                "python -m pip install -U openai"
+            ) from e
+        self.client = OpenAI(api_key=api_key)
+        self.model = model
+        self.quality = quality
+        self.log = log
+        log(f"    Cloud prompt editor ready: {model}, quality={quality}")
+
+    @staticmethod
+    def _supported_size(width, height):
+        """Choose a supported custom size while preserving aspect ratio."""
+        if width <= 0 or height <= 0:
+            return 'auto'
+        ratio = width / height
+        if ratio < (1.0 / 3.0) or ratio > 3.0:
+            return 'auto'
+        pixels = width * height
+        min_pixels = 655360
+        max_pixels = 8294400
+        scale = 1.0
+        if pixels < min_pixels:
+            scale = (min_pixels / pixels) ** 0.5
+        if pixels * scale * scale > max_pixels:
+            scale = (max_pixels / pixels) ** 0.5
+        if max(width, height) * scale > 3840:
+            scale = min(scale, 3840.0 / max(width, height))
+        out_w = max(16, int(round(width * scale / 16.0)) * 16)
+        out_h = max(16, int(round(height * scale / 16.0)) * 16)
+        return f'{out_w}x{out_h}'
+
+    def edit(self, bgr_image, prompt, negative_prompt='', steps=20):
+        del steps  # Local diffusion-only setting.
+        original_h, original_w = bgr_image.shape[:2]
+        success, encoded = cv2.imencode('.png', bgr_image)
+        if not success:
+            raise RuntimeError('Could not encode the image for cloud editing.')
+        image_file = BytesIO(encoded.tobytes())
+        image_file.name = 'input.png'
+        preservation = (
+            "Edit only what the user requests. Preserve the person's exact identity, face, "
+            "expression, eyes, skin, body, pose, clothing, lighting, background, composition, "
+            "and camera angle unless the request explicitly changes one of them. "
+        )
+        full_prompt = preservation + prompt.strip()
+        if negative_prompt.strip():
+            full_prompt += " Do not add or introduce: " + negative_prompt.strip() + "."
+        response = self.client.images.edit(
+            model=self.model,
+            image=image_file,
+            prompt=full_prompt,
+            quality=self.quality,
+            size=self._supported_size(original_w, original_h),
+            output_format='png',
+        )
+        if not response.data or not response.data[0].b64_json:
+            raise RuntimeError('The cloud editor returned no image.')
+        result_bytes = base64.b64decode(response.data[0].b64_json)
+        result = cv2.imdecode(np.frombuffer(result_bytes, dtype=np.uint8), cv2.IMREAD_COLOR)
+        if result is None:
+            raise RuntimeError('The cloud editor returned an unreadable image.')
+        if result.shape[:2] != (original_h, original_w):
+            result = cv2.resize(result, (original_w, original_h), interpolation=cv2.INTER_LANCZOS4)
+        return result
+
+
 _PROMPT_EDITOR_CACHE = None
+_CLOUD_EDITOR_CACHE = {}
 
 
 def get_prompt_editor(log):
@@ -1455,6 +1559,13 @@ def get_prompt_editor(log):
     if _PROMPT_EDITOR_CACHE is None:
         _PROMPT_EDITOR_CACHE = LocalPromptEditor(log)
     return _PROMPT_EDITOR_CACHE
+
+
+def get_cloud_editor(model, quality, log):
+    key = (model, quality)
+    if key not in _CLOUD_EDITOR_CACHE:
+        _CLOUD_EDITOR_CACHE[key] = CloudImageEditor(model, quality, log)
+    return _CLOUD_EDITOR_CACHE[key]
 
 
 class PostProcessChain:
@@ -1507,12 +1618,19 @@ class PostProcessChain:
                 log("    Prompt editing is disabled for video frames.")
             else:
                 try:
-                    self.prompt_editor = get_prompt_editor(log)
+                    if config.get('PROMPT_ENGINE', 'Local') == 'Cloud':
+                        self.prompt_editor = get_cloud_editor(
+                            config.get('CLOUD_IMAGE_MODEL', 'gpt-image-2.5-sunburst'),
+                            config.get('CLOUD_IMAGE_QUALITY', 'high'),
+                            log,
+                        )
+                    else:
+                        self.prompt_editor = get_prompt_editor(log)
                 except Exception as e:
                     # Prompt editing is optional. Missing CUDA/PyTorch should
                     # not prevent face swapping, restoration or upscaling.
                     self.prompt_editor = None
-                    log(f"    Warning: Local prompt editing was disabled: {e}")
+                    log(f"    Warning: Prompt editing was disabled: {e}")
         brightness = float(config.get('BRIGHTNESS', 0.0))
         gamma = float(config.get('GAMMA', 1.0))
         if abs(brightness) > 0.01 or abs(gamma - 1.0) > 0.001:
