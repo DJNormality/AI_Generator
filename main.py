@@ -237,6 +237,21 @@ class FaceSwapApp:
     def __init__(self, root):
         self.root = root
         self.root.title("AI Generator")
+        # Load a replaceable app icon and keep the PNG object alive.
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+        resources_dir = os.path.join(app_dir, 'resources')
+        ico_path = os.path.join(resources_dir, 'AI_Generator.ico')
+        png_path = os.path.join(resources_dir, 'AI_Generator.png')
+        self._window_icon_image = None
+        try:
+            if sys.platform == 'win32' and os.path.exists(ico_path):
+                self.root.iconbitmap(default=ico_path)
+            if os.path.exists(png_path):
+                self._window_icon_image = tk.PhotoImage(file=png_path)
+                self.root.iconphoto(True, self._window_icon_image)
+        except (tk.TclError, OSError):
+            # Missing or invalid custom artwork should never prevent startup.
+            self._window_icon_image = None
         self.root.geometry("900x720")
         self.root.minsize(820, 640)
         self.root.configure(bg='#111827')
