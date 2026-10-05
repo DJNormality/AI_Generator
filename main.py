@@ -268,6 +268,8 @@ class FaceSwapApp:
         self.face_consistency = tk.StringVar()
         self.face_restorer = tk.StringVar()
         self.restoration_strength = tk.DoubleVar(value=0.7)
+        self.restoration_percent = tk.StringVar(value='70%')
+        self.restoration_strength.trace_add('write', self._update_restoration_percent)
         self.enable_colorize_model = tk.BooleanVar(value=False)
         self.upscale_factor = tk.StringVar()
         self.upscale_model = tk.StringVar()
@@ -284,6 +286,7 @@ class FaceSwapApp:
         self.prompt_steps = tk.IntVar(value=20)
         self.prompt_for_videos = tk.BooleanVar(value=False)
         self.rebuild_face_index = tk.BooleanVar(value=False)
+        self.reprocess_existing = tk.BooleanVar(value=False)
 
         self.config_file = 'config.json'
         self.load_settings()
@@ -320,6 +323,7 @@ class FaceSwapApp:
         self.overall_progress = tk.DoubleVar(value=0.0)
         self.task_percent_text = tk.StringVar(value='0%')
         self.overall_percent_text = tk.StringVar(value='0%')
+        self.last_issue_text = tk.StringVar(value='')
         ttk.Label(progress_frame, text="Current task", style='Status.TLabel').grid(
             row=0, column=0, sticky='w', padx=(0, 12), pady=4)
         self.task_progress_bar = ttk.Progressbar(
@@ -338,6 +342,9 @@ class FaceSwapApp:
                   style='Percent.TLabel', width=5).grid(row=1, column=2, padx=(10, 0))
         ttk.Label(progress_frame, textvariable=self.status_text,
                   style='HintStatus.TLabel').grid(row=2, column=0, columnspan=3, sticky='w', pady=(4, 0))
+        ttk.Label(progress_frame, textvariable=self.last_issue_text,
+                  style='HintStatus.TLabel', wraplength=820).grid(
+                      row=3, column=0, columnspan=3, sticky='w', pady=(2, 0))
 
         control_frame = ttk.Frame(main_frame, style='App.TFrame')
         control_frame.pack(fill=tk.X, pady=(0, 12))
@@ -466,6 +473,7 @@ class FaceSwapApp:
             ("Enable review pass", self.enable_review_pass),
             ("Enable manual review mode", self.enable_manual_review),
             ("Rebuild face index this run", self.rebuild_face_index),
+            ("Reprocess existing outputs", self.reprocess_existing),
         ]
         for offset, (text, variable) in enumerate(checks, 4):
             ttk.Checkbutton(swap, text=text, variable=variable,
@@ -477,8 +485,14 @@ class FaceSwapApp:
                         ['None', 'CodeFormer', 'GFPGAN 1024', 'RestoreFormer++',
                          'GPEN 512', 'GPEN 1024'], 0)
         self._tab_label(enhance, "Restoration strength", 1)
-        ttk.Scale(enhance, variable=self.restoration_strength, from_=0.0, to=1.0,
-                  orient=tk.HORIZONTAL).grid(row=1, column=1, sticky='ew', pady=6)
+        restoration_row = ttk.Frame(enhance, style='Panel.TFrame')
+        restoration_row.grid(row=1, column=1, sticky='ew', pady=6)
+        restoration_row.grid_columnconfigure(0, weight=1)
+        ttk.Scale(restoration_row, variable=self.restoration_strength, from_=0.0, to=1.0,
+                  orient=tk.HORIZONTAL).grid(row=0, column=0, sticky='ew')
+        ttk.Label(restoration_row, textvariable=self.restoration_percent,
+                  style='Percent.TLabel', width=5, anchor='e').grid(
+                      row=0, column=1, padx=(10, 0))
         self._tab_label(enhance, "Colorization", 2)
         self._tab_combo(enhance, self.colorization_model,
                         ['Off', 'ColorizeStable', 'DDColor Natural', 'DDColor Artistic'], 2)
@@ -611,6 +625,7 @@ class FaceSwapApp:
             'negative_prompt': self.negative_prompt.get(),
             'prompt_steps': self.prompt_steps.get(),
             'prompt_for_videos': self.prompt_for_videos.get(),
+            'reprocess_existing': self.reprocess_existing.get(),
         }
         with open(self.config_file, 'w') as f: json.dump(settings, f, indent=4)
 
@@ -644,6 +659,7 @@ class FaceSwapApp:
             self.negative_prompt.set(settings.get('negative_prompt', 'blurry, distorted, deformed'))
             self.prompt_steps.set(settings.get('prompt_steps', 20))
             self.prompt_for_videos.set(settings.get('prompt_for_videos', False))
+            self.reprocess_existing.set(settings.get('reprocess_existing', False))
         except (FileNotFoundError, json.JSONDecodeError):
             self.source_dir.set('source_images'); self.target_dir.set('target_videos')
             self.output_dir.set('output'); self.temp_dir.set('temp_processing')
@@ -661,6 +677,7 @@ class FaceSwapApp:
             self.cloud_image_quality.set('high')
             self.negative_prompt.set('blurry, distorted, deformed')
             self.prompt_steps.set(20); self.prompt_for_videos.set(False)
+            self.reprocess_existing.set(False)
 
     def create_path_entry(self, parent, label_text, string_var, command, row):
         ttk.Label(parent, text=label_text, style='Panel.TLabel').grid(
@@ -694,12 +711,23 @@ class FaceSwapApp:
         except Exception as e:
             messagebox.showerror('Could not open link', str(e))
 
+    def _update_restoration_percent(self, *_):
+        try:
+            value = max(0.0, min(1.0, float(self.restoration_strength.get())))
+        except (tk.TclError, ValueError, TypeError):
+            value = 0.0
+        self.restoration_percent.set(f'{value * 100:.0f}%')
+
     def log(self, message):
         if sys.stdout is not None:
             print(message)
         clean = str(message).strip().split('\n')[-1].strip('- ').strip()
         if clean:
             self.status_text.set(clean[:120])
+            lowered = clean.lower()
+            if ('warning:' in lowered or 'error:' in lowered or
+                    'skipping:' in lowered or 'was disabled:' in lowered):
+                self.last_issue_text.set(f'Last issue: {clean[:500]}')
         self.root.update_idletasks()
 
     def update_task_progress(self, value, label=None):
@@ -725,6 +753,7 @@ class FaceSwapApp:
         self.run_button.config(text="Pause", command=self.toggle_pause)
         self.stop_button.config(state='normal')
         self.status_text.set('Processing…')
+        self.last_issue_text.set('')
         self.update_task_progress(0)
         self.update_overall_progress(0)
         self.processing_thread = threading.Thread(target=self.run_full_pipeline, args=(self.is_resume_mode,))
@@ -927,6 +956,7 @@ class FaceSwapApp:
             'NEGATIVE_PROMPT': self.negative_prompt.get().strip(),
             'PROMPT_STEPS': max(10, min(50, self.prompt_steps.get())),
             'PROMPT_FOR_VIDEOS': self.prompt_for_videos.get(),
+            'REPROCESS_EXISTING': self.reprocess_existing.get(),
             'FORCE_REBUILD_INDEX': self.rebuild_face_index.get(),
             'PERSISTENT_INDEX_PATH': os.path.join(
                 self.models_dir.get(), f'source_faces_{source_key}.pkl'),
@@ -1070,8 +1100,13 @@ def process_video(base_config, video_file, log, pause_event, stop_event, is_resu
     video_config['FINAL_VIDEO_PATH'] = os.path.join(base_config['OUTPUT_DIR'], f"{video_name_part}-{source_folder_name}_swapped.mp4")
 
     if os.path.exists(video_config['FINAL_VIDEO_PATH']):
-        log(f"Output file already exists. Skipping: {video_config['FINAL_VIDEO_PATH']}")
-        return
+        if not video_config.get('REPROCESS_EXISTING', False):
+            log(
+                "Output file already exists. Skipping: "
+                f"{video_config['FINAL_VIDEO_PATH']} (enable Reprocess existing outputs to run it again)"
+            )
+            return
+        log(f"Reprocessing and replacing existing output: {video_config['FINAL_VIDEO_PATH']}")
 
     if not is_resume:
         step_1_extract_frames(video_config, log)
@@ -1100,8 +1135,13 @@ def process_image(base_config, image_file, log):
     image_config['FINAL_IMAGE_PATH'] = os.path.join(base_config['OUTPUT_DIR'], f"{image_name_part}-{source_folder_name}_swapped{image_ext}")
 
     if os.path.exists(image_config['FINAL_IMAGE_PATH']):
-        log(f"Output file already exists. Skipping: {image_config['FINAL_IMAGE_PATH']}")
-        return
+        if not image_config.get('REPROCESS_EXISTING', False):
+            log(
+                "Output file already exists. Skipping: "
+                f"{image_config['FINAL_IMAGE_PATH']} (enable Reprocess existing outputs to run it again)"
+            )
+            return
+        log(f"Reprocessing and replacing existing output: {image_config['FINAL_IMAGE_PATH']}")
         
     swap_single_image(image_config, log)
 
@@ -1536,7 +1576,9 @@ class CloudImageEditor:
             image=image_file,
             prompt=full_prompt,
             quality=self.quality,
-            size=self._supported_size(original_w, original_h),
+            # Let the API choose a model-supported canvas. Arbitrary custom
+            # dimensions can be rejected with an otherwise unhelpful 400.
+            size='auto',
             output_format='png',
         )
         if not response.data or not response.data[0].b64_json:
@@ -1696,8 +1738,19 @@ class PostProcessChain:
                     self.config.get('NEGATIVE_PROMPT', ''),
                     self.config.get('PROMPT_STEPS', 20),
                 )
+                engine = self.config.get('PROMPT_ENGINE', 'Local')
+                self.log(f"    {engine} prompt edit completed for this image/frame.")
             except Exception as e:
-                self.log(f"    Warning: skipped prompt editing for this image/frame: {e}")
+                details = getattr(e, 'body', None)
+                if isinstance(details, dict):
+                    error_info = details.get('error', details)
+                    if isinstance(error_info, dict):
+                        details = error_info.get('message') or error_info
+                detail_text = str(details).strip() if details else str(e).strip()
+                self.log(
+                    "    Warning: skipped prompt editing for this image/frame: "
+                    f"{detail_text}"
+                )
         brightness = float(self.config.get('BRIGHTNESS', 0.0))
         gamma = max(0.2, min(3.0, float(self.config.get('GAMMA', 1.0))))
         if abs(brightness) > 0.01:
