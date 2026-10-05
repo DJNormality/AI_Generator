@@ -312,6 +312,17 @@ class FaceSwapApp:
         self.crop_width = tk.IntVar(value=1024)
         self.crop_height = tk.IntVar(value=1024)
         self.crop_overwrite = tk.BooleanVar(value=False)
+        self.rename_dir = tk.StringVar()
+        self.rename_filter = tk.StringVar(value='Images')
+        self.rename_find = tk.StringVar()
+        self.rename_replace = tk.StringVar()
+        self.rename_prefix = tk.StringVar()
+        self.rename_suffix = tk.StringVar()
+        self.rename_numbering = tk.BooleanVar(value=False)
+        self.rename_start = tk.IntVar(value=1)
+        self.rename_digits = tk.IntVar(value=3)
+        self.rename_recursive = tk.BooleanVar(value=False)
+        self.rename_preview_rows = []
 
         self.config_file = 'config.json'
         self.load_settings()
@@ -335,12 +346,15 @@ class FaceSwapApp:
         enhance_tab = ttk.Frame(notebook, style='Panel.TFrame', padding=16)
         prompt_tab = ttk.Frame(notebook, style='Panel.TFrame', padding=16)
         crop_tab = ttk.Frame(notebook, style='Panel.TFrame', padding=16)
+        rename_tab = ttk.Frame(notebook, style='Panel.TFrame', padding=16)
         notebook.add(paths_tab, text='  Paths  ')
         notebook.add(swap_tab, text='  Face Swap  ')
         notebook.add(enhance_tab, text='  Enhance  ')
         notebook.add(prompt_tab, text='  Prompt Edit  ')
         notebook.add(crop_tab, text='  Crop  ')
-        self.create_modern_tabs(paths_tab, swap_tab, enhance_tab, prompt_tab, crop_tab)
+        notebook.add(rename_tab, text='  Rename  ')
+        self.create_modern_tabs(paths_tab, swap_tab, enhance_tab, prompt_tab, crop_tab,
+                                rename_tab)
 
         progress_frame = ttk.Frame(main_frame, style='App.TFrame')
         progress_frame.pack(fill=tk.X, pady=(0, 10))
@@ -465,6 +479,12 @@ class FaceSwapApp:
                         background='#22c55e', borderwidth=0)
         style.configure('Overall.Horizontal.TProgressbar', troughcolor='#1f2937',
                         background='#22c55e', borderwidth=0)
+        style.configure('Treeview', background='#0f172a', fieldbackground='#0f172a',
+                        foreground='#e5e7eb', rowheight=26, borderwidth=0)
+        style.configure('Treeview.Heading', background='#374151', foreground='#f8fafc',
+                        font=('Segoe UI Semibold', 9), borderwidth=0)
+        style.map('Treeview', background=[('selected', '#2563eb')],
+                  foreground=[('selected', '#ffffff')])
 
     def _tab_label(self, parent, text, row):
         ttk.Label(parent, text=text, style='Panel.TLabel').grid(
@@ -476,8 +496,8 @@ class FaceSwapApp:
         widget.grid(row=row, column=1, sticky='ew', pady=6)
         return widget
 
-    def create_modern_tabs(self, paths, swap, enhance, prompt, crop):
-        for tab in (paths, swap, enhance, prompt, crop):
+    def create_modern_tabs(self, paths, swap, enhance, prompt, crop, rename):
+        for tab in (paths, swap, enhance, prompt, crop, rename):
             tab.grid_columnconfigure(1, weight=1)
 
         self.create_path_entry(paths, "Source images", self.source_dir, self.browse_source_dir, 0)
@@ -618,6 +638,57 @@ class FaceSwapApp:
                       bg='#16a34a', hover='#22c55e', width=210).grid(
                           row=10, column=0, columnspan=2, sticky='w', pady=(8, 0))
 
+        self.create_path_entry(rename, "Files folder", self.rename_dir,
+                               self.browse_rename_dir, 0)
+        self._tab_label(rename, "File type", 1)
+        self._tab_combo(rename, self.rename_filter,
+                        ['Images', 'Videos', 'Images and videos', 'All files'], 1)
+        self._tab_label(rename, "Find text", 2)
+        ttk.Entry(rename, textvariable=self.rename_find,
+                  style='Modern.TEntry').grid(row=2, column=1, sticky='ew', pady=6)
+        self._tab_label(rename, "Replace with", 3)
+        ttk.Entry(rename, textvariable=self.rename_replace,
+                  style='Modern.TEntry').grid(row=3, column=1, sticky='ew', pady=6)
+        self._tab_label(rename, "Prefix", 4)
+        ttk.Entry(rename, textvariable=self.rename_prefix,
+                  style='Modern.TEntry').grid(row=4, column=1, sticky='ew', pady=6)
+        self._tab_label(rename, "Suffix", 5)
+        ttk.Entry(rename, textvariable=self.rename_suffix,
+                  style='Modern.TEntry').grid(row=5, column=1, sticky='ew', pady=6)
+        options = ttk.Frame(rename, style='Panel.TFrame')
+        options.grid(row=6, column=0, columnspan=3, sticky='ew', pady=4)
+        ttk.Checkbutton(options, text='Add sequential number', variable=self.rename_numbering,
+                        style='Modern.TCheckbutton').pack(side=tk.LEFT)
+        ttk.Label(options, text='Start', style='Panel.TLabel').pack(side=tk.LEFT, padx=(14, 4))
+        ttk.Spinbox(options, from_=0, to=999999, textvariable=self.rename_start,
+                    width=7, style='Modern.TSpinbox').pack(side=tk.LEFT)
+        ttk.Label(options, text='Digits', style='Panel.TLabel').pack(side=tk.LEFT, padx=(14, 4))
+        ttk.Spinbox(options, from_=1, to=10, textvariable=self.rename_digits,
+                    width=5, style='Modern.TSpinbox').pack(side=tk.LEFT)
+        ttk.Checkbutton(options, text='Include subfolders', variable=self.rename_recursive,
+                        style='Modern.TCheckbutton').pack(side=tk.LEFT, padx=(18, 0))
+        preview_frame = ttk.Frame(rename, style='Panel.TFrame')
+        preview_frame.grid(row=7, column=0, columnspan=3, sticky='nsew', pady=(6, 4))
+        preview_frame.grid_columnconfigure(0, weight=1)
+        self.rename_preview = ttk.Treeview(preview_frame, columns=('old', 'new'),
+                                           show='headings', height=6)
+        self.rename_preview.heading('old', text='Current name')
+        self.rename_preview.heading('new', text='New name')
+        self.rename_preview.column('old', width=330, anchor='w')
+        self.rename_preview.column('new', width=330, anchor='w')
+        self.rename_preview.grid(row=0, column=0, sticky='nsew')
+        preview_scroll = ttk.Scrollbar(preview_frame, orient='vertical',
+                                       command=self.rename_preview.yview)
+        preview_scroll.grid(row=0, column=1, sticky='ns')
+        self.rename_preview.configure(yscrollcommand=preview_scroll.set)
+        rename_buttons = ttk.Frame(rename, style='Panel.TFrame')
+        rename_buttons.grid(row=8, column=0, columnspan=3, sticky='w', pady=(7, 0))
+        RoundedButton(rename_buttons, text='Preview', command=self.preview_batch_rename,
+                      width=130, canvas_bg='#1f2937').pack(side=tk.LEFT)
+        RoundedButton(rename_buttons, text='Rename Files', command=self.run_batch_rename,
+                      bg='#16a34a', hover='#22c55e', width=160,
+                      canvas_bg='#1f2937').pack(side=tk.LEFT, padx=(8, 0))
+
     def create_settings_widgets(self, parent):
         tk.Label(parent, text="GPU Provider:").grid(row=0, column=0, sticky='w', padx=5, pady=2)
         tk.OptionMenu(parent, self.gpu_provider, *['DmlExecutionProvider', 'CUDAExecutionProvider', 'CPUExecutionProvider']).grid(row=0, column=1, sticky='ew', padx=5)
@@ -715,6 +786,16 @@ class FaceSwapApp:
             'crop_width': self.crop_width.get(),
             'crop_height': self.crop_height.get(),
             'crop_overwrite': self.crop_overwrite.get(),
+            'rename_dir': self.rename_dir.get(),
+            'rename_filter': self.rename_filter.get(),
+            'rename_find': self.rename_find.get(),
+            'rename_replace': self.rename_replace.get(),
+            'rename_prefix': self.rename_prefix.get(),
+            'rename_suffix': self.rename_suffix.get(),
+            'rename_numbering': self.rename_numbering.get(),
+            'rename_start': self.rename_start.get(),
+            'rename_digits': self.rename_digits.get(),
+            'rename_recursive': self.rename_recursive.get(),
         }
         with open(self.config_file, 'w') as f: json.dump(settings, f, indent=4)
 
@@ -765,6 +846,16 @@ class FaceSwapApp:
             self.crop_width.set(settings.get('crop_width', 1024))
             self.crop_height.set(settings.get('crop_height', 1024))
             self.crop_overwrite.set(settings.get('crop_overwrite', False))
+            self.rename_dir.set(settings.get('rename_dir', ''))
+            self.rename_filter.set(settings.get('rename_filter', 'Images'))
+            self.rename_find.set(settings.get('rename_find', ''))
+            self.rename_replace.set(settings.get('rename_replace', ''))
+            self.rename_prefix.set(settings.get('rename_prefix', ''))
+            self.rename_suffix.set(settings.get('rename_suffix', ''))
+            self.rename_numbering.set(settings.get('rename_numbering', False))
+            self.rename_start.set(settings.get('rename_start', 1))
+            self.rename_digits.set(settings.get('rename_digits', 3))
+            self.rename_recursive.set(settings.get('rename_recursive', False))
         except (FileNotFoundError, json.JSONDecodeError):
             self.source_dir.set('source_images'); self.target_dir.set('target_videos')
             self.output_dir.set('output'); self.temp_dir.set('temp_processing')
@@ -790,6 +881,11 @@ class FaceSwapApp:
             self.crop_mode.set('Aspect ratio'); self.crop_ratio.set('1:1')
             self.crop_width.set(1024); self.crop_height.set(1024)
             self.crop_overwrite.set(False)
+            self.rename_dir.set(''); self.rename_filter.set('Images')
+            self.rename_find.set(''); self.rename_replace.set('')
+            self.rename_prefix.set(''); self.rename_suffix.set('')
+            self.rename_numbering.set(False); self.rename_start.set(1)
+            self.rename_digits.set(3); self.rename_recursive.set(False)
 
     def create_path_entry(self, parent, label_text, string_var, command, row):
         ttk.Label(parent, text=label_text, style='Panel.TLabel').grid(
@@ -832,6 +928,156 @@ class FaceSwapApp:
             title="Select Cropped Image Output Folder")
         if path:
             self.crop_output_dir.set(path)
+
+    def browse_rename_dir(self):
+        path = filedialog.askdirectory(
+            initialdir=self.rename_dir.get() or self.target_dir.get(),
+            title='Select Folder Containing Files to Rename')
+        if path:
+            self.rename_dir.set(path)
+            self.preview_batch_rename()
+
+    def _rename_file_extensions(self):
+        images = {'.png', '.jpg', '.jpeg', '.webp', '.bmp', '.tif', '.tiff', '.gif'}
+        videos = {'.mp4', '.avi', '.mov', '.mkv', '.webm', '.m4v', '.wmv'}
+        selected = self.rename_filter.get()
+        if selected == 'Images':
+            return images
+        if selected == 'Videos':
+            return videos
+        if selected == 'Images and videos':
+            return images | videos
+        return None
+
+    def _build_rename_plan(self):
+        folder = os.path.abspath(self.rename_dir.get().strip())
+        if not os.path.isdir(folder):
+            raise ValueError('Select a valid folder containing files to rename.')
+        allowed = self._rename_file_extensions()
+        candidates = []
+        if self.rename_recursive.get():
+            for current, directories, filenames in os.walk(folder):
+                directories.sort(key=str.casefold)
+                for filename in sorted(filenames, key=str.casefold):
+                    path = os.path.join(current, filename)
+                    if allowed is None or os.path.splitext(filename)[1].lower() in allowed:
+                        candidates.append(path)
+        else:
+            for filename in sorted(os.listdir(folder), key=str.casefold):
+                path = os.path.join(folder, filename)
+                if os.path.isfile(path) and (allowed is None or
+                                              os.path.splitext(filename)[1].lower() in allowed):
+                    candidates.append(path)
+        find_text = self.rename_find.get()
+        replacement = self.rename_replace.get()
+        prefix = self.rename_prefix.get()
+        suffix = self.rename_suffix.get()
+        numbering = self.rename_numbering.get()
+        try:
+            number = int(self.rename_start.get())
+            digits = max(1, min(10, int(self.rename_digits.get())))
+        except (tk.TclError, ValueError):
+            raise ValueError('Start number and digits must be valid whole numbers.')
+        invalid = set('<>:"/\\|?*')
+        plan = []
+        for index, source_path in enumerate(candidates):
+            filename = os.path.basename(source_path)
+            stem, extension = os.path.splitext(filename)
+            if find_text:
+                stem = stem.replace(find_text, replacement)
+            stem = f'{prefix}{stem}{suffix}'
+            if numbering:
+                stem = f'{stem}_{number + index:0{digits}d}'
+            stem = stem.strip().rstrip('.')
+            if not stem:
+                raise ValueError(f'The settings produce an empty filename for {filename}.')
+            if any(character in invalid for character in stem):
+                raise ValueError(f'The new filename contains a Windows-invalid character: {stem}')
+            destination_path = os.path.join(os.path.dirname(source_path), stem + extension)
+            plan.append((source_path, destination_path,
+                         os.path.relpath(source_path, folder),
+                         os.path.relpath(destination_path, folder)))
+        return plan
+
+    def preview_batch_rename(self):
+        if not hasattr(self, 'rename_preview'):
+            return
+        self.rename_preview.delete(*self.rename_preview.get_children())
+        try:
+            plan = self._build_rename_plan()
+        except ValueError as error:
+            self.rename_preview_rows = []
+            self.last_issue_text.set(str(error))
+            return
+        self.rename_preview_rows = plan
+        for source_path, destination_path, old_relative, new_relative in plan:
+            tags = ('unchanged',) if os.path.normcase(source_path) == os.path.normcase(destination_path) else ()
+            self.rename_preview.insert('', 'end', values=(old_relative, new_relative), tags=tags)
+        self.rename_preview.tag_configure('unchanged', foreground='#64748b')
+        changed = sum(os.path.normcase(old) != os.path.normcase(new)
+                      for old, new, _, _ in plan)
+        self.status_text.set(f'Rename preview: {changed} of {len(plan)} files will change.')
+        self.last_issue_text.set('')
+
+    def run_batch_rename(self):
+        try:
+            plan = self._build_rename_plan()
+        except ValueError as error:
+            messagebox.showerror('Batch rename', str(error))
+            return
+        changes = [row for row in plan
+                   if os.path.normcase(row[0]) != os.path.normcase(row[1])]
+        if not changes:
+            messagebox.showinfo('Batch rename', 'No filenames would change with these settings.')
+            return
+        destination_keys = [os.path.normcase(os.path.abspath(row[1])) for row in changes]
+        if len(destination_keys) != len(set(destination_keys)):
+            messagebox.showerror('Batch rename',
+                                 'Two or more files would receive the same new name. Adjust the settings.')
+            return
+        source_keys = {os.path.normcase(os.path.abspath(row[0])) for row in changes}
+        for _, destination_path, _, _ in changes:
+            destination_key = os.path.normcase(os.path.abspath(destination_path))
+            if os.path.exists(destination_path) and destination_key not in source_keys:
+                messagebox.showerror('Batch rename',
+                                     f'A file already uses this destination name:\n{destination_path}')
+                return
+        if not messagebox.askyesno(
+                'Confirm batch rename',
+                f'Rename {len(changes)} files?\n\nA preview is shown in the Rename tab.'):
+            return
+        temporary = []
+        completed = []
+        try:
+            for index, (source_path, destination_path, _, _) in enumerate(changes):
+                temp_path = os.path.join(
+                    os.path.dirname(source_path),
+                    f'.ai_generator_rename_{os.getpid()}_{time.time_ns()}_{index}.tmp')
+                os.replace(source_path, temp_path)
+                temporary.append((temp_path, source_path, destination_path))
+            for index, (temp_path, source_path, destination_path) in enumerate(temporary, 1):
+                os.replace(temp_path, destination_path)
+                completed.append((destination_path, source_path))
+                self.update_task_progress(index / len(temporary) * 100,
+                                          f'Renaming file {index} of {len(temporary)}')
+        except Exception as error:
+            for current_path, original_path in reversed(completed):
+                try:
+                    if os.path.exists(current_path):
+                        os.replace(current_path, original_path)
+                except OSError:
+                    pass
+            for temp_path, original_path, _ in reversed(temporary):
+                try:
+                    if os.path.exists(temp_path):
+                        os.replace(temp_path, original_path)
+                except OSError:
+                    pass
+            messagebox.showerror('Batch rename failed', str(error))
+            return
+        self.status_text.set(f'Batch rename complete: {len(changes)} files renamed.')
+        self.preview_batch_rename()
+        messagebox.showinfo('Batch rename complete', f'Renamed {len(changes)} files successfully.')
 
     def open_manual_crop_editor(self):
         image_path = filedialog.askopenfilename(
