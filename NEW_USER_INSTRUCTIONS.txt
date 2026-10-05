@@ -46,6 +46,18 @@ Qwen Cloud uses Qwen/Qwen-Image-Edit through Hugging Face Inference Providers.
 Provider usage may consume Hugging Face credits or incur provider charges.
 Never place the token in main.py, config.json, screenshots or GitHub.
 
+OPTIONAL A2E PROMPT EDITING
+---------------------------
+A2E provides cloud GPT Image and Qwen image editing with 1K or 2K output.
+1. Create a NEW token at https://video.a2e.ai/account/token
+2. Run Configure_A2E_API_Token.bat and paste the token.
+3. Completely close and reopen AI Generator.
+4. Select A2E on the Prompt Edit tab.
+5. For results closest to the A2E web editor, select
+   gpt-image-2.5-sunburst and 2K.
+A2E usage consumes account credits. Never place the token in main.py,
+config.json, screenshots or GitHub. Revoke any token exposed publicly.
+
 FOLDERS
 -------
 - source: source identity portraits
