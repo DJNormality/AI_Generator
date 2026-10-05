@@ -2311,7 +2311,7 @@ class A2EImageEditor:
     """Prompt-guided Qwen image editing through the official A2E REST API."""
     API_ROOT = 'https://api.a2e.ai'
 
-    def __init__(self, model, resolution, log):
+    def __init__(self, model, resolution, log, diagnostic_dir='temp_processing'):
         self.token = (os.environ.get('A2E_API_TOKEN') or
                       os.environ.get('A2E_TOKEN') or '').strip()
         if not self.token:
@@ -2322,11 +2322,44 @@ class A2EImageEditor:
         self.model = model
         self.resolution = resolution
         self.log = log
+        self.diagnostic_dir = diagnostic_dir or 'temp_processing'
+        self.last_diagnostic_path = ''
         self.headers = {
             'Authorization': f'Bearer {self.token}',
             'Content-Type': 'application/json',
         }
         log(f'    A2E editor ready: {model} at {resolution}')
+
+    @staticmethod
+    def _redact_diagnostic(value):
+        if isinstance(value, dict):
+            return {str(key): A2EImageEditor._redact_diagnostic(child)
+                    for key, child in value.items()}
+        if isinstance(value, list):
+            return [A2EImageEditor._redact_diagnostic(child) for child in value]
+        if isinstance(value, str) and value.startswith(('http://', 'https://')):
+            digest = hashlib.sha256(value.encode('utf-8')).hexdigest()[:12]
+            return f'<redacted URL sha256={digest}>'
+        return value
+
+    def _write_diagnostic(self, detail, task_id, status, candidate_scores=None):
+        try:
+            os.makedirs(self.diagnostic_dir, exist_ok=True)
+            path = os.path.join(self.diagnostic_dir, 'a2e_last_task.json')
+            report = {
+                'task_id': task_id,
+                'model': self.model,
+                'resolution': self.resolution,
+                'status': status,
+                'candidate_scores': candidate_scores or [],
+                'response': self._redact_diagnostic(detail),
+            }
+            with open(path, 'w', encoding='utf-8') as diagnostic_file:
+                json.dump(report, diagnostic_file, indent=2, ensure_ascii=False)
+            self.last_diagnostic_path = os.path.abspath(path)
+            self.log(f'    A2E diagnostic saved to: {self.last_diagnostic_path}')
+        except Exception as diagnostic_error:
+            self.log(f'    Warning: could not save A2E diagnostic: {diagnostic_error}')
 
     @staticmethod
     def _response_json(response, action):
@@ -2408,21 +2441,49 @@ class A2EImageEditor:
 
     def _upload_png(self, image_bytes):
         object_key = f'ai-generator/{int(time.time() * 1000)}-{hashlib.sha256(image_bytes).hexdigest()[:12]}.png'
-        response = requests.post(
-            f'{self.API_ROOT}/v1/r2/upload-presigned-url',
-            headers=self.headers,
-            json={
+        request_body = {
                 'key': object_key,
                 'purpose': 'STAGING',
                 'expiresIn': 300,
                 'contentType': 'image/png',
-                'fileSize': len(image_bytes),
-            },
-            timeout=60,
+                # A2E documents both names, with contentLength taking
+                # precedence when supplied.
+                'contentLength': len(image_bytes),
+        }
+        payload = None
+        errors = []
+        upload_paths = (
+            '/v1/r2/upload-presigned-url',
+            '/v1/r2/get_upload_presigned_url',
         )
-        payload = self._response_json(response, 'upload preparation')
-        data = payload.get('data') or {}
-        upload_url, cdn_url = data.get('uploadUrl'), data.get('cdnUrl')
+        for attempt, upload_path in enumerate(upload_paths, 1):
+            try:
+                response = requests.post(
+                    f'{self.API_ROOT}{upload_path}',
+                    headers=self.headers,
+                    json=request_body,
+                    timeout=60,
+                )
+                payload = self._response_json(
+                    response, f'upload preparation via {upload_path}'
+                )
+                self.log(f'    A2E upload prepared using {upload_path}')
+                break
+            except Exception as upload_error:
+                errors.append(str(upload_error))
+                if attempt < len(upload_paths):
+                    self.log(
+                        f'    A2E primary upload endpoint failed; trying compatibility endpoint.'
+                    )
+        if payload is None:
+            raise RuntimeError('A2E upload preparation failed on both endpoints: '
+                               + ' | '.join(errors))
+        upload_url = self._find_value(
+            payload, ('uploadUrl', 'upload_url', 'presignedUrl', 'presigned_url')
+        )
+        cdn_url = self._find_value(
+            payload, ('cdnUrl', 'cdn_url', 'publicUrl', 'public_url', 'fileUrl', 'file_url')
+        )
         if not upload_url or not cdn_url:
             raise RuntimeError('A2E upload preparation returned no uploadUrl/cdnUrl.')
         uploaded = requests.put(
@@ -2535,6 +2596,7 @@ class A2EImageEditor:
             terminal_success = status in ('success', 'succeeded', 'completed', 'done', 'finished')
             if output_candidates and (terminal_success or status_value is None):
                 best = None
+                candidate_scores = []
                 download_errors = []
                 # A2E detail records may contain source thumbnails and final
                 # outputs together. Select the decodable candidate with the
@@ -2553,11 +2615,19 @@ class A2EImageEditor:
                             candidate, (original_w, original_h), interpolation=cv2.INTER_AREA
                         )
                         change = float(np.mean(cv2.absdiff(comparison, bgr_image)))
+                        candidate_scores.append({
+                            'field': result_field,
+                            'pixel_change_score': round(change, 4),
+                            'size': [int(candidate.shape[1]), int(candidate.shape[0])],
+                        })
                         if best is None or change > best[0]:
                             best = (change, candidate, result_field)
                     except Exception as candidate_error:
                         download_errors.append(f'{result_field}: {candidate_error}')
                 if best is not None:
+                    self._write_diagnostic(
+                        detail, task_id, status or 'unknown', candidate_scores
+                    )
                     self.log(
                         f'    A2E output selected from {best[2]} '
                         f'(pixel-change score {best[0]:.2f}).'
@@ -2570,6 +2640,7 @@ class A2EImageEditor:
                     + '; '.join(download_errors[:3])
                 )
             if terminal_success and not output_candidates:
+                self._write_diagnostic(detail, task_id, status or 'unknown', [])
                 fields = ', '.join(dict.fromkeys(candidate_paths)) or 'none'
                 raise RuntimeError(
                     'A2E completed, but no final result/output URL was present. '
@@ -2604,10 +2675,12 @@ def get_qwen_cloud_editor(model, log):
     return _QWEN_EDITOR_CACHE[model]
 
 
-def get_a2e_editor(model, resolution, log):
-    key = (model, resolution)
+def get_a2e_editor(model, resolution, log, diagnostic_dir='temp_processing'):
+    key = (model, resolution, os.path.abspath(diagnostic_dir or 'temp_processing'))
     if key not in _A2E_EDITOR_CACHE:
-        _A2E_EDITOR_CACHE[key] = A2EImageEditor(model, resolution, log)
+        _A2E_EDITOR_CACHE[key] = A2EImageEditor(
+            model, resolution, log, diagnostic_dir
+        )
     return _A2E_EDITOR_CACHE[key]
 
 
@@ -2621,6 +2694,7 @@ class PostProcessChain:
         self.ddcolor = None
         self.masker = None
         self.prompt_editor = None
+        self.last_prompt_error = ''
         models_dir = config['MODELS_DIR']
         restorer_name = config.get('FACE_RESTORER', 'None')
         if restorer_name in ('CodeFormer', 'GFPGAN 1024', 'RestoreFormer++',
@@ -2678,6 +2752,7 @@ class PostProcessChain:
                             config.get('A2E_IMAGE_MODEL', 'nano-banana-pro'),
                             config.get('A2E_RESOLUTION', '2K'),
                             log,
+                            config.get('TEMP_DIR', 'temp_processing'),
                         )
                     else:
                         self.prompt_editor = get_prompt_editor(log)
@@ -2739,6 +2814,7 @@ class PostProcessChain:
     def apply_prompt(self, image):
         """Apply the selected prompt editor without other enhancement stages."""
         result = image
+        self.last_prompt_error = ''
         if self.prompt_editor is not None:
             try:
                 result = self.prompt_editor.edit(
@@ -2756,6 +2832,12 @@ class PostProcessChain:
                     if isinstance(error_info, dict):
                         details = error_info.get('message') or error_info
                 detail_text = str(details).strip() if details else str(e).strip()
+                self.last_prompt_error = detail_text or type(e).__name__
+                if hasattr(self.prompt_editor, '_write_diagnostic'):
+                    self.prompt_editor._write_diagnostic(
+                        {'client_error': self.last_prompt_error},
+                        '', 'client_error', []
+                    )
                 self.log(
                     "    Warning: skipped prompt editing for this image/frame: "
                     f"{detail_text}"
@@ -3311,10 +3393,24 @@ def swap_single_image(config, log):
             log(f'    Prompt edit pixel-change score: {mean_change:.2f}')
             if mean_change < 1.0:
                 engine_name = config.get('PROMPT_ENGINE', 'prompt provider')
-                log(
-                    f'    Warning: {engine_name} returned an almost unchanged image. '
-                    'Try another cloud model and a shorter, direct prompt.'
+                diagnostic_path = getattr(
+                    post_chain.prompt_editor, 'last_diagnostic_path', ''
                 )
+                diagnostic_note = (
+                    f' Diagnostic saved to: {diagnostic_path}'
+                    if diagnostic_path else ''
+                )
+                if post_chain.last_prompt_error:
+                    log(
+                        f'    Warning: {engine_name} prompt edit failed: '
+                        f'{post_chain.last_prompt_error}.{diagnostic_note}'
+                    )
+                else:
+                    log(
+                        f'    Warning: {engine_name} returned an almost unchanged image. '
+                        'Try another cloud model and a shorter, direct prompt.'
+                        f'{diagnostic_note}'
+                    )
         log(f'    Pre-swap prompt preview saved to: {preview_path}')
     target_faces = face_analyzer.get(target_img)
     final_img = target_img.copy()
