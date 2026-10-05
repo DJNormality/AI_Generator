@@ -2574,7 +2574,7 @@ def step_2_index_source_faces(config, log):
         try:
             with open(cache_path, 'rb') as f:
                 cache = pickle.load(f)
-            if (cache.get('version') in (1, 2) and
+            if (cache.get('version') == 3 and
                     cache.get('source_dir') == source_dir):
                 cached_records = cache.get('records', {})
             else:
@@ -2636,7 +2636,7 @@ def step_2_index_source_faces(config, log):
         """Atomically preserve progress so an interrupted run resumes cleanly."""
         cache_temp = cache_path + '.part'
         with open(cache_temp, 'wb') as f:
-            pickle.dump({'version': 2, 'source_dir': source_dir,
+            pickle.dump({'version': 3, 'source_dir': source_dir,
                          'records': new_cache_records}, f)
         os.replace(cache_temp, cache_path)
         if source_face_data:
@@ -2646,14 +2646,19 @@ def step_2_index_source_faces(config, log):
             os.replace(index_temp, config['INDEX_FILE_PATH'])
 
     face_analyzer = None
+    fallback_analyzer = None
     if pending:
         try:
             face_analyzer = insightface.app.FaceAnalysis(providers=[config['GPU_PROVIDER']])
-            face_analyzer.prepare(ctx_id=0, det_thresh=0.10, det_size=(1024, 1024))
+            face_analyzer.prepare(ctx_id=0, det_thresh=0.08, det_size=(1024, 1024))
+            fallback_analyzer = insightface.app.FaceAnalysis(providers=[config['GPU_PROVIDER']])
+            fallback_analyzer.prepare(ctx_id=0, det_thresh=0.03, det_size=(640, 640))
         except Exception as e:
             log(f"    Failed to load analyzer with {config['GPU_PROVIDER']}, falling back to CPU. Error: {e}")
             face_analyzer = insightface.app.FaceAnalysis(providers=['CPUExecutionProvider'])
-            face_analyzer.prepare(ctx_id=0, det_thresh=0.10, det_size=(1024, 1024))
+            face_analyzer.prepare(ctx_id=0, det_thresh=0.08, det_size=(1024, 1024))
+            fallback_analyzer = insightface.app.FaceAnalysis(providers=['CPUExecutionProvider'])
+            fallback_analyzer.prepare(ctx_id=0, det_thresh=0.03, det_size=(640, 640))
 
     indexed_count = 0
     skipped_count = 0
@@ -2678,9 +2683,11 @@ def step_2_index_source_faces(config, log):
                 progress(completed_images / total_images * 100,
                          f'Indexing source faces: {completed_images} of {total_images}')
             continue
-        # Try several identity-safe orientations and a contrast-enhanced pass.
+        # Try several identity-safe orientations, padded canvases and enhanced
+        # variants. Padding is especially important for tightly cropped heads:
+        # detectors often reject them when landmarks touch an image boundary.
         # Only the embedding is retained, so transformed landmarks are unused.
-        detection_passes = [
+        base_passes = [
             ('original', image),
             ('mirrored', cv2.flip(image, 1)),
             ('rotated right', cv2.rotate(image, cv2.ROTATE_90_CLOCKWISE)),
@@ -2691,7 +2698,33 @@ def step_2_index_source_faces(config, log):
         lightness, channel_a, channel_b = cv2.split(lab)
         lightness = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8)).apply(lightness)
         enhanced = cv2.cvtColor(cv2.merge((lightness, channel_a, channel_b)), cv2.COLOR_LAB2BGR)
-        detection_passes.append(('contrast enhanced', enhanced))
+        sharpened = cv2.addWeighted(image, 1.6, cv2.GaussianBlur(image, (0, 0), 2.0), -0.6, 0)
+        base_passes.extend([
+            ('contrast enhanced', enhanced),
+            ('sharpened', sharpened),
+        ])
+
+        detection_passes = []
+        for method, candidate in base_passes:
+            detection_passes.append((method, candidate))
+            h, w = candidate.shape[:2]
+            for fraction in (0.25, 0.50):
+                pad_y = max(24, int(h * fraction))
+                pad_x = max(24, int(w * fraction))
+                # Use the median corner color so black-background portraits
+                # receive black padding without reflecting duplicate features.
+                corners = np.vstack((
+                    candidate[0, 0], candidate[0, -1],
+                    candidate[-1, 0], candidate[-1, -1]
+                ))
+                border_color = tuple(int(v) for v in np.median(corners, axis=0))
+                padded = cv2.copyMakeBorder(
+                    candidate, pad_y, pad_y, pad_x, pad_x,
+                    cv2.BORDER_CONSTANT, value=border_color
+                )
+                detection_passes.append(
+                    (f'{method}, {int(fraction * 100)}% padded', padded)
+                )
         faces = []
         detection_method = 'original'
         try:
@@ -2700,6 +2733,12 @@ def step_2_index_source_faces(config, log):
                 if faces:
                     detection_method = method
                     break
+            if not faces and fallback_analyzer is not None:
+                for method, candidate in detection_passes:
+                    faces = fallback_analyzer.get(candidate)
+                    if faces:
+                        detection_method = f'{method}, low-threshold fallback'
+                        break
         except Exception as e:
             log(f"    Warning: Face detection failed for {filename}: {e}. Will retry next run.")
             completed_images += 1
