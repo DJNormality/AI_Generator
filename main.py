@@ -2360,8 +2360,9 @@ class A2EImageEditor:
         return None
 
     @staticmethod
-    def _output_url(payload, input_url):
+    def _output_candidates(payload, input_url):
         candidates = []
+        seen_paths = []
         input_marker = input_url.split('?', 1)[0].rstrip('/').rsplit('/', 1)[-1]
 
         def context_score(path):
@@ -2388,16 +2389,22 @@ class A2EImageEditor:
                 lower_path = value.lower().split('?', 1)[0]
                 looks_like_image = any(lower_path.endswith(ext) for ext in
                                        ('.png', '.jpg', '.jpeg', '.webp'))
-                if score >= 0 and (looks_like_image or score >= 20):
+                if looks_like_image:
+                    seen_paths.append('.'.join(path))
+                if score >= 20 and (looks_like_image or score >= 20):
                     candidates.append((score, value, '.'.join(path)))
 
         walk(payload)
         candidates.sort(key=lambda item: item[0], reverse=True)
+        filtered = []
+        seen_urls = set()
         for score, url, field_path in candidates:
             if url == input_url or (input_marker and input_marker in url):
                 continue
-            return url, field_path
-        return None, None
+            if url not in seen_urls:
+                seen_urls.add(url)
+                filtered.append((score, url, field_path))
+        return filtered, seen_paths
 
     def _upload_png(self, image_bytes):
         object_key = f'ai-generator/{int(time.time() * 1000)}-{hashlib.sha256(image_bytes).hexdigest()[:12]}.png'
@@ -2524,20 +2531,50 @@ class A2EImageEditor:
                     detail, ('failed_message', 'error', 'message', 'msg', 'fail_reason')
                 )
                 raise RuntimeError(f'A2E image edit failed: {message or detail}')
-            result_url, result_field = self._output_url(detail, input_url)
-            if result_url and (status in ('', 'success', 'succeeded', 'completed', 'done', 'finished')
-                               or status_value is None):
-                self.log(f'    A2E generated output selected from: {result_field}')
-                result_response = requests.get(result_url, timeout=180)
-                result_response.raise_for_status()
-                result = cv2.imdecode(
-                    np.frombuffer(result_response.content, dtype=np.uint8), cv2.IMREAD_COLOR
+            output_candidates, candidate_paths = self._output_candidates(detail, input_url)
+            terminal_success = status in ('success', 'succeeded', 'completed', 'done', 'finished')
+            if output_candidates and (terminal_success or status_value is None):
+                best = None
+                download_errors = []
+                # A2E detail records may contain source thumbnails and final
+                # outputs together. Select the decodable candidate with the
+                # largest actual change from the submitted image.
+                for _, result_url, result_field in output_candidates[:8]:
+                    try:
+                        result_response = requests.get(result_url, timeout=180)
+                        result_response.raise_for_status()
+                        candidate = cv2.imdecode(
+                            np.frombuffer(result_response.content, dtype=np.uint8),
+                            cv2.IMREAD_COLOR,
+                        )
+                        if candidate is None:
+                            continue
+                        comparison = cv2.resize(
+                            candidate, (original_w, original_h), interpolation=cv2.INTER_AREA
+                        )
+                        change = float(np.mean(cv2.absdiff(comparison, bgr_image)))
+                        if best is None or change > best[0]:
+                            best = (change, candidate, result_field)
+                    except Exception as candidate_error:
+                        download_errors.append(f'{result_field}: {candidate_error}')
+                if best is not None:
+                    self.log(
+                        f'    A2E output selected from {best[2]} '
+                        f'(pixel-change score {best[0]:.2f}).'
+                    )
+                    # Keep A2E's generated resolution (including 2K) so the
+                    # later stages do not discard cloud detail.
+                    return best[1]
+                raise RuntimeError(
+                    'A2E returned image URLs, but none could be decoded. '
+                    + '; '.join(download_errors[:3])
                 )
-                if result is None:
-                    raise RuntimeError('A2E returned an unreadable output image.')
-                # Keep A2E's generated resolution (including 2K) so the later
-                # face-swap/restoration stages do not discard cloud detail.
-                return result
+            if terminal_success and not output_candidates:
+                fields = ', '.join(dict.fromkeys(candidate_paths)) or 'none'
+                raise RuntimeError(
+                    'A2E completed, but no final result/output URL was present. '
+                    f'Image URL fields returned by A2E: {fields}'
+                )
         raise RuntimeError('A2E image edit timed out after 15 minutes.')
 
 
