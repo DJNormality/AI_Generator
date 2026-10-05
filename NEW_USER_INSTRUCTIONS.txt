@@ -36,6 +36,16 @@ OPTIONAL LOCAL PROMPT EDITING
 3. Double-click Install_NVIDIA_Prompt.bat.
 4. The large prompt model downloads the first time Prompt Edit is enabled.
 
+OPTIONAL QWEN CLOUD EDITING
+---------------------------
+Qwen Cloud uses Qwen/Qwen-Image-Edit through Hugging Face Inference Providers.
+1. Create a Hugging Face token at https://huggingface.co/settings/tokens
+2. Run Configure_HuggingFace_Token.bat and paste the token.
+3. Completely close and reopen AI Generator.
+4. Select Qwen Cloud on the Prompt Edit tab.
+Provider usage may consume Hugging Face credits or incur provider charges.
+Never place the token in main.py, config.json, screenshots or GitHub.
+
 FOLDERS
 -------
 - source: source identity portraits

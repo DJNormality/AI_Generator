@@ -63,6 +63,7 @@ echo.
 echo Run Run.bat to start AI Generator.
 echo Run Install_NVIDIA_Prompt.bat only if local prompt editing is needed.
 echo Run Configure_Cloud_API_Key.bat to enable optional Cloud prompt editing.
+echo Run Configure_HuggingFace_Token.bat to enable Qwen Cloud editing.
 echo Models are downloaded when their associated options are first enabled.
 echo ============================================================
 pause
