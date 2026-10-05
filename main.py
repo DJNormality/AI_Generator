@@ -1555,6 +1555,33 @@ class CloudImageEditor:
         out_h = max(16, int(round(height * scale / 16.0)) * 16)
         return f'{out_w}x{out_h}'
 
+    @staticmethod
+    def _api_error_details(error):
+        """Extract the useful API message from recent and older SDK errors."""
+        parts = []
+        body = getattr(error, 'body', None)
+        if body:
+            parts.append(str(body))
+        response = getattr(error, 'response', None)
+        if response is not None:
+            try:
+                response_text = response.text
+                if response_text:
+                    parts.append(str(response_text))
+            except Exception:
+                pass
+        for attribute in ('message', 'code', 'param', 'type'):
+            value = getattr(error, attribute, None)
+            if value:
+                parts.append(f'{attribute}={value}')
+        parts.append(str(error))
+        unique = []
+        for part in parts:
+            part = ' '.join(str(part).split())
+            if part and part not in unique:
+                unique.append(part)
+        return ' | '.join(unique)
+
     def edit(self, bgr_image, prompt, negative_prompt='', steps=20):
         del steps  # Local diffusion-only setting.
         original_h, original_w = bgr_image.shape[:2]
@@ -1571,16 +1598,34 @@ class CloudImageEditor:
         full_prompt = preservation + prompt.strip()
         if negative_prompt.strip():
             full_prompt += " Do not add or introduce: " + negative_prompt.strip() + "."
-        response = self.client.images.edit(
-            model=self.model,
-            image=image_file,
-            prompt=full_prompt,
-            quality=self.quality,
-            # Let the API choose a model-supported canvas. Arbitrary custom
-            # dimensions can be rejected with an otherwise unhelpful 400.
-            size='auto',
-            output_format='png',
-        )
+        try:
+            response = self.client.images.edit(
+                model=self.model,
+                image=image_file,
+                prompt=full_prompt,
+                quality=self.quality,
+                size='auto',
+                output_format='png',
+            )
+        except Exception as first_error:
+            # Retry the smallest valid edit request to work around SDK/API
+            # parameter-version mismatches and reveal the real server error.
+            self.log(
+                '    Full cloud request was rejected; retrying with basic settings.'
+            )
+            image_file.seek(0)
+            try:
+                response = self.client.images.edit(
+                    model=self.model,
+                    image=image_file,
+                    prompt=full_prompt,
+                )
+            except Exception as retry_error:
+                raise RuntimeError(
+                    'Cloud edit failed. Full request: '
+                    f'{self._api_error_details(first_error)}; Basic retry: '
+                    f'{self._api_error_details(retry_error)}'
+                ) from retry_error
         if not response.data or not response.data[0].b64_json:
             raise RuntimeError('The cloud editor returned no image.')
         result_bytes = base64.b64decode(response.data[0].b64_json)
