@@ -681,6 +681,7 @@ class FaceSwapApp:
 
     def save_settings(self):
         settings = {
+            'settings_version': 2,
             'source_dir': self.source_dir.get(),'target_dir': self.target_dir.get(),
             'output_dir': self.output_dir.get(),'temp_dir': self.temp_dir.get(),
             'gpu_provider': self.gpu_provider.get(),'processing_resolution': self.processing_resolution.get(),
@@ -744,7 +745,13 @@ class FaceSwapApp:
             self.cloud_image_model.set(settings.get('cloud_image_model', 'gpt-image-2.5-sunburst'))
             self.cloud_image_quality.set(settings.get('cloud_image_quality', 'high'))
             self.qwen_image_model.set(settings.get('qwen_image_model', 'Qwen/Qwen-Image-Edit'))
-            self.a2e_image_model.set(settings.get('a2e_image_model', 'nano-banana-pro'))
+            # Older installs saved Sunburst before Nano Banana became the
+            # recommended A2E editor. Migrate that old default once, while
+            # preserving any model choice made after this settings revision.
+            saved_a2e_model = settings.get('a2e_image_model', 'nano-banana-pro')
+            if settings.get('settings_version', 1) < 2 and saved_a2e_model == 'gpt-image-2.5-sunburst':
+                saved_a2e_model = 'nano-banana-pro'
+            self.a2e_image_model.set(saved_a2e_model)
             self.a2e_resolution.set(settings.get('a2e_resolution', '2K'))
             self.edit_prompt.set(settings.get('edit_prompt', ''))
             self.negative_prompt.set(settings.get('negative_prompt', 'blurry, distorted, deformed'))
