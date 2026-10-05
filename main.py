@@ -1798,6 +1798,7 @@ class LocalPromptEditor:
         log(f"    Prompt editor ready on {torch.cuda.get_device_name(0)} ({memory_gb:.1f} GB VRAM).")
 
     def edit(self, bgr_image, prompt, negative_prompt='', steps=20):
+        del steps
         from PIL import Image
         original_h, original_w = bgr_image.shape[:2]
         scale = min(1.0, 768.0 / max(original_w, original_h))
@@ -1975,18 +1976,13 @@ class QwenCloudImageEditor:
         success, encoded = cv2.imencode('.png', bgr_image)
         if not success:
             raise RuntimeError('Could not encode the image for Qwen Cloud editing.')
-        preservation = (
-            "Edit only what the user requests. Preserve the person's exact identity, face, "
-            "expression, skin, pose, clothing, lighting, background, composition, and camera "
-            "angle unless explicitly requested otherwise. "
-        )
+        qwen_prompt = prompt.strip()
+        if negative_prompt.strip():
+            qwen_prompt += '. Avoid: ' + negative_prompt.strip()
         try:
             edited = self.client.image_to_image(
-                image=encoded.tobytes(),
-                prompt=preservation + prompt.strip(),
-                negative_prompt=negative_prompt.strip() or None,
-                num_inference_steps=max(10, min(50, int(steps))),
-                guidance_scale=4.0,
+                encoded.tobytes(),
+                prompt=qwen_prompt,
                 model=self.model,
             )
         except Exception as e:
@@ -2144,13 +2140,9 @@ class PostProcessChain:
             self.log(f"    Warning: skipped smart masking for this face: {e}")
             return swapped
 
-    def finish_frame(self, image):
+    def apply_prompt(self, image):
+        """Apply the selected prompt editor without other enhancement stages."""
         result = image
-        if self.ddcolor is not None:
-            try:
-                result = self.ddcolor.run(result)
-            except Exception as e:
-                self.log(f"    Warning: skipped {self.ddcolor.display_name}: {e}")
         if self.prompt_editor is not None:
             try:
                 result = self.prompt_editor.edit(
@@ -2172,6 +2164,17 @@ class PostProcessChain:
                     "    Warning: skipped prompt editing for this image/frame: "
                     f"{detail_text}"
                 )
+        return result
+
+    def finish_frame(self, image, include_prompt=True):
+        result = image
+        if self.ddcolor is not None:
+            try:
+                result = self.ddcolor.run(result)
+            except Exception as e:
+                self.log(f"    Warning: skipped {self.ddcolor.display_name}: {e}")
+        if include_prompt:
+            result = self.apply_prompt(result)
         brightness = float(self.config.get('BRIGHTNESS', 0.0))
         gamma = max(0.2, min(3.0, float(self.config.get('GAMMA', 1.0))))
         if abs(brightness) > 0.01:
@@ -2654,6 +2657,14 @@ def swap_single_image(config, log):
         post_chain = load_post_process_chain(config, ['CPUExecutionProvider'], log)
 
     target_img = cv2.imread(config['TARGET_IMAGE_PATH'])
+    # For still images, perform the creative edit before swapping the face.
+    # This lets Qwen change hair/background while the final face swap restores
+    # the selected source identity afterward.
+    prompt_applied_before_swap = post_chain.prompt_editor is not None
+    if prompt_applied_before_swap:
+        if progress:
+            progress(10, 'Applying prompt edit before face swap')
+        target_img = post_chain.apply_prompt(target_img)
     target_faces = face_analyzer.get(target_img)
     final_img = target_img.copy()
     if progress:
@@ -2678,7 +2689,8 @@ def swap_single_image(config, log):
 
     if progress:
         progress(80, 'Applying enhancement and prompt stages')
-    final_img = post_chain.finish_frame(final_img)
+    final_img = post_chain.finish_frame(
+        final_img, include_prompt=not prompt_applied_before_swap)
     if progress:
         progress(95, 'Saving generated image')
     cv2.imwrite(config['FINAL_IMAGE_PATH'], final_img)
