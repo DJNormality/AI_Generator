@@ -2091,32 +2091,43 @@ class A2EImageEditor:
 
     @staticmethod
     def _output_url(payload, input_url):
-        priority_keys = (
-            'result_url', 'output_url', 'generated_image_url', 'image_url',
-            'resultUrl', 'outputUrl', 'generatedImageUrl', 'imageUrl', 'url'
-        )
         candidates = []
+        input_marker = input_url.split('?', 1)[0].rstrip('/').rsplit('/', 1)[-1]
 
-        def walk(value, parent_key=''):
+        def context_score(path):
+            context = '.'.join(path).lower()
+            if any(word in context for word in
+                   ('input', 'source', 'reference', 'original', 'upload', 'cover')):
+                return -100
+            if any(word in context for word in
+                   ('result', 'output', 'generated', 'final', 'completed')):
+                return 100
+            if any(word in context for word in ('image_urls', 'images', 'media')):
+                return 20
+            return 0
+
+        def walk(value, path=()):
             if isinstance(value, dict):
                 for key, child in value.items():
-                    if (key in priority_keys and isinstance(child, str) and
-                            child.startswith(('http://', 'https://'))):
-                        score = 2 if any(word in key.lower() for word in
-                                         ('result', 'output', 'generated')) else 1
-                        candidates.append((score, child))
-                    walk(child, key)
+                    walk(child, path + (str(key),))
             elif isinstance(value, list):
-                for child in value:
-                    walk(child, parent_key)
+                for index, child in enumerate(value):
+                    walk(child, path + (str(index),))
             elif isinstance(value, str) and value.startswith(('http://', 'https://')):
-                if any(ext in value.lower().split('?')[0] for ext in
-                       ('.png', '.jpg', '.jpeg', '.webp')):
-                    candidates.append((0, value))
+                score = context_score(path)
+                lower_path = value.lower().split('?', 1)[0]
+                looks_like_image = any(lower_path.endswith(ext) for ext in
+                                       ('.png', '.jpg', '.jpeg', '.webp'))
+                if score >= 0 and (looks_like_image or score >= 20):
+                    candidates.append((score, value, '.'.join(path)))
 
         walk(payload)
         candidates.sort(key=lambda item: item[0], reverse=True)
-        return next((url for _, url in candidates if url != input_url), None)
+        for score, url, field_path in candidates:
+            if url == input_url or (input_marker and input_marker in url):
+                continue
+            return url
+        return None
 
     def _upload_png(self, image_bytes):
         object_key = f'ai-generator/{int(time.time() * 1000)}-{hashlib.sha256(image_bytes).hexdigest()[:12]}.png'
