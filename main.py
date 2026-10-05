@@ -281,6 +281,7 @@ class FaceSwapApp:
         self.prompt_engine = tk.StringVar(value='Local')
         self.cloud_image_model = tk.StringVar(value='gpt-image-2.5-sunburst')
         self.cloud_image_quality = tk.StringVar(value='high')
+        self.qwen_image_model = tk.StringVar(value='Qwen/Qwen-Image-Edit')
         self.edit_prompt = tk.StringVar()
         self.negative_prompt = tk.StringVar()
         self.prompt_steps = tk.IntVar(value=20)
@@ -527,27 +528,30 @@ class FaceSwapApp:
                         variable=self.enable_prompt_edit, style='Modern.TCheckbutton').grid(
             row=0, column=0, columnspan=2, sticky='w', pady=(0, 6))
         self._tab_label(prompt, "Prompt engine", 1)
-        self._tab_combo(prompt, self.prompt_engine, ['Local', 'Cloud'], 1)
+        self._tab_combo(prompt, self.prompt_engine, ['Local', 'Cloud', 'Qwen Cloud'], 1)
         self._tab_label(prompt, "Cloud model", 2)
         self._tab_combo(prompt, self.cloud_image_model,
                         ['gpt-image-2.5-sunburst', 'gpt-image-2.5-flare'], 2)
         self._tab_label(prompt, "Cloud quality", 3)
         self._tab_combo(prompt, self.cloud_image_quality,
                         ['low', 'medium', 'high', 'xhigh', 'max'], 3)
-        self._tab_label(prompt, "Edit prompt", 4)
+        self._tab_label(prompt, "Qwen model", 4)
+        self._tab_combo(prompt, self.qwen_image_model,
+                        ['Qwen/Qwen-Image-Edit'], 4)
         ttk.Entry(prompt, textvariable=self.edit_prompt,
-                  style='Modern.TEntry').grid(row=4, column=1, sticky='ew', pady=6)
-        self._tab_label(prompt, "Negative prompt", 5)
-        ttk.Entry(prompt, textvariable=self.negative_prompt,
                   style='Modern.TEntry').grid(row=5, column=1, sticky='ew', pady=6)
-        self._tab_label(prompt, "Local inference steps", 6)
+        self._tab_label(prompt, "Edit prompt", 5)
+        self._tab_label(prompt, "Negative prompt", 6)
+        ttk.Entry(prompt, textvariable=self.negative_prompt,
+                  style='Modern.TEntry').grid(row=6, column=1, sticky='ew', pady=6)
+        self._tab_label(prompt, "Local / Qwen steps", 7)
         ttk.Spinbox(prompt, from_=10, to=50, textvariable=self.prompt_steps,
-                    width=8, style='Modern.TSpinbox').grid(row=6, column=1, sticky='w', pady=6)
+                    width=8, style='Modern.TSpinbox').grid(row=7, column=1, sticky='w', pady=6)
         ttk.Checkbutton(prompt, text="Apply to video frames (slow and may flicker)",
                         variable=self.prompt_for_videos, style='Modern.TCheckbutton').grid(
-            row=7, column=0, columnspan=2, sticky='w', pady=6)
+            row=8, column=0, columnspan=2, sticky='w', pady=6)
         ttk.Label(prompt, text="Example: give her straight hair, subtle makeup and glasses",
-                  style='Hint.TLabel').grid(row=8, column=0, columnspan=2, sticky='w', pady=(8, 0))
+                  style='Hint.TLabel').grid(row=9, column=0, columnspan=2, sticky='w', pady=(8, 0))
 
         ttk.Label(crop, text="Manual crop", style='Panel.TLabel',
                   font=('Segoe UI Semibold', 11)).grid(
@@ -668,6 +672,7 @@ class FaceSwapApp:
             'prompt_engine': self.prompt_engine.get(),
             'cloud_image_model': self.cloud_image_model.get(),
             'cloud_image_quality': self.cloud_image_quality.get(),
+            'qwen_image_model': self.qwen_image_model.get(),
             'edit_prompt': self.edit_prompt.get(),
             'negative_prompt': self.negative_prompt.get(),
             'prompt_steps': self.prompt_steps.get(),
@@ -709,6 +714,7 @@ class FaceSwapApp:
             self.prompt_engine.set(settings.get('prompt_engine', 'Local'))
             self.cloud_image_model.set(settings.get('cloud_image_model', 'gpt-image-2.5-sunburst'))
             self.cloud_image_quality.set(settings.get('cloud_image_quality', 'high'))
+            self.qwen_image_model.set(settings.get('qwen_image_model', 'Qwen/Qwen-Image-Edit'))
             self.edit_prompt.set(settings.get('edit_prompt', ''))
             self.negative_prompt.set(settings.get('negative_prompt', 'blurry, distorted, deformed'))
             self.prompt_steps.set(settings.get('prompt_steps', 20))
@@ -736,6 +742,7 @@ class FaceSwapApp:
             self.prompt_engine.set('Local')
             self.cloud_image_model.set('gpt-image-2.5-sunburst')
             self.cloud_image_quality.set('high')
+            self.qwen_image_model.set('Qwen/Qwen-Image-Edit')
             self.negative_prompt.set('blurry, distorted, deformed')
             self.prompt_steps.set(20); self.prompt_for_videos.set(False)
             self.reprocess_existing.set(False)
@@ -1255,6 +1262,7 @@ class FaceSwapApp:
             'PROMPT_ENGINE': self.prompt_engine.get(),
             'CLOUD_IMAGE_MODEL': self.cloud_image_model.get(),
             'CLOUD_IMAGE_QUALITY': self.cloud_image_quality.get(),
+            'QWEN_IMAGE_MODEL': self.qwen_image_model.get(),
             'EDIT_PROMPT': self.edit_prompt.get().strip(),
             'NEGATIVE_PROMPT': self.negative_prompt.get().strip(),
             'PROMPT_STEPS': max(10, min(50, self.prompt_steps.get())),
@@ -1940,8 +1948,61 @@ class CloudImageEditor:
         return result
 
 
+class QwenCloudImageEditor:
+    """Qwen-Image-Edit through Hugging Face Inference Providers."""
+    def __init__(self, model, log):
+        token = os.environ.get('HF_TOKEN', '').strip()
+        if not token:
+            raise RuntimeError(
+                'HF_TOKEN is not set. Run Configure_HuggingFace_Token.bat '
+                'before enabling Qwen Cloud.'
+            )
+        try:
+            from huggingface_hub import InferenceClient
+        except ImportError as e:
+            raise RuntimeError(
+                'Qwen Cloud requires huggingface_hub. Install it with: '
+                'python -m pip install -U huggingface_hub'
+            ) from e
+        self.client = InferenceClient(provider='fal-ai', api_key=token, timeout=600)
+        self.model = model
+        self.log = log
+        log(f'    Qwen Cloud editor ready: {model} through fal-ai')
+
+    def edit(self, bgr_image, prompt, negative_prompt='', steps=20):
+        from PIL import Image
+        original_h, original_w = bgr_image.shape[:2]
+        success, encoded = cv2.imencode('.png', bgr_image)
+        if not success:
+            raise RuntimeError('Could not encode the image for Qwen Cloud editing.')
+        preservation = (
+            "Edit only what the user requests. Preserve the person's exact identity, face, "
+            "expression, skin, pose, clothing, lighting, background, composition, and camera "
+            "angle unless explicitly requested otherwise. "
+        )
+        try:
+            edited = self.client.image_to_image(
+                image=encoded.tobytes(),
+                prompt=preservation + prompt.strip(),
+                negative_prompt=negative_prompt.strip() or None,
+                num_inference_steps=max(10, min(50, int(steps))),
+                guidance_scale=4.0,
+                model=self.model,
+            )
+        except Exception as e:
+            raise RuntimeError(f'Qwen Cloud edit failed: {e}') from e
+        if isinstance(edited, bytes):
+            edited = Image.open(BytesIO(edited))
+        rgb = np.asarray(edited.convert('RGB'))
+        result = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+        if result.shape[:2] != (original_h, original_w):
+            result = cv2.resize(result, (original_w, original_h), interpolation=cv2.INTER_LANCZOS4)
+        return result
+
+
 _PROMPT_EDITOR_CACHE = None
 _CLOUD_EDITOR_CACHE = {}
+_QWEN_EDITOR_CACHE = {}
 
 
 def get_prompt_editor(log):
@@ -1956,6 +2017,12 @@ def get_cloud_editor(model, quality, log):
     if key not in _CLOUD_EDITOR_CACHE:
         _CLOUD_EDITOR_CACHE[key] = CloudImageEditor(model, quality, log)
     return _CLOUD_EDITOR_CACHE[key]
+
+
+def get_qwen_cloud_editor(model, log):
+    if model not in _QWEN_EDITOR_CACHE:
+        _QWEN_EDITOR_CACHE[model] = QwenCloudImageEditor(model, log)
+    return _QWEN_EDITOR_CACHE[model]
 
 
 class PostProcessChain:
@@ -2008,10 +2075,16 @@ class PostProcessChain:
                 log("    Prompt editing is disabled for video frames.")
             else:
                 try:
-                    if config.get('PROMPT_ENGINE', 'Local') == 'Cloud':
+                    prompt_engine = config.get('PROMPT_ENGINE', 'Local')
+                    if prompt_engine == 'Cloud':
                         self.prompt_editor = get_cloud_editor(
                             config.get('CLOUD_IMAGE_MODEL', 'gpt-image-2.5-sunburst'),
                             config.get('CLOUD_IMAGE_QUALITY', 'high'),
+                            log,
+                        )
+                    elif prompt_engine == 'Qwen Cloud':
+                        self.prompt_editor = get_qwen_cloud_editor(
+                            config.get('QWEN_IMAGE_MODEL', 'Qwen/Qwen-Image-Edit'),
                             log,
                         )
                     else:
