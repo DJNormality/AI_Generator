@@ -2396,8 +2396,8 @@ class A2EImageEditor:
         for score, url, field_path in candidates:
             if url == input_url or (input_marker and input_marker in url):
                 continue
-            return url
-        return None
+            return url, field_path
+        return None, None
 
     def _upload_png(self, image_bytes):
         object_key = f'ai-generator/{int(time.time() * 1000)}-{hashlib.sha256(image_bytes).hexdigest()[:12]}.png'
@@ -2447,6 +2447,16 @@ class A2EImageEditor:
         full_prompt = prompt.strip()
         is_gpt = self.model.startswith('gpt-image-')
         is_nano = self.model.startswith('nano-banana')
+        if is_nano:
+            # Nano Banana responds more reliably when a short user prompt is
+            # framed as an explicit edit of the attached source image.
+            full_prompt = (
+                'Edit the attached input image. The following visible change is required: '
+                f'{full_prompt} Do not return the original image unchanged. Make the requested '
+                'change clearly visible while preserving the same person, facial identity, pose, '
+                'camera angle, clothing, lighting, and background unless the instruction explicitly '
+                'asks to change one of them.'
+            )
         # A2E's GPT/Nano endpoints have no negative_prompt field. Folding a
         # long negative list into the instruction can over-constrain the edit
         # and cause a near-identical result, so only Qwen receives it.
@@ -2465,6 +2475,7 @@ class A2EImageEditor:
                 'aspect_ratio': 'auto',
                 'image_size': '1K' if self.model == 'nano-banana-2-lite' else self.resolution,
                 'google_search': False,
+                'force_generate': True,
             })
             start_path = '/v1/userNanoBanana/start'
             detail_path = '/v1/userNanoBanana/detail/{id}'
@@ -2502,18 +2513,21 @@ class A2EImageEditor:
             )
             detail = self._response_json(detail_response, 'task status')
             status_value = self._find_value(
-                detail, ('status', 'task_status', 'taskStatus', 'state')
+                detail, ('current_status', 'status', 'task_status', 'taskStatus', 'state')
             )
             status = str(status_value or '').lower()
             if status and status != last_status:
                 self.log(f'    A2E task status: {status}')
                 last_status = status
             if status in ('failed', 'error', 'cancelled', 'canceled', 'rejected'):
-                message = self._find_value(detail, ('error', 'message', 'msg', 'fail_reason'))
+                message = self._find_value(
+                    detail, ('failed_message', 'error', 'message', 'msg', 'fail_reason')
+                )
                 raise RuntimeError(f'A2E image edit failed: {message or detail}')
-            result_url = self._output_url(detail, input_url)
+            result_url, result_field = self._output_url(detail, input_url)
             if result_url and (status in ('', 'success', 'succeeded', 'completed', 'done', 'finished')
                                or status_value is None):
+                self.log(f'    A2E generated output selected from: {result_field}')
                 result_response = requests.get(result_url, timeout=180)
                 result_response.raise_for_status()
                 result = cv2.imdecode(
