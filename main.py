@@ -537,7 +537,7 @@ class FaceSwapApp:
                         ['low', 'medium', 'high', 'xhigh', 'max'], 3)
         self._tab_label(prompt, "Qwen model", 4)
         self._tab_combo(prompt, self.qwen_image_model,
-                        ['Qwen/Qwen-Image-Edit'], 4)
+                        ['Qwen/Qwen-Image-Edit-2511', 'Qwen/Qwen-Image-Edit'], 4)
         ttk.Entry(prompt, textvariable=self.edit_prompt,
                   style='Modern.TEntry').grid(row=5, column=1, sticky='ew', pady=6)
         self._tab_label(prompt, "Edit prompt", 5)
@@ -1798,7 +1798,6 @@ class LocalPromptEditor:
         log(f"    Prompt editor ready on {torch.cuda.get_device_name(0)} ({memory_gb:.1f} GB VRAM).")
 
     def edit(self, bgr_image, prompt, negative_prompt='', steps=20):
-        del steps
         from PIL import Image
         original_h, original_w = bgr_image.shape[:2]
         scale = min(1.0, 768.0 / max(original_w, original_h))
@@ -1976,23 +1975,47 @@ class QwenCloudImageEditor:
         success, encoded = cv2.imencode('.png', bgr_image)
         if not success:
             raise RuntimeError('Could not encode the image for Qwen Cloud editing.')
-        qwen_prompt = prompt.strip()
-        if negative_prompt.strip():
-            qwen_prompt += '. Avoid: ' + negative_prompt.strip()
-        try:
+        image_bytes = encoded.tobytes()
+
+        def run_edit(edit_prompt, edit_negative=None, guidance=4.5):
             edited = self.client.image_to_image(
-                encoded.tobytes(),
-                prompt=qwen_prompt,
+                image_bytes,
+                prompt=edit_prompt,
+                negative_prompt=edit_negative or None,
+                num_inference_steps=max(28, min(50, int(steps))),
+                guidance_scale=guidance,
                 model=self.model,
             )
+            if isinstance(edited, bytes):
+                edited = Image.open(BytesIO(edited))
+            rgb = np.asarray(edited.convert('RGB'))
+            candidate = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
+            if candidate.shape[:2] != (original_h, original_w):
+                candidate = cv2.resize(
+                    candidate, (original_w, original_h), interpolation=cv2.INTER_LANCZOS4
+                )
+            return candidate
+
+        try:
+            result = run_edit(
+                prompt.strip(), negative_prompt.strip() or None, guidance=4.5
+            )
+            first_change = float(np.mean(cv2.absdiff(result, bgr_image)))
+            self.log(f'    Qwen first-attempt pixel-change score: {first_change:.2f}')
+            if first_change < 1.0:
+                self.log('    Qwen returned almost no edit; automatically retrying with a stronger instruction.')
+                retry_prompt = (
+                    'Make a clearly visible image edit. ' + prompt.strip() +
+                    ' The requested change must be obvious in the output. '
+                    'Preserve the person, face, pose, framing, lighting, and background.'
+                )
+                retry_result = run_edit(retry_prompt, None, guidance=4.5)
+                retry_change = float(np.mean(cv2.absdiff(retry_result, bgr_image)))
+                self.log(f'    Qwen retry pixel-change score: {retry_change:.2f}')
+                if retry_change > first_change:
+                    result = retry_result
         except Exception as e:
             raise RuntimeError(f'Qwen Cloud edit failed: {e}') from e
-        if isinstance(edited, bytes):
-            edited = Image.open(BytesIO(edited))
-        rgb = np.asarray(edited.convert('RGB'))
-        result = cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR)
-        if result.shape[:2] != (original_h, original_w):
-            result = cv2.resize(result, (original_w, original_h), interpolation=cv2.INTER_LANCZOS4)
         return result
 
 
@@ -2664,7 +2687,22 @@ def swap_single_image(config, log):
     if prompt_applied_before_swap:
         if progress:
             progress(10, 'Applying prompt edit before face swap')
+        before_prompt = target_img.copy()
         target_img = post_chain.apply_prompt(target_img)
+        preview_dir = os.path.join(config['TEMP_DIR'], 'prompt_previews')
+        os.makedirs(preview_dir, exist_ok=True)
+        preview_name = os.path.splitext(os.path.basename(config['TARGET_IMAGE_PATH']))[0]
+        preview_path = os.path.join(preview_dir, f'{preview_name}_before_face_swap.png')
+        cv2.imwrite(preview_path, target_img)
+        if target_img.shape == before_prompt.shape:
+            mean_change = float(np.mean(cv2.absdiff(target_img, before_prompt)))
+            log(f'    Prompt edit pixel-change score: {mean_change:.2f}')
+            if mean_change < 1.0:
+                log(
+                    '    Warning: the prompt provider returned an almost unchanged image. '
+                    'Try Qwen/Qwen-Image-Edit-2511 and a shorter, direct prompt.'
+                )
+        log(f'    Pre-swap prompt preview saved to: {preview_path}')
     target_faces = face_analyzer.get(target_img)
     final_img = target_img.copy()
     if progress:
