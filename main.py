@@ -1506,7 +1506,13 @@ class PostProcessChain:
             elif config.get('IS_VIDEO', True) and not config.get('PROMPT_FOR_VIDEOS'):
                 log("    Prompt editing is disabled for video frames.")
             else:
-                self.prompt_editor = get_prompt_editor(log)
+                try:
+                    self.prompt_editor = get_prompt_editor(log)
+                except Exception as e:
+                    # Prompt editing is optional. Missing CUDA/PyTorch should
+                    # not prevent face swapping, restoration or upscaling.
+                    self.prompt_editor = None
+                    log(f"    Warning: Local prompt editing was disabled: {e}")
         brightness = float(config.get('BRIGHTNESS', 0.0))
         gamma = float(config.get('GAMMA', 1.0))
         if abs(brightness) > 0.01 or abs(gamma - 1.0) > 0.001:
@@ -1881,6 +1887,8 @@ def step_3_swap_faces(config, log, pause_event, stop_event):
         face_swapper = load_face_swapper(config, [config['GPU_PROVIDER']])
         post_chain = load_post_process_chain(config, [config['GPU_PROVIDER']], log)
     except Exception as e:
+        if config['GPU_PROVIDER'] == 'CPUExecutionProvider':
+            raise RuntimeError(f"Could not load models using CPU: {e}") from e
         log(f"    Failed to load models with {config['GPU_PROVIDER']}, falling back to CPU. Error: {e}")
         face_analyzer = insightface.app.FaceAnalysis(providers=['CPUExecutionProvider'])
         face_analyzer.prepare(ctx_id=0, det_size=(640, 640))
@@ -1972,6 +1980,8 @@ def step_3b_review_and_fix_misses(config, log, pause_event, stop_event):
         face_swapper = load_face_swapper(config, [config['GPU_PROVIDER']])
         post_chain = load_post_process_chain(config, [config['GPU_PROVIDER']], log)
     except Exception as e:
+        if config['GPU_PROVIDER'] == 'CPUExecutionProvider':
+            raise RuntimeError(f"Could not load models using CPU: {e}") from e
         log(f"    Failed to load models with {config['GPU_PROVIDER']}, falling back to CPU. Error: {e}")
         face_analyzer = insightface.app.FaceAnalysis(providers=['CPUExecutionProvider'])
         face_analyzer.prepare(ctx_id=0, det_size=(640, 640))
@@ -2043,6 +2053,8 @@ def swap_single_image(config, log):
         face_swapper = load_face_swapper(config, [config['GPU_PROVIDER']])
         post_chain = load_post_process_chain(config, [config['GPU_PROVIDER']], log)
     except Exception as e:
+        if config['GPU_PROVIDER'] == 'CPUExecutionProvider':
+            raise RuntimeError(f"Could not load models using CPU: {e}") from e
         log(f"    Failed to load models with {config['GPU_PROVIDER']}, falling back to CPU. Error: {e}")
         face_analyzer = insightface.app.FaceAnalysis(providers=['CPUExecutionProvider'])
         face_analyzer.prepare(ctx_id=0, det_size=(640, 640))
