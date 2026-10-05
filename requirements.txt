@@ -1,0 +1,12 @@
+numpy<2
+opencv-python
+onnxruntime-gpu
+onnx
+insightface
+moviepy
+requests
+tqdm
+pillow
+scikit-image
+scikit-learn
+scipy
