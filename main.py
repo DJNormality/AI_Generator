@@ -287,6 +287,13 @@ class FaceSwapApp:
         self.prompt_for_videos = tk.BooleanVar(value=False)
         self.rebuild_face_index = tk.BooleanVar(value=False)
         self.reprocess_existing = tk.BooleanVar(value=False)
+        self.crop_input_dir = tk.StringVar()
+        self.crop_output_dir = tk.StringVar()
+        self.crop_mode = tk.StringVar(value='Aspect ratio')
+        self.crop_ratio = tk.StringVar(value='1:1')
+        self.crop_width = tk.IntVar(value=1024)
+        self.crop_height = tk.IntVar(value=1024)
+        self.crop_overwrite = tk.BooleanVar(value=False)
 
         self.config_file = 'config.json'
         self.load_settings()
@@ -309,11 +316,13 @@ class FaceSwapApp:
         swap_tab = ttk.Frame(notebook, style='Panel.TFrame', padding=16)
         enhance_tab = ttk.Frame(notebook, style='Panel.TFrame', padding=16)
         prompt_tab = ttk.Frame(notebook, style='Panel.TFrame', padding=16)
+        crop_tab = ttk.Frame(notebook, style='Panel.TFrame', padding=16)
         notebook.add(paths_tab, text='  Paths  ')
         notebook.add(swap_tab, text='  Face Swap  ')
         notebook.add(enhance_tab, text='  Enhance  ')
         notebook.add(prompt_tab, text='  Prompt Edit  ')
-        self.create_modern_tabs(paths_tab, swap_tab, enhance_tab, prompt_tab)
+        notebook.add(crop_tab, text='  Crop  ')
+        self.create_modern_tabs(paths_tab, swap_tab, enhance_tab, prompt_tab, crop_tab)
 
         progress_frame = ttk.Frame(main_frame, style='App.TFrame')
         progress_frame.pack(fill=tk.X, pady=(0, 10))
@@ -449,8 +458,8 @@ class FaceSwapApp:
         widget.grid(row=row, column=1, sticky='ew', pady=6)
         return widget
 
-    def create_modern_tabs(self, paths, swap, enhance, prompt):
-        for tab in (paths, swap, enhance, prompt):
+    def create_modern_tabs(self, paths, swap, enhance, prompt, crop):
+        for tab in (paths, swap, enhance, prompt, crop):
             tab.grid_columnconfigure(1, weight=1)
 
         self.create_path_entry(paths, "Source images", self.source_dir, self.browse_source_dir, 0)
@@ -540,6 +549,44 @@ class FaceSwapApp:
         ttk.Label(prompt, text="Example: give her straight hair, subtle makeup and glasses",
                   style='Hint.TLabel').grid(row=8, column=0, columnspan=2, sticky='w', pady=(8, 0))
 
+        ttk.Label(crop, text="Manual crop", style='Panel.TLabel',
+                  font=('Segoe UI Semibold', 11)).grid(
+                      row=0, column=0, sticky='w', pady=(0, 6))
+        ttk.Label(crop, text="Open one image, drag a crop box, preview it, and save a copy.",
+                  style='Hint.TLabel').grid(row=0, column=1, sticky='w', pady=(0, 6))
+        RoundedButton(crop, text="Open Manual Crop Editor", command=self.open_manual_crop_editor,
+                      bg='#2563eb', hover='#3b82f6', width=240).grid(
+                          row=1, column=0, columnspan=2, sticky='w', pady=(0, 14))
+
+        ttk.Separator(crop, orient=tk.HORIZONTAL).grid(
+            row=2, column=0, columnspan=3, sticky='ew', pady=(0, 12))
+        ttk.Label(crop, text="Batch crop", style='Panel.TLabel',
+                  font=('Segoe UI Semibold', 11)).grid(row=3, column=0, sticky='w', pady=(0, 4))
+        self.create_path_entry(crop, "Input folder", self.crop_input_dir,
+                               self.browse_crop_input_dir, 4)
+        self.create_path_entry(crop, "Output folder", self.crop_output_dir,
+                               self.browse_crop_output_dir, 5)
+        self._tab_label(crop, "Crop mode", 6)
+        self._tab_combo(crop, self.crop_mode, ['Aspect ratio', 'Exact size'], 6)
+        self._tab_label(crop, "Aspect ratio", 7)
+        self._tab_combo(crop, self.crop_ratio,
+                        ['1:1', '4:5', '3:4', '2:3', '16:9', '9:16'], 7)
+        exact_row = ttk.Frame(crop, style='Panel.TFrame')
+        exact_row.grid(row=8, column=1, sticky='w', pady=6)
+        ttk.Label(crop, text="Exact output size", style='Panel.TLabel').grid(
+            row=8, column=0, sticky='w', padx=(0, 12), pady=6)
+        ttk.Spinbox(exact_row, from_=16, to=8192, textvariable=self.crop_width,
+                    width=8, style='Modern.TSpinbox').pack(side=tk.LEFT)
+        ttk.Label(exact_row, text=' × ', style='Panel.TLabel').pack(side=tk.LEFT)
+        ttk.Spinbox(exact_row, from_=16, to=8192, textvariable=self.crop_height,
+                    width=8, style='Modern.TSpinbox').pack(side=tk.LEFT)
+        ttk.Checkbutton(crop, text="Overwrite files that already exist",
+                        variable=self.crop_overwrite, style='Modern.TCheckbutton').grid(
+                            row=9, column=0, columnspan=2, sticky='w', pady=4)
+        RoundedButton(crop, text="Run Batch Crop", command=self.run_batch_crop_thread,
+                      bg='#16a34a', hover='#22c55e', width=210).grid(
+                          row=10, column=0, columnspan=2, sticky='w', pady=(8, 0))
+
     def create_settings_widgets(self, parent):
         tk.Label(parent, text="GPU Provider:").grid(row=0, column=0, sticky='w', padx=5, pady=2)
         tk.OptionMenu(parent, self.gpu_provider, *['DmlExecutionProvider', 'CUDAExecutionProvider', 'CPUExecutionProvider']).grid(row=0, column=1, sticky='ew', padx=5)
@@ -626,6 +673,13 @@ class FaceSwapApp:
             'prompt_steps': self.prompt_steps.get(),
             'prompt_for_videos': self.prompt_for_videos.get(),
             'reprocess_existing': self.reprocess_existing.get(),
+            'crop_input_dir': self.crop_input_dir.get(),
+            'crop_output_dir': self.crop_output_dir.get(),
+            'crop_mode': self.crop_mode.get(),
+            'crop_ratio': self.crop_ratio.get(),
+            'crop_width': self.crop_width.get(),
+            'crop_height': self.crop_height.get(),
+            'crop_overwrite': self.crop_overwrite.get(),
         }
         with open(self.config_file, 'w') as f: json.dump(settings, f, indent=4)
 
@@ -660,6 +714,13 @@ class FaceSwapApp:
             self.prompt_steps.set(settings.get('prompt_steps', 20))
             self.prompt_for_videos.set(settings.get('prompt_for_videos', False))
             self.reprocess_existing.set(settings.get('reprocess_existing', False))
+            self.crop_input_dir.set(settings.get('crop_input_dir', ''))
+            self.crop_output_dir.set(settings.get('crop_output_dir', ''))
+            self.crop_mode.set(settings.get('crop_mode', 'Aspect ratio'))
+            self.crop_ratio.set(settings.get('crop_ratio', '1:1'))
+            self.crop_width.set(settings.get('crop_width', 1024))
+            self.crop_height.set(settings.get('crop_height', 1024))
+            self.crop_overwrite.set(settings.get('crop_overwrite', False))
         except (FileNotFoundError, json.JSONDecodeError):
             self.source_dir.set('source_images'); self.target_dir.set('target_videos')
             self.output_dir.set('output'); self.temp_dir.set('temp_processing')
@@ -678,6 +739,10 @@ class FaceSwapApp:
             self.negative_prompt.set('blurry, distorted, deformed')
             self.prompt_steps.set(20); self.prompt_for_videos.set(False)
             self.reprocess_existing.set(False)
+            self.crop_input_dir.set(''); self.crop_output_dir.set('')
+            self.crop_mode.set('Aspect ratio'); self.crop_ratio.set('1:1')
+            self.crop_width.set(1024); self.crop_height.set(1024)
+            self.crop_overwrite.set(False)
 
     def create_path_entry(self, parent, label_text, string_var, command, row):
         ttk.Label(parent, text=label_text, style='Panel.TLabel').grid(
@@ -704,6 +769,244 @@ class FaceSwapApp:
     def browse_temp_dir(self):
         dir_path = filedialog.askdirectory(initialdir=self.temp_dir.get(), title="Select Temporary Processing Folder")
         if dir_path: self.temp_dir.set(dir_path)
+
+    def browse_crop_input_dir(self):
+        path = filedialog.askdirectory(
+            initialdir=self.crop_input_dir.get() or self.target_dir.get(),
+            title="Select Images to Batch Crop")
+        if path:
+            self.crop_input_dir.set(path)
+            if not self.crop_output_dir.get():
+                self.crop_output_dir.set(os.path.join(path, 'cropped'))
+
+    def browse_crop_output_dir(self):
+        path = filedialog.askdirectory(
+            initialdir=self.crop_output_dir.get() or self.output_dir.get(),
+            title="Select Cropped Image Output Folder")
+        if path:
+            self.crop_output_dir.set(path)
+
+    def open_manual_crop_editor(self):
+        image_path = filedialog.askopenfilename(
+            title="Open Image to Crop",
+            filetypes=[('Image files', '*.png *.jpg *.jpeg *.webp *.bmp *.tif *.tiff'),
+                       ('All files', '*.*')])
+        if not image_path:
+            return
+        try:
+            from PIL import Image, ImageOps, ImageTk
+            source_image = ImageOps.exif_transpose(Image.open(image_path)).copy()
+        except Exception as e:
+            messagebox.showerror('Could not open image', str(e))
+            return
+
+        editor = Toplevel(self.root)
+        editor.title('Manual Crop Editor')
+        editor.geometry('900x700')
+        editor.minsize(680, 520)
+        editor.configure(bg='#111827')
+        editor.transient(self.root)
+
+        toolbar = ttk.Frame(editor, style='App.TFrame', padding=(12, 10))
+        toolbar.pack(fill=tk.X)
+        crop_info = tk.StringVar(value='Drag over the image to select a crop area.')
+        ttk.Label(toolbar, textvariable=crop_info, style='Status.TLabel').pack(side=tk.LEFT)
+        canvas = tk.Canvas(editor, bg='#020617', highlightthickness=0, cursor='crosshair')
+        canvas.pack(fill=tk.BOTH, expand=True, padx=12, pady=(0, 10))
+        buttons = ttk.Frame(editor, style='App.TFrame', padding=(12, 0, 12, 12))
+        buttons.pack(fill=tk.X)
+
+        state = {'photo': None, 'scale': 1.0, 'offset_x': 0, 'offset_y': 0,
+                 'start': None, 'rect': None, 'selection': None}
+
+        def redraw(_event=None):
+            canvas.delete('all')
+            cw = max(1, canvas.winfo_width())
+            ch = max(1, canvas.winfo_height())
+            iw, ih = source_image.size
+            scale = min(cw / iw, ch / ih, 1.0)
+            dw, dh = max(1, int(iw * scale)), max(1, int(ih * scale))
+            ox, oy = (cw - dw) // 2, (ch - dh) // 2
+            resampling = getattr(Image, 'Resampling', Image).LANCZOS
+            preview = source_image.resize((dw, dh), resampling)
+            state['photo'] = ImageTk.PhotoImage(preview)
+            state.update(scale=scale, offset_x=ox, offset_y=oy)
+            canvas.create_image(ox, oy, image=state['photo'], anchor='nw', tags='image')
+            state['selection'] = None
+            state['rect'] = None
+            crop_info.set(f'Image: {iw} × {ih} px — drag to select a crop area.')
+
+        def clamp_point(x, y):
+            iw, ih = source_image.size
+            left, top = state['offset_x'], state['offset_y']
+            right = left + iw * state['scale']
+            bottom = top + ih * state['scale']
+            return max(left, min(x, right)), max(top, min(y, bottom))
+
+        def drag_start(event):
+            state['start'] = clamp_point(event.x, event.y)
+            if state['rect']:
+                canvas.delete(state['rect'])
+            x, y = state['start']
+            state['rect'] = canvas.create_rectangle(
+                x, y, x, y, outline='#22c55e', width=3, dash=(7, 4))
+
+        def drag_move(event):
+            if state['start'] is None or state['rect'] is None:
+                return
+            x, y = clamp_point(event.x, event.y)
+            canvas.coords(state['rect'], state['start'][0], state['start'][1], x, y)
+
+        def drag_end(event):
+            if state['start'] is None:
+                return
+            end = clamp_point(event.x, event.y)
+            x1, x2 = sorted((state['start'][0], end[0]))
+            y1, y2 = sorted((state['start'][1], end[1]))
+            scale = state['scale']
+            ox, oy = state['offset_x'], state['offset_y']
+            box = (int(round((x1 - ox) / scale)), int(round((y1 - oy) / scale)),
+                   int(round((x2 - ox) / scale)), int(round((y2 - oy) / scale)))
+            iw, ih = source_image.size
+            box = (max(0, min(iw, box[0])), max(0, min(ih, box[1])),
+                   max(0, min(iw, box[2])), max(0, min(ih, box[3])))
+            state['start'] = None
+            if box[2] - box[0] < 2 or box[3] - box[1] < 2:
+                state['selection'] = None
+                crop_info.set('Selection is too small. Drag a larger crop area.')
+                return
+            state['selection'] = box
+            crop_info.set(
+                f'Crop: {box[2] - box[0]} × {box[3] - box[1]} px '
+                f'at ({box[0]}, {box[1]})')
+
+        def save_crop():
+            box = state['selection']
+            if not box:
+                messagebox.showwarning('No crop selected', 'Drag a crop rectangle first.', parent=editor)
+                return
+            stem, extension = os.path.splitext(os.path.basename(image_path))
+            save_path = filedialog.asksaveasfilename(
+                parent=editor, title='Save Cropped Image',
+                initialdir=os.path.dirname(image_path),
+                initialfile=f'{stem}_cropped{extension}',
+                defaultextension=extension or '.png',
+                filetypes=[('PNG', '*.png'), ('JPEG', '*.jpg *.jpeg'),
+                           ('WebP', '*.webp'), ('All files', '*.*')])
+            if not save_path:
+                return
+            try:
+                cropped = source_image.crop(box)
+                if os.path.splitext(save_path)[1].lower() in ('.jpg', '.jpeg') and cropped.mode in ('RGBA', 'LA', 'P'):
+                    background = Image.new('RGB', cropped.size, 'white')
+                    if cropped.mode in ('RGBA', 'LA'):
+                        background.paste(cropped, mask=cropped.getchannel('A'))
+                    else:
+                        background.paste(cropped.convert('RGBA'), mask=cropped.convert('RGBA').getchannel('A'))
+                    cropped = background
+                save_options = {'quality': 95} if os.path.splitext(save_path)[1].lower() in (
+                    '.jpg', '.jpeg', '.webp') else {}
+                cropped.save(save_path, **save_options)
+                crop_info.set(f'Saved: {save_path}')
+                messagebox.showinfo('Crop saved', save_path, parent=editor)
+            except Exception as e:
+                messagebox.showerror('Could not save crop', str(e), parent=editor)
+
+        canvas.bind('<ButtonPress-1>', drag_start)
+        canvas.bind('<B1-Motion>', drag_move)
+        canvas.bind('<ButtonRelease-1>', drag_end)
+        canvas.bind('<Configure>', redraw)
+        RoundedButton(buttons, text='Save Crop', command=save_crop,
+                      bg='#16a34a', hover='#22c55e', width=150).pack(side=tk.RIGHT)
+        RoundedButton(buttons, text='Reset Selection', command=redraw,
+                      width=150).pack(side=tk.RIGHT, padx=(0, 8))
+        editor.after_idle(redraw)
+
+    @staticmethod
+    def _center_crop_box(image_width, image_height, target_ratio):
+        current_ratio = image_width / image_height
+        if current_ratio > target_ratio:
+            crop_height = image_height
+            crop_width = int(round(crop_height * target_ratio))
+        else:
+            crop_width = image_width
+            crop_height = int(round(crop_width / target_ratio))
+        left = max(0, (image_width - crop_width) // 2)
+        top = max(0, (image_height - crop_height) // 2)
+        return left, top, left + crop_width, top + crop_height
+
+    def run_batch_crop_thread(self):
+        threading.Thread(target=self._run_batch_crop, daemon=True).start()
+
+    def _run_batch_crop(self):
+        input_dir = self.crop_input_dir.get().strip()
+        output_dir = self.crop_output_dir.get().strip()
+        if not input_dir or not os.path.isdir(input_dir):
+            self.root.after(0, lambda: messagebox.showerror(
+                'Batch crop', 'Select a valid input folder.'))
+            return
+        if not output_dir:
+            self.root.after(0, lambda: messagebox.showerror(
+                'Batch crop', 'Select an output folder.'))
+            return
+        try:
+            from PIL import Image, ImageOps
+            mode = self.crop_mode.get()
+            if mode == 'Exact size':
+                out_width = max(16, int(self.crop_width.get()))
+                out_height = max(16, int(self.crop_height.get()))
+                ratio = out_width / out_height
+            else:
+                ratio_parts = self.crop_ratio.get().split(':')
+                ratio = float(ratio_parts[0]) / float(ratio_parts[1])
+                out_width = out_height = None
+        except Exception as e:
+            self.root.after(0, lambda err=str(e): messagebox.showerror(
+                'Batch crop settings', err))
+            return
+
+        extensions = ('.png', '.jpg', '.jpeg', '.webp', '.bmp', '.tif', '.tiff')
+        files = sorted(name for name in os.listdir(input_dir) if name.lower().endswith(extensions))
+        if not files:
+            self.root.after(0, lambda: messagebox.showinfo(
+                'Batch crop', 'No supported images were found.'))
+            return
+        os.makedirs(output_dir, exist_ok=True)
+        completed = skipped = failed = 0
+        self.last_issue_text.set('')
+        self.update_task_progress(0, f'Batch cropping {len(files)} images')
+        resampling = getattr(Image, 'Resampling', Image).LANCZOS
+        for index, filename in enumerate(files, 1):
+            source_path = os.path.join(input_dir, filename)
+            destination_path = os.path.join(output_dir, filename)
+            if os.path.exists(destination_path) and not self.crop_overwrite.get():
+                skipped += 1
+            else:
+                try:
+                    with Image.open(source_path) as opened:
+                        image = ImageOps.exif_transpose(opened).copy()
+                    cropped = image.crop(self._center_crop_box(*image.size, ratio))
+                    if mode == 'Exact size':
+                        cropped = cropped.resize((out_width, out_height), resampling)
+                    if os.path.splitext(destination_path)[1].lower() in ('.jpg', '.jpeg') and cropped.mode != 'RGB':
+                        if cropped.mode in ('RGBA', 'LA'):
+                            background = Image.new('RGB', cropped.size, 'white')
+                            background.paste(cropped, mask=cropped.getchannel('A'))
+                            cropped = background
+                        else:
+                            cropped = cropped.convert('RGB')
+                    save_options = {'quality': 95} if os.path.splitext(destination_path)[1].lower() in (
+                        '.jpg', '.jpeg', '.webp') else {}
+                    cropped.save(destination_path, **save_options)
+                    completed += 1
+                except Exception as e:
+                    failed += 1
+                    self.log(f'Warning: could not crop {filename}: {e}')
+            self.update_task_progress(index / len(files) * 100,
+                                      f'Batch crop {index} of {len(files)}')
+        summary = f'Batch crop complete: {completed} saved, {skipped} skipped, {failed} failed.'
+        self.status_text.set(summary)
+        self.root.after(0, lambda text=summary: messagebox.showinfo('Batch crop complete', text))
 
     def open_external_link(self, url):
         try:
