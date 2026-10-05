@@ -557,12 +557,10 @@ The supplied requirements include:
 
 The bottom-right icon buttons open the configured Patreon, Discord, and PayPal support pages. Their icon files belong in `resources` as:
 
-```text
 Paypal
 https://www.paypal.com/paypalme/GameModNation
 Patreon
 https://www.patreon.com/c/3dmodelserver
 Join the Discord
 https://discord.com/invite/sMZuNzhmxC
-```
 
