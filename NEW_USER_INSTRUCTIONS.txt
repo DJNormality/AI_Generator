@@ -53,8 +53,7 @@ A2E provides cloud GPT Image and Qwen image editing with 1K or 2K output.
 2. Run Configure_A2E_API_Token.bat and paste the token.
 3. Completely close and reopen AI Generator.
 4. Select A2E on the Prompt Edit tab.
-5. For results closest to the A2E web editor, select
-   gpt-image-2.5-sunburst and 2K.
+5. For reference-image edits, select nano-banana-pro and 2K.
 A2E usage consumes account credits. Never place the token in main.py,
 config.json, screenshots or GitHub. Revoke any token exposed publicly.
 

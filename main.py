@@ -282,7 +282,7 @@ class FaceSwapApp:
         self.cloud_image_model = tk.StringVar(value='gpt-image-2.5-sunburst')
         self.cloud_image_quality = tk.StringVar(value='high')
         self.qwen_image_model = tk.StringVar(value='Qwen/Qwen-Image-Edit')
-        self.a2e_image_model = tk.StringVar(value='gpt-image-2.5-sunburst')
+        self.a2e_image_model = tk.StringVar(value='nano-banana-pro')
         self.a2e_resolution = tk.StringVar(value='2K')
         self.edit_prompt = tk.StringVar()
         self.negative_prompt = tk.StringVar()
@@ -542,7 +542,9 @@ class FaceSwapApp:
                         ['Qwen/Qwen-Image-Edit-2511', 'Qwen/Qwen-Image-Edit'], 4)
         self._tab_label(prompt, "A2E model", 5)
         self._tab_combo(prompt, self.a2e_image_model,
-                        ['gpt-image-2.5-sunburst', 'gpt-image-2.5-flare',
+                        ['nano-banana-pro', 'nano-banana-2', 'nano-banana',
+                         'nano-banana-2-lite',
+                         'gpt-image-2.5-sunburst', 'gpt-image-2.5-flare',
                          'gpt-image-2', 'gpt-image-1.5',
                          'qwen-image-3.0-pro', 'qwen-image-3.0',
                          'qwen-image-2.0-pro', 'qwen-image-2.0'], 5)
@@ -727,7 +729,7 @@ class FaceSwapApp:
             self.cloud_image_model.set(settings.get('cloud_image_model', 'gpt-image-2.5-sunburst'))
             self.cloud_image_quality.set(settings.get('cloud_image_quality', 'high'))
             self.qwen_image_model.set(settings.get('qwen_image_model', 'Qwen/Qwen-Image-Edit'))
-            self.a2e_image_model.set(settings.get('a2e_image_model', 'gpt-image-2.5-sunburst'))
+            self.a2e_image_model.set(settings.get('a2e_image_model', 'nano-banana-pro'))
             self.a2e_resolution.set(settings.get('a2e_resolution', '2K'))
             self.edit_prompt.set(settings.get('edit_prompt', ''))
             self.negative_prompt.set(settings.get('negative_prompt', 'blurry, distorted, deformed'))
@@ -757,7 +759,7 @@ class FaceSwapApp:
             self.cloud_image_model.set('gpt-image-2.5-sunburst')
             self.cloud_image_quality.set('high')
             self.qwen_image_model.set('Qwen/Qwen-Image-Edit')
-            self.a2e_image_model.set('gpt-image-2.5-sunburst')
+            self.a2e_image_model.set('nano-banana-pro')
             self.a2e_resolution.set('2K')
             self.negative_prompt.set('blurry, distorted, deformed')
             self.prompt_steps.set(20); self.prompt_for_videos.set(False)
@@ -2175,9 +2177,13 @@ class A2EImageEditor:
             raise RuntimeError('Could not encode the image for A2E editing.')
         input_url = self._upload_png(encoded.tobytes())
         full_prompt = prompt.strip()
-        if negative_prompt.strip():
-            full_prompt += ' Avoid: ' + negative_prompt.strip() + '.'
         is_gpt = self.model.startswith('gpt-image-')
+        is_nano = self.model.startswith('nano-banana')
+        # A2E's GPT/Nano endpoints have no negative_prompt field. Folding a
+        # long negative list into the instruction can over-constrain the edit
+        # and cause a near-identical result, so only Qwen receives it.
+        if negative_prompt.strip() and not (is_gpt or is_nano):
+            full_prompt += ' Avoid: ' + negative_prompt.strip() + '.'
         body = {
             'name': 'AI Generator prompt edit',
             'prompt': full_prompt,
@@ -2186,7 +2192,15 @@ class A2EImageEditor:
             'input_images': [input_url],
             'minor_suspected_skip': False,
         }
-        if is_gpt:
+        if is_nano:
+            body.update({
+                'aspect_ratio': 'auto',
+                'image_size': '1K' if self.model == 'nano-banana-2-lite' else self.resolution,
+                'google_search': False,
+            })
+            start_path = '/v1/userNanoBanana/start'
+            detail_path = '/v1/userNanoBanana/detail/{id}'
+        elif is_gpt:
             body.update({
                 'aspect_ratio': 'auto',
                 'resolution': self.resolution,
@@ -2342,7 +2356,7 @@ class PostProcessChain:
                         )
                     elif prompt_engine == 'A2E':
                         self.prompt_editor = get_a2e_editor(
-                            config.get('A2E_IMAGE_MODEL', 'gpt-image-2.5-sunburst'),
+                            config.get('A2E_IMAGE_MODEL', 'nano-banana-pro'),
                             config.get('A2E_RESOLUTION', '2K'),
                             log,
                         )
