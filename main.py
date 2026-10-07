@@ -253,7 +253,7 @@ class FaceSwapApp:
             # Missing or invalid custom artwork should never prevent startup.
             self._window_icon_image = None
         self.root.geometry("1320x760")
-        self.root.minsize(1080, 660)
+        self.root.minsize(780, 560)
         self.root.configure(bg='#111827')
         try:
             self.root.attributes('-alpha', 0.96)
@@ -341,42 +341,46 @@ class FaceSwapApp:
         main_frame = ttk.Frame(root, style='App.TFrame', padding=(16, 12))
         self.main_frame = main_frame
         main_frame.pack(fill=tk.BOTH, expand=True)
+        main_frame.grid_columnconfigure(0, weight=1)
+        main_frame.grid_rowconfigure(1, weight=1)
 
         header = ttk.Frame(main_frame, style='App.TFrame')
-        header.pack(fill=tk.X, pady=(0, 8))
+        header.grid(row=0, column=0, sticky='ew', pady=(0, 8))
         ttk.Label(header, text="AI GENERATOR", style='Title.TLabel').pack(anchor='w')
         ttk.Label(header, text="Face replacement, restoration, prompt editing and upscaling",
                   style='Subtitle.TLabel').pack(anchor='w', pady=(2, 0))
 
         section_notebook = ttk.Notebook(main_frame, style='Section.TNotebook')
-        section_notebook.pack(fill=tk.X, pady=(0, 8))
+        section_notebook.grid(row=1, column=0, sticky='nsew', pady=(0, 8))
         image_section = ttk.Frame(section_notebook, style='App.TFrame', padding=(0, 6, 0, 0))
         models3d_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
+        texture_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
+        section_notebook.add(image_section, text='  HOME  ')
         section_notebook.add(models3d_tab, text='  3D MODELS  ')
-        section_notebook.add(image_section, text='  IMAGE & VIDEO  ')
+        section_notebook.add(texture_tab, text='  TEXTURES  ')
 
         notebook = ttk.Notebook(image_section, style='Modern.TNotebook')
-        notebook.pack(fill=tk.X)
-        paths_tab = ttk.Frame(notebook, style='Panel.TFrame', padding=16)
-        swap_tab = ttk.Frame(notebook, style='Panel.TFrame', padding=16)
-        enhance_tab = ttk.Frame(notebook, style='Panel.TFrame', padding=16)
-        prompt_tab = ttk.Frame(notebook, style='Panel.TFrame', padding=16)
-        crop_tab = ttk.Frame(notebook, style='Panel.TFrame', padding=16)
-        colorize_tab = ttk.Frame(notebook, style='Panel.TFrame', padding=16)
-        rename_tab = ttk.Frame(notebook, style='Panel.TFrame', padding=16)
-        notebook.add(paths_tab, text='  Paths  ')
-        notebook.add(swap_tab, text='  Face Swap  ')
-        notebook.add(enhance_tab, text='  Enhance  ')
-        notebook.add(prompt_tab, text='  Prompt Edit  ')
-        notebook.add(crop_tab, text='  Crop  ')
-        notebook.add(colorize_tab, text='  Colorize  ')
-        notebook.add(rename_tab, text='  Rename  ')
+        notebook.pack(fill=tk.BOTH, expand=True)
+        paths_shell, paths_tab = self.create_scrollable_tab(notebook)
+        swap_shell, swap_tab = self.create_scrollable_tab(notebook)
+        enhance_shell, enhance_tab = self.create_scrollable_tab(notebook)
+        prompt_shell, prompt_tab = self.create_scrollable_tab(notebook)
+        crop_shell, crop_tab = self.create_scrollable_tab(notebook)
+        colorize_shell, colorize_tab = self.create_scrollable_tab(notebook)
+        rename_shell, rename_tab = self.create_scrollable_tab(notebook)
+        notebook.add(paths_shell, text='  Paths  ')
+        notebook.add(swap_shell, text='  Face Swap  ')
+        notebook.add(enhance_shell, text='  Enhance  ')
+        notebook.add(prompt_shell, text='  Prompt Edit  ')
+        notebook.add(crop_shell, text='  Crop  ')
+        notebook.add(colorize_shell, text='  Colorize  ')
+        notebook.add(rename_shell, text='  Rename  ')
         self.create_modern_tabs(paths_tab, swap_tab, enhance_tab, prompt_tab, crop_tab,
-                                colorize_tab, rename_tab, models3d_tab)
+                                colorize_tab, rename_tab, models3d_tab, texture_tab)
         section_notebook.select(image_section)
 
         progress_frame = ttk.Frame(main_frame, style='App.TFrame')
-        progress_frame.pack(fill=tk.X, pady=(0, 10))
+        progress_frame.grid(row=2, column=0, sticky='ew', pady=(0, 8))
         progress_frame.grid_columnconfigure(1, weight=1)
         self.status_text = tk.StringVar(value='Ready')
         self.task_progress = tk.DoubleVar(value=0.0)
@@ -407,11 +411,11 @@ class FaceSwapApp:
                       row=3, column=0, columnspan=3, sticky='w', pady=(2, 0))
 
         control_frame = ttk.Frame(main_frame, style='App.TFrame')
-        control_frame.pack(fill=tk.X, pady=(0, 12))
+        control_frame.grid(row=3, column=0, sticky='ew', pady=(0, 8))
         self.create_control_buttons(control_frame)
 
         link_frame = ttk.Frame(main_frame, style='App.TFrame')
-        link_frame.pack(fill=tk.X)
+        link_frame.grid(row=4, column=0, sticky='ew')
         support_group = ttk.Frame(link_frame, style='App.TFrame')
         support_group.pack(side=tk.RIGHT)
         asset_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources')
@@ -439,8 +443,8 @@ class FaceSwapApp:
         screen_h = self.root.winfo_screenheight()
         requested_w = max(1280, self.root.winfo_reqwidth() + 16)
         requested_h = max(700, self.root.winfo_reqheight() + 18)
-        width = min(requested_w, max(1080, screen_w - 40))
-        height = min(requested_h, max(660, screen_h - 30))
+        width = min(requested_w, max(780, screen_w - 40))
+        height = min(requested_h, max(560, screen_h - 30))
         x = max(0, (screen_w - width) // 2)
         y = max(0, (screen_h - height) // 2 - 10)
         self.root.geometry(f'{width}x{height}+{x}+{y}')
@@ -512,6 +516,37 @@ class FaceSwapApp:
         style.map('Treeview', background=[('selected', '#2563eb')],
                   foreground=[('selected', '#ffffff')])
 
+    def create_scrollable_tab(self, notebook):
+        shell = ttk.Frame(notebook, style='Panel.TFrame')
+        canvas = tk.Canvas(shell, bg='#1f2937', highlightthickness=0, borderwidth=0)
+        scrollbar = ttk.Scrollbar(shell, orient='vertical', command=canvas.yview)
+        content = ttk.Frame(canvas, style='Panel.TFrame', padding=16)
+        window_id = canvas.create_window((0, 0), window=content, anchor='nw')
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        def update_region(_event=None):
+            canvas.configure(scrollregion=canvas.bbox('all'))
+
+        def fit_width(event):
+            canvas.itemconfigure(window_id, width=max(1, event.width))
+
+        def mousewheel(event):
+            canvas.yview_scroll(-3 if event.delta > 0 else 3, 'units')
+            return 'break'
+
+        content.bind('<Configure>', update_region)
+        canvas.bind('<Configure>', fit_width)
+        canvas.bind('<MouseWheel>', mousewheel)
+        content.bind('<MouseWheel>', mousewheel)
+        canvas.bind('<Enter>', lambda _event: canvas.bind_all('<MouseWheel>', mousewheel))
+        canvas.bind('<Leave>', lambda _event: canvas.unbind_all('<MouseWheel>'))
+        content.bind('<Enter>', lambda _event: canvas.bind_all('<MouseWheel>', mousewheel))
+        content.bind('<Leave>', lambda _event: canvas.unbind_all('<MouseWheel>'))
+        content._scroll_canvas = canvas
+        return shell, content
+
     def _tab_label(self, parent, text, row):
         ttk.Label(parent, text=text, style='Panel.TLabel').grid(
             row=row, column=0, sticky='w', padx=(0, 12), pady=6)
@@ -523,8 +558,8 @@ class FaceSwapApp:
         return widget
 
     def create_modern_tabs(self, paths, swap, enhance, prompt, crop, colorize, rename,
-                           models3d):
-        for tab in (paths, swap, enhance, prompt, crop, colorize, rename, models3d):
+                           models3d, texture):
+        for tab in (paths, swap, enhance, prompt, crop, colorize, rename, models3d, texture):
             tab.grid_columnconfigure(1, weight=1)
 
         self.create_path_entry(paths, "Source images", self.source_dir, self.browse_source_dir, 0)
@@ -784,6 +819,26 @@ class FaceSwapApp:
                   style='Hint.TLabel').grid(
                       row=4, column=0, columnspan=2, sticky='w', pady=(12, 0))
 
+        ttk.Label(texture, text='Raw Texture Search', style='Panel.TLabel',
+                  font=('Segoe UI Semibold', 12)).grid(
+                      row=0, column=0, columnspan=2, sticky='w', pady=(0, 8))
+        ttk.Label(
+            texture,
+            text=('Search any file type for embedded PNG, JPEG, DDS, BMP, KTX, KTX2, '
+                  'and PVR texture data. Preview detected images and extract individual '
+                  'textures or every result.'),
+            style='Hint.TLabel', wraplength=760, justify='left').grid(
+                row=1, column=0, columnspan=2, sticky='w', pady=(0, 14))
+        RoundedButton(texture, text='Open Texture Search',
+                      command=self.open_texture_scanner,
+                      bg='#16a34a', hover='#22c55e', width=250,
+                      canvas_bg='#1f2937').grid(
+                          row=2, column=0, columnspan=2, sticky='w')
+        ttk.Label(texture,
+                  text='The scanner accepts every extension and reads the file as raw bytes.',
+                  style='Hint.TLabel').grid(
+                      row=3, column=0, columnspan=2, sticky='w', pady=(12, 0))
+
     def create_settings_widgets(self, parent):
         tk.Label(parent, text="GPU Provider:").grid(row=0, column=0, sticky='w', padx=5, pady=2)
         tk.OptionMenu(parent, self.gpu_provider, *['DmlExecutionProvider', 'CUDAExecutionProvider', 'CPUExecutionProvider']).grid(row=0, column=1, sticky='ew', padx=5)
@@ -821,23 +876,24 @@ class FaceSwapApp:
     def create_control_buttons(self, parent):
         self.run_button = RoundedButton(parent, text="Run Full Process",
                                         command=self.start_processing_thread,
-                                        bg='#2563eb', hover='#3b82f6', width=280)
+                                        bg='#2563eb', hover='#3b82f6', width=200)
         self.run_button.pack(side=tk.LEFT, expand=True, fill=tk.X)
         
         self.create_video_button = RoundedButton(parent, text="Create Videos",
-                                                 command=self.create_videos_from_temp_thread)
+                                                 command=self.create_videos_from_temp_thread,
+                                                 width=140)
         self.create_video_button.pack(side=tk.LEFT, fill=tk.X, padx=(8,0))
 
         self.review_button = RoundedButton(parent, text="Review", command=self.open_review_window,
-                                           width=100)
+                                           width=90)
         self.review_button.pack(side=tk.LEFT, padx=(8,0))
 
         self.clear_temp_button = RoundedButton(parent, text="Clear Temp",
-                                               command=self.clear_temp_folder_ui, width=110)
+                                               command=self.clear_temp_folder_ui, width=95)
         self.clear_temp_button.pack(side=tk.LEFT, fill=tk.X, padx=(8,0))
         
         self.stop_button = RoundedButton(parent, text="Stop", command=self.stop_processing,
-                                         state='disabled', bg='#dc2626', hover='#ef4444', width=100)
+                                         state='disabled', bg='#dc2626', hover='#ef4444', width=90)
         self.stop_button.pack(side=tk.RIGHT, fill=tk.X, padx=(8,0))
 
     def on_closing(self):
@@ -1781,6 +1837,34 @@ class FaceSwapApp:
             except tk.TclError:
                 pass
         self.model_scanner_window = None
+        self.root.title('AI Generator')
+        self.main_frame.pack(fill=tk.BOTH, expand=True)
+
+    def open_texture_scanner(self):
+        try:
+            from texture_scanner import open_texture_scanner
+            if getattr(self, 'texture_scanner_window', None):
+                return
+            self.main_frame.pack_forget()
+            self.root.title('AI Generator — Textures')
+            self.texture_scanner_window = open_texture_scanner(
+                self.root, on_back=self.return_from_texture_scanner)
+        except Exception as error:
+            self.main_frame.pack(fill=tk.BOTH, expand=True)
+            self.root.title('AI Generator')
+            messagebox.showerror(
+                'Textures',
+                'Could not open Textures. Make sure texture_scanner.py is in the same '
+                f'folder as main.py.\n\n{error}')
+
+    def return_from_texture_scanner(self, scanner=None):
+        active = scanner or getattr(self, 'texture_scanner_window', None)
+        if active is not None:
+            try:
+                active.window.destroy()
+            except tk.TclError:
+                pass
+        self.texture_scanner_window = None
         self.root.title('AI Generator')
         self.main_frame.pack(fill=tk.BOTH, expand=True)
 

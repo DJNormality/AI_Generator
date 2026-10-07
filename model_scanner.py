@@ -81,6 +81,26 @@ class Candidate:
                 f'{confidence}%')
 
 
+@dataclass
+class BoneCandidate:
+    score: float
+    offset: int
+    bone_count: int
+    stride: int
+    layout: str
+    endian: str = 'Little'
+    translation_offsets: tuple = (0, 4, 8)
+
+    def label(self, item_number=None):
+        prefix = f'Rig {item_number:03d} | ' if item_number is not None else ''
+        confidence = max(0, min(100, int(self.score + 0.5)))
+        byte_order = 'LE' if self.endian == 'Little' else 'BE'
+        return (f'{prefix}Offset 0x{self.offset:08X} | '
+                f'Size {_friendly_size(self.bone_count * self.stride)} | '
+                f'{self.bone_count} bones | Stride {self.stride} | '
+                f'{self.layout} {byte_order} | {confidence}%')
+
+
 def _unpack_vector(data, offset, format_name, components, endian='<', value_scale=1.0):
     code, size, scale = FORMATS[format_name]
     end = offset + size * components
@@ -125,11 +145,14 @@ class BinaryMeshScanner:
             self.window.minsize(960, 650)
             self.window.configure(bg='#111827')
         self.data = b''
+        self.skeleton_data = b''
         self.path = ''
+        self.skeleton_path = ''
         self.candidates = []
         self.vertices = []
         self.uvs = []
         self.faces = []
+        self.bones = []
         self.yaw = -0.55
         self.pitch = 0.35
         self.zoom = 1.0
@@ -144,6 +167,14 @@ class BinaryMeshScanner:
         if self.embedded:
             ttk.Button(top, text='← Back to Home', command=self.request_back).pack(
                 side=tk.LEFT, padx=(0, 10))
+        ttk.Label(top, text='Search').pack(side=tk.LEFT, padx=(0, 5))
+        self.search_mode = tk.StringVar(value='Geometry')
+        self.search_combo = ttk.Combobox(
+            top, textvariable=self.search_mode,
+            values=['Geometry', 'Animation / Rigging'],
+            state='readonly', width=17)
+        self.search_combo.pack(side=tk.LEFT, padx=(0, 8))
+        self.search_combo.bind('<<ComboboxSelected>>', self.update_search_mode_ui)
         ttk.Label(top, text='Console').pack(side=tk.LEFT, padx=(0, 5))
         self.console_var = tk.StringVar(value='Generic / Auto')
         self.console_combo = ttk.Combobox(
@@ -151,17 +182,26 @@ class BinaryMeshScanner:
             state='readonly', width=14)
         self.console_combo.pack(side=tk.LEFT, padx=(0, 8))
         self.console_combo.bind('<<ComboboxSelected>>', self.apply_console_preset)
+
+        file_row = ttk.Frame(self.window, padding=(10, 0, 10, 6))
+        file_row.pack(fill=tk.X)
         self.path_var = tk.StringVar()
-        ttk.Entry(top, textvariable=self.path_var).pack(side=tk.LEFT, fill=tk.X, expand=True)
-        ttk.Button(top, text='Open Any File', command=self.open_file).pack(side=tk.LEFT, padx=6)
-        self.scan_button = ttk.Button(top, text='Scan', command=self.scan)
+        ttk.Entry(file_row, textvariable=self.path_var).pack(
+            side=tk.LEFT, fill=tk.X, expand=True)
+        ttk.Button(file_row, text='Open Any File', command=self.open_file).pack(
+            side=tk.LEFT, padx=6)
+        ttk.Button(file_row, text='Animation / Skeleton File',
+                   command=self.open_skeleton_file).pack(
+            side=tk.LEFT, padx=(0, 6))
+        self.scan_button = ttk.Button(file_row, text='Scan', command=self.scan)
         self.scan_button.pack(side=tk.LEFT)
-        self.deep_scan_button = ttk.Button(top, text='Deep Rescan', command=self.deep_rescan)
+        self.deep_scan_button = ttk.Button(
+            file_row, text='Deep Rescan', command=self.deep_rescan)
         self.deep_scan_button.pack(side=tk.LEFT, padx=(6, 0))
         self.stop_scan_button = ttk.Button(
-            top, text='Stop Scan', command=self.stop_scan, state='disabled')
+            file_row, text='Stop Scan', command=self.stop_scan, state='disabled')
         self.stop_scan_button.pack(side=tk.LEFT, padx=(6, 0))
-        ttk.Button(top, text='Export FBX', command=self.export_fbx).pack(
+        ttk.Button(file_row, text='Export FBX', command=self.export_fbx).pack(
             side=tk.LEFT, padx=(6, 0))
 
         scan_info = ttk.Frame(self.window, padding=(10, 0, 10, 8))
@@ -190,7 +230,7 @@ class BinaryMeshScanner:
         candidate_frame.grid_rowconfigure(0, weight=1)
         candidate_frame.grid_columnconfigure(0, weight=1)
         self.candidate_list = tk.Listbox(
-            candidate_frame, width=54, height=12, bg='#0f172a', fg='white',
+            candidate_frame, width=54, height=8, bg='#0f172a', fg='white',
             exportselection=False)
         self.candidate_list.grid(row=0, column=0, sticky='nsew')
         candidate_scroll = ttk.Scrollbar(
@@ -205,7 +245,11 @@ class BinaryMeshScanner:
         self.candidate_list.bind('<Button-4>', lambda _event: self._scroll_candidate_units(-3))
         self.candidate_list.bind('<Button-5>', lambda _event: self._scroll_candidate_units(3))
         self.candidate_list.bind('<<ListboxSelect>>', self.load_selected_candidate)
-        controls.grid_rowconfigure(0, weight=1)
+        controls.grid_rowconfigure(0, weight=0)
+
+        self.geometry_controls = ttk.Frame(controls)
+        self.geometry_controls.grid(row=1, column=0, columnspan=3, sticky='ew')
+        self.geometry_controls.grid_columnconfigure(1, weight=1)
 
         self.vars = {
             'vertex_offset': tk.StringVar(value='0'), 'vertex_count': tk.StringVar(value='0'),
@@ -225,27 +269,32 @@ class BinaryMeshScanner:
             ('Index type', 'index_type'), ('Topology', 'topology'),
         ]
         for row, (label, key) in enumerate(rows, 1):
-            ttk.Label(controls, text=label).grid(row=row, column=0, sticky='w', pady=3)
+            compact_row = row - 1
+            ttk.Label(self.geometry_controls, text=label).grid(
+                row=compact_row, column=0, sticky='w', pady=1)
             if key in ('position_type', 'uv_type', 'index_type', 'topology', 'endian'):
                 values = list(FORMATS) if key in ('position_type', 'uv_type') else (
                     ['UInt16', 'UInt32'] if key == 'index_type' else
                     ['Little', 'Big'] if key == 'endian' else
                     ['Triangle list', 'Triangle strip'])
-                ttk.Combobox(controls, textvariable=self.vars[key], values=values,
-                             state='readonly', width=22).grid(row=row, column=1, columnspan=2, sticky='ew')
+                ttk.Combobox(self.geometry_controls, textvariable=self.vars[key], values=values,
+                             state='readonly', width=22).grid(
+                                 row=compact_row, column=1, columnspan=2,
+                                 sticky='ew', pady=1)
             else:
-                ttk.Entry(controls, textvariable=self.vars[key], width=24).grid(
-                    row=row, column=1, columnspan=2, sticky='ew')
-        action_row = len(rows) + 1
-        ttk.Button(controls, text='Preview Values', command=self.preview_manual).grid(
-            row=action_row, column=0, columnspan=2, sticky='ew', pady=(8, 3))
-        ttk.Button(controls, text='Export OBJ', command=self.export_obj).grid(
-            row=action_row, column=2, sticky='ew', padx=(5, 0), pady=(8, 3))
+                ttk.Entry(self.geometry_controls, textvariable=self.vars[key], width=24).grid(
+                    row=compact_row, column=1, columnspan=2, sticky='ew', pady=1)
+        action_row = len(rows)
+        ttk.Button(self.geometry_controls, text='Preview Values',
+                   command=self.preview_manual).grid(
+            row=action_row, column=0, columnspan=2, sticky='ew', pady=(5, 2))
+        ttk.Button(self.geometry_controls, text='Export OBJ', command=self.export_obj).grid(
+            row=action_row, column=2, sticky='ew', padx=(5, 0), pady=(5, 2))
         ttk.Button(controls, text='Reset View', command=self.reset_view).grid(
-            row=action_row + 1, column=0, columnspan=3, sticky='ew')
+            row=2, column=0, columnspan=3, sticky='ew', pady=(3, 0))
         self.status = tk.StringVar(value='Open any binary file to begin.')
         ttk.Label(controls, textvariable=self.status, wraplength=380).grid(
-            row=action_row + 2, column=0, columnspan=3, sticky='w', pady=(8, 0))
+            row=3, column=0, columnspan=3, sticky='w', pady=(5, 0))
 
         self.canvas = tk.Canvas(viewer, bg='#020617', highlightthickness=0)
         self.canvas.pack(fill=tk.BOTH, expand=True)
@@ -283,6 +332,15 @@ class BinaryMeshScanner:
             f'{console} preset selected: {endian.lower()}-endian scan, '
             f'{preset["step"]}-byte alignment.')
 
+    def update_search_mode_ui(self, _event=None):
+        if self.search_mode.get() == 'Animation / Rigging':
+            self.geometry_controls.grid_remove()
+            self.status.set(
+                'Animation / Rigging mode: load any animation or skeleton file, then scan.')
+        else:
+            self.geometry_controls.grid()
+            self.status.set('Geometry mode: open any model file, then scan.')
+
     def open_file(self):
         path = filedialog.askopenfilename(title='Select any possible 3D model file',
                                           filetypes=[('All files', '*.*')])
@@ -302,6 +360,25 @@ class BinaryMeshScanner:
         except Exception as error:
             messagebox.showerror('Open model file', str(error))
 
+    def open_skeleton_file(self):
+        path = filedialog.askopenfilename(
+            title='Select an optional skeleton, rig, animation, or DAT file',
+            filetypes=[('All files', '*.*')])
+        if not path:
+            return
+        try:
+            with open(path, 'rb') as stream:
+                self.skeleton_data = stream.read()
+            self.skeleton_path = path
+            self.path_var.set(path)
+            self.search_mode.set('Animation / Rigging')
+            self.update_search_mode_ui()
+            self.status.set(
+                f'Skeleton file loaded: {os.path.basename(path)} '
+                f'({_friendly_size(len(self.skeleton_data))}). Choose Scan.')
+        except Exception as error:
+            messagebox.showerror('Open skeleton file', str(error))
+
     def _detect_console_container(self):
         header = self.data[:4096]
         if header.startswith(b'Gamebryo File Format'):
@@ -319,9 +396,14 @@ class BinaryMeshScanner:
         return ''
 
     def scan(self):
-        if not self.data:
+        if self.search_mode.get() == 'Animation / Rigging' and self.skeleton_data:
+            pass
+        elif not self.data:
             self.open_file()
-        if not self.data:
+        if self.search_mode.get() == 'Animation / Rigging':
+            if not (self.skeleton_data or self.data):
+                return
+        elif not self.data:
             return
         if self.scanning:
             return
@@ -331,13 +413,20 @@ class BinaryMeshScanner:
         self.deep_scan_button.configure(state='disabled')
         self.stop_scan_button.configure(state='normal')
         self._report_scan_progress(0, 0)
-        self.status.set('Scanning common offsets, strides, padding, and numeric types…')
+        if self.search_mode.get() == 'Animation / Rigging':
+            self.status.set('Searching for bone matrices, TRS transforms, and hierarchy data…')
+        else:
+            self.status.set('Scanning common offsets, strides, padding, and numeric types…')
         threading.Thread(target=self._scan_worker, args=(False,), daemon=True).start()
 
     def deep_rescan(self):
-        if not self.data:
+        if self.search_mode.get() == 'Animation / Rigging' and self.skeleton_data:
+            pass
+        elif not self.data:
             self.open_file()
-        if not self.data or self.scanning:
+        active_data = self.skeleton_data if (
+            self.search_mode.get() == 'Animation / Rigging' and self.skeleton_data) else self.data
+        if not active_data or self.scanning:
             return
         self.scanning = True
         self.scan_stop_event.clear()
@@ -357,7 +446,10 @@ class BinaryMeshScanner:
 
     def _scan_worker(self, deep=False):
         try:
-            self._scan_candidates(deep)
+            if self.search_mode.get() == 'Animation / Rigging':
+                self._scan_bone_candidates(deep)
+            else:
+                self._scan_candidates(deep)
         except Exception as error:
             self.window.after(0, lambda err=error: self._scan_failed(err))
 
@@ -491,6 +583,98 @@ class BinaryMeshScanner:
         stopped = self.scan_stop_event.is_set()
         self.window.after(0, lambda: self._finish_scan(unique, stopped))
 
+    def _scan_bone_candidates(self, deep=False):
+        data = self.skeleton_data or self.data
+        preset = CONSOLE_PRESETS[self.console_var.get()]
+        endian_names = ('Little', 'Big') if preset['endian'] == 'Auto' else (preset['endian'],)
+        layouts = [
+            ('Matrix 4x4 F32 row', 'Float32', (12, 28, 44), (64, 80, 96, 128)),
+            ('Matrix 4x4 F32 column', 'Float32', (48, 52, 56), (64, 80, 96, 128)),
+            ('Matrix 3x4 F32', 'Float32', (12, 28, 44), (48, 64, 80, 96)),
+            ('TRS F32', 'Float32', (0, 4, 8), (40, 48, 64, 80)),
+            ('Matrix 4x4 F16 row', 'Float16', (6, 14, 22), (32, 40, 48, 64)),
+            ('Matrix 4x4 F16 column', 'Float16', (24, 26, 28), (32, 40, 48, 64)),
+        ]
+        if deep and getattr(self, 'current_bone_candidate', None):
+            center = self.current_bone_candidate.offset
+            start, stop, step = max(0, center - 32768), min(len(data), center + 32768), 2
+        elif deep:
+            start, stop, step = 0, min(len(data), 262144), 2
+        else:
+            start, stop = 0, len(data)
+            step = max(16, len(data) // 8192 or 1)
+        anchors = list(range(start, stop, step))
+        candidates = []
+        total = max(1, len(anchors))
+        for anchor_number, offset in enumerate(anchors, 1):
+            if self.scan_stop_event.is_set():
+                break
+            for endian_name in endian_names:
+                endian = ENDIAN_CODES[endian_name]
+                for layout_name, value_type, translation_offsets, strides in layouts:
+                    for stride in strides:
+                        if self.scan_stop_event.is_set():
+                            break
+                        positions = []
+                        try:
+                            for bone_index in range(10):
+                                base = offset + bone_index * stride
+                                position = tuple(
+                                    _unpack_vector(data, base + component_offset,
+                                                   value_type, 1, endian)[0]
+                                    for component_offset in translation_offsets)
+                                positions.append(position)
+                        except (IndexError, struct.error, OverflowError):
+                            continue
+                        score = _position_score(positions)
+                        if score < 55:
+                            continue
+                        bone_count = self._estimate_bone_count(
+                            data, offset, stride, value_type,
+                            translation_offsets, endian)
+                        if bone_count < 2:
+                            continue
+                        candidates.append(BoneCandidate(
+                            score=min(100, score + min(10, bone_count / 8)),
+                            offset=offset, bone_count=bone_count, stride=stride,
+                            layout=layout_name, endian=endian_name,
+                            translation_offsets=translation_offsets))
+            if anchor_number == 1 or anchor_number % 32 == 0 or anchor_number == total:
+                percent = anchor_number / total * 98
+                found = len(candidates)
+                self.window.after(
+                    0, lambda p=percent, f=found: self._report_scan_progress(p, f))
+        candidates.sort(key=lambda item: item.score, reverse=True)
+        unique, seen = [], set()
+        for candidate in candidates:
+            key = (candidate.offset, candidate.stride,
+                   candidate.layout, candidate.endian)
+            if key in seen:
+                continue
+            seen.add(key)
+            unique.append(candidate)
+            if len(unique) >= 100:
+                break
+        stopped = self.scan_stop_event.is_set()
+        self.window.after(0, lambda: self._finish_scan(unique, stopped))
+
+    def _estimate_bone_count(self, data, offset, stride, value_type,
+                             translation_offsets, endian):
+        count = 0
+        for bone_index in range(512):
+            base = offset + bone_index * stride
+            try:
+                position = tuple(
+                    _unpack_vector(data, base + component_offset,
+                                   value_type, 1, endian)[0]
+                    for component_offset in translation_offsets)
+            except (IndexError, struct.error, OverflowError):
+                break
+            if not all(math.isfinite(value) and abs(value) < 1e8 for value in position):
+                break
+            count += 1
+        return count
+
     def _finish_scan(self, unique, stopped=False):
         self.scanning = False
         self.scan_button.configure(state='normal')
@@ -513,7 +697,10 @@ class BinaryMeshScanner:
         if unique:
             self.candidate_list.selection_set(0)
             if not stopped:
-                self.load_candidate(unique[0])
+                if isinstance(unique[0], BoneCandidate):
+                    self.load_bone_candidate(unique[0])
+                else:
+                    self.load_candidate(unique[0])
 
     def _find_indices(self, vertex_offset, vertex_count, stride, endian='<'):
         start = min(len(self.data), vertex_offset + vertex_count * stride)
@@ -541,7 +728,35 @@ class BinaryMeshScanner:
     def load_selected_candidate(self, _event=None):
         selected = self.candidate_list.curselection()
         if selected:
-            self.load_candidate(self.candidates[selected[0]])
+            candidate = self.candidates[selected[0]]
+            if isinstance(candidate, BoneCandidate):
+                self.load_bone_candidate(candidate)
+            else:
+                self.load_candidate(candidate)
+
+    def load_bone_candidate(self, candidate):
+        data = self.skeleton_data or self.data
+        endian = ENDIAN_CODES[candidate.endian]
+        value_type = 'Float16' if 'F16' in candidate.layout else 'Float32'
+        bones = []
+        for bone_index in range(candidate.bone_count):
+            base = candidate.offset + bone_index * candidate.stride
+            try:
+                position = tuple(
+                    _unpack_vector(data, base + component_offset,
+                                   value_type, 1, endian)[0]
+                    for component_offset in candidate.translation_offsets)
+            except (IndexError, struct.error, OverflowError):
+                break
+            parent = bone_index - 1 if bone_index else -1
+            bones.append((parent, position))
+        self.current_bone_candidate = candidate
+        self.bones = bones
+        self.status.set(
+            f'Merged rig preview: {len(bones):,} assumed bones from '
+            f'{os.path.basename(self.skeleton_path or self.path)}. '
+            'Bright red lines show bones; X/Y/Z labels show local axes.')
+        self.reset_view()
 
     def load_candidate(self, candidate):
         values = {
@@ -628,22 +843,26 @@ class BinaryMeshScanner:
 
     def draw(self):
         self.canvas.delete('mesh')
-        if not self.vertices:
+        bone_points = [position for _parent, position in self.bones]
+        all_points = list(self.vertices) + bone_points
+        if not all_points:
             return
         width, height = max(1, self.canvas.winfo_width()), max(1, self.canvas.winfo_height())
-        sample = self.vertices[:min(len(self.vertices), 100000)]
+        sample = all_points[:min(len(all_points), 100000)]
         center = tuple((min(axis) + max(axis)) / 2 for axis in zip(*sample))
         radius = max(math.sqrt(sum((value - center[i]) ** 2 for i, value in enumerate(point)))
                      for point in sample) or 1.0
         cy, sy = math.cos(self.yaw), math.sin(self.yaw)
         cp, sp = math.cos(self.pitch), math.sin(self.pitch)
         scale = min(width, height) * 0.42 * self.zoom / radius
-        projected = []
-        for x, y, z in self.vertices:
+        def project(point):
+            x, y, z = point
             x, y, z = x-center[0], y-center[1], z-center[2]
             rx, rz = x*cy + z*sy, -x*sy + z*cy
             ry, rz = y*cp - rz*sp, y*sp + rz*cp
-            projected.append((width/2 + rx*scale, height/2 - ry*scale, rz))
+            return width/2 + rx*scale, height/2 - ry*scale, rz
+
+        projected = [project(vertex) for vertex in self.vertices]
         faces = self.faces[:20000]
         faces = sorted(faces, key=lambda face: sum(projected[i][2] for i in face) / 3)
         for face in faces:
@@ -658,6 +877,36 @@ class BinaryMeshScanner:
             for x, y, _z in projected[:30000]:
                 self.canvas.create_oval(x-1, y-1, x+1, y+1, fill='#60a5fa',
                                         outline='', tags='mesh')
+        if self.bones:
+            projected_bones = [project(position) for _parent, position in self.bones]
+            for bone_index, (parent, _position) in enumerate(self.bones):
+                x, y, _z = projected_bones[bone_index]
+                if 0 <= parent < len(projected_bones):
+                    px, py, _pz = projected_bones[parent]
+                    self.canvas.create_line(
+                        px, py, x, y, fill='#ff2020', width=3, tags='mesh')
+                self.canvas.create_oval(
+                    x-4, y-4, x+4, y+4, fill='#ff3030', outline='#ffffff',
+                    width=1, tags='mesh')
+                if bone_index < 128:
+                    axis_length = radius * 0.045
+                    origin = self.bones[bone_index][1]
+                    axes = (
+                        ('X', (axis_length, 0, 0), '#ff4040'),
+                        ('Y', (0, axis_length, 0), '#40ff70'),
+                        ('Z', (0, 0, axis_length), '#4090ff'),
+                    )
+                    for label, delta, color in axes:
+                        endpoint = tuple(origin[i] + delta[i] for i in range(3))
+                        ex, ey, _ez = project(endpoint)
+                        self.canvas.create_line(
+                            x, y, ex, ey, fill=color, width=2, tags='mesh')
+                        self.canvas.create_text(
+                            ex+4, ey, text=label, fill=color,
+                            font=('Segoe UI Semibold', 8), anchor='w', tags='mesh')
+                    self.canvas.create_text(
+                        x+6, y-7, text=str(bone_index), fill='#ff8080',
+                        font=('Segoe UI', 8), anchor='w', tags='mesh')
 
     def export_obj(self):
         if not self.vertices:
@@ -701,6 +950,33 @@ class BinaryMeshScanner:
                 str(value) for a, b, c in faces for value in (a, b, -(c + 1)))
             vertex_count = len(vertices) * 3
             polygon_count = len(faces) * 3
+            bone_objects = []
+            bone_connections = []
+            for bone_index, (parent, position) in enumerate(self.bones):
+                bone_id = 200000 + bone_index
+                if 0 <= parent < len(self.bones):
+                    parent_position = self.bones[parent][1]
+                    local_position = tuple(
+                        position[i] - parent_position[i] for i in range(3))
+                    parent_id = 200000 + parent
+                else:
+                    local_position = position
+                    parent_id = 100001
+                bone_objects.append(f'''    Model: {bone_id}, "Model::Bone_{bone_index:03d}", "LimbNode" {{
+        Version: 232
+        Properties70:  {{
+            P: "Lcl Translation", "Lcl Translation", "", "A",{local_position[0]:.9g},{local_position[1]:.9g},{local_position[2]:.9g}
+            P: "Lcl Rotation", "Lcl Rotation", "", "A",0,0,0
+            P: "Lcl Scaling", "Lcl Scaling", "", "A",1,1,1
+        }}
+        Shading: T
+        Culling: "CullingOff"
+    }}''')
+                bone_connections.append(f'    C: "OO",{bone_id},{parent_id}')
+            bone_objects_text = '\n'.join(bone_objects)
+            bone_connections_text = '\n'.join(bone_connections)
+            bone_definition = (f'    ObjectType: "Model" {{ Count: {len(self.bones) + 1} }}'
+                               if self.bones else '    ObjectType: "Model" { Count: 1 }')
             content = f'''; FBX 7.4.0 project file
 FBXHeaderExtension:  {{
     FBXHeaderVersion: 1003
@@ -721,9 +997,9 @@ GlobalSettings:  {{
 }}
 Definitions:  {{
     Version: 100
-    Count: 2
+    Count: {2 + len(self.bones)}
     ObjectType: "Geometry" {{ Count: 1 }}
-    ObjectType: "Model" {{ Count: 1 }}
+{bone_definition}
 }}
 Objects:  {{
     Geometry: 100000, "Geometry::ScannedMesh", "Mesh" {{
@@ -748,16 +1024,19 @@ Objects:  {{
         Shading: T
         Culling: "CullingOff"
     }}
+{bone_objects_text}
 }}
 Connections:  {{
     C: "OO",100000,100001
     C: "OO",100001,0
+{bone_connections_text}
 }}
 '''
             with open(path, 'w', encoding='utf-8', newline='\n') as stream:
                 stream.write(content)
             self.status.set(
-                f'Exported FBX: {len(vertices):,} vertices, {len(faces):,} faces — {path}')
+                f'Exported FBX: {len(vertices):,} vertices, {len(faces):,} faces, '
+                f'{len(self.bones):,} bones — {path}')
         except Exception as error:
             messagebox.showerror('Export FBX', str(error))
 
