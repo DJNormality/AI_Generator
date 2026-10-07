@@ -356,10 +356,12 @@ class FaceSwapApp:
         image_section = ttk.Frame(section_notebook, style='App.TFrame', padding=(0, 6, 0, 0))
         models3d_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
         texture_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
+        files_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
         section_notebook.add(home_tab, text='  HOME  ')
         section_notebook.add(image_section, text='  IMAGES  ')
         section_notebook.add(models3d_tab, text='  3D MODELS  ')
         section_notebook.add(texture_tab, text='  TEXTURES  ')
+        section_notebook.add(files_tab, text='  FILES  ')
 
         notebook = ttk.Notebook(image_section, style='Modern.TNotebook')
         notebook.pack(fill=tk.BOTH, expand=True)
@@ -378,7 +380,8 @@ class FaceSwapApp:
         notebook.add(colorize_shell, text='  Colorize  ')
         notebook.add(rename_shell, text='  Rename  ')
         self.create_modern_tabs(paths_tab, swap_tab, enhance_tab, prompt_tab, crop_tab,
-                                colorize_tab, rename_tab, models3d_tab, texture_tab)
+                                colorize_tab, rename_tab, models3d_tab, texture_tab,
+                                files_tab)
         section_notebook.select(home_tab)
 
         progress_frame = ttk.Frame(main_frame, style='App.TFrame')
@@ -561,8 +564,9 @@ class FaceSwapApp:
         return widget
 
     def create_modern_tabs(self, paths, swap, enhance, prompt, crop, colorize, rename,
-                           models3d, texture):
-        for tab in (paths, swap, enhance, prompt, crop, colorize, rename, models3d, texture):
+                           models3d, texture, files):
+        for tab in (paths, swap, enhance, prompt, crop, colorize, rename,
+                    models3d, texture, files):
             tab.grid_columnconfigure(1, weight=1)
 
         self.create_path_entry(paths, "Source images", self.source_dir, self.browse_source_dir, 0)
@@ -841,6 +845,29 @@ class FaceSwapApp:
                   text='The scanner accepts every extension and reads the file as raw bytes.',
                   style='Hint.TLabel').grid(
                       row=3, column=0, columnspan=2, sticky='w', pady=(12, 0))
+
+        ttk.Label(files, text='Decompressor & File Extractor', style='Panel.TLabel',
+                  font=('Segoe UI Semibold', 12)).grid(
+                      row=0, column=0, columnspan=2, sticky='w', pady=(0, 8))
+        ttk.Label(
+            files,
+            text=('Index embedded headers, offsets, buffer sizes, archives, and compressed '
+                  'streams in any file type. Browse the reconstructed hierarchy, decompress '
+                  'supported data, and extract it as folders.'),
+            style='Hint.TLabel', wraplength=780, justify='left').grid(
+                row=1, column=0, columnspan=2, sticky='w', pady=(0, 14))
+        RoundedButton(files, text='Open File Extractor',
+                      command=self.open_file_data_scanner,
+                      bg='#16a34a', hover='#22c55e', width=260,
+                      canvas_bg='#1f2937').grid(
+                          row=2, column=0, columnspan=2, sticky='w')
+        ttk.Label(
+            files,
+            text=('Supports ZIP, TAR, GZIP, BZIP2, XZ/LZMA, ZLIB/DEFLATE, and embedded '
+                  'file signatures. Encrypted entries are identified with suggested '
+                  'formats/tools, but passwords and keys are never cracked.'),
+            style='Hint.TLabel', wraplength=780, justify='left').grid(
+                row=3, column=0, columnspan=2, sticky='w', pady=(12, 0))
 
     def create_settings_widgets(self, parent):
         tk.Label(parent, text="GPU Provider:").grid(row=0, column=0, sticky='w', padx=5, pady=2)
@@ -1868,6 +1895,34 @@ class FaceSwapApp:
             except tk.TclError:
                 pass
         self.texture_scanner_window = None
+        self.root.title('AI Generator')
+        self.main_frame.pack(fill=tk.BOTH, expand=True)
+
+    def open_file_data_scanner(self):
+        try:
+            from file_scanner import open_file_scanner
+            if getattr(self, 'file_scanner_window', None):
+                return
+            self.main_frame.pack_forget()
+            self.root.title('AI Generator — Files')
+            self.file_scanner_window = open_file_scanner(
+                self.root, on_back=self.return_from_file_data_scanner)
+        except Exception as error:
+            self.main_frame.pack(fill=tk.BOTH, expand=True)
+            self.root.title('AI Generator')
+            messagebox.showerror(
+                'Files',
+                'Could not open Files. Make sure file_scanner.py is in the same '
+                f'folder as main.py.\n\n{error}')
+
+    def return_from_file_data_scanner(self, scanner=None):
+        active = scanner or getattr(self, 'file_scanner_window', None)
+        if active is not None:
+            try:
+                active.window.destroy()
+            except tk.TclError:
+                pass
+        self.file_scanner_window = None
         self.root.title('AI Generator')
         self.main_frame.pack(fill=tk.BOTH, expand=True)
 
