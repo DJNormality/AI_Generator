@@ -352,10 +352,12 @@ class FaceSwapApp:
 
         section_notebook = ttk.Notebook(main_frame, style='Section.TNotebook')
         section_notebook.grid(row=1, column=0, sticky='nsew', pady=(0, 8))
+        home_tab = ttk.Frame(section_notebook, style='Home.TFrame')
         image_section = ttk.Frame(section_notebook, style='App.TFrame', padding=(0, 6, 0, 0))
         models3d_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
         texture_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
-        section_notebook.add(image_section, text='  HOME  ')
+        section_notebook.add(home_tab, text='  HOME  ')
+        section_notebook.add(image_section, text='  IMAGES  ')
         section_notebook.add(models3d_tab, text='  3D MODELS  ')
         section_notebook.add(texture_tab, text='  TEXTURES  ')
 
@@ -377,7 +379,7 @@ class FaceSwapApp:
         notebook.add(rename_shell, text='  Rename  ')
         self.create_modern_tabs(paths_tab, swap_tab, enhance_tab, prompt_tab, crop_tab,
                                 colorize_tab, rename_tab, models3d_tab, texture_tab)
-        section_notebook.select(image_section)
+        section_notebook.select(home_tab)
 
         progress_frame = ttk.Frame(main_frame, style='App.TFrame')
         progress_frame.grid(row=2, column=0, sticky='ew', pady=(0, 8))
@@ -454,6 +456,7 @@ class FaceSwapApp:
         style.theme_use('clam')
         style.configure('.', font=('Segoe UI', 10))
         style.configure('App.TFrame', background='#111827')
+        style.configure('Home.TFrame', background='#000000')
         style.configure('Panel.TFrame', background='#1f2937')
         style.configure('Title.TLabel', background='#111827', foreground='#f8fafc',
                         font=('Segoe UI Semibold', 20))
