@@ -252,8 +252,8 @@ class FaceSwapApp:
         except (tk.TclError, OSError):
             # Missing or invalid custom artwork should never prevent startup.
             self._window_icon_image = None
-        self.root.geometry("900x720")
-        self.root.minsize(820, 640)
+        self.root.geometry("1320x760")
+        self.root.minsize(1080, 660)
         self.root.configure(bg='#111827')
         try:
             self.root.attributes('-alpha', 0.96)
@@ -338,17 +338,25 @@ class FaceSwapApp:
         self.configure_modern_styles()
 
         # --- Modern UI Layout ---
-        main_frame = ttk.Frame(root, style='App.TFrame', padding=18)
+        main_frame = ttk.Frame(root, style='App.TFrame', padding=(16, 12))
+        self.main_frame = main_frame
         main_frame.pack(fill=tk.BOTH, expand=True)
 
         header = ttk.Frame(main_frame, style='App.TFrame')
-        header.pack(fill=tk.X, pady=(0, 12))
+        header.pack(fill=tk.X, pady=(0, 8))
         ttk.Label(header, text="AI GENERATOR", style='Title.TLabel').pack(anchor='w')
         ttk.Label(header, text="Face replacement, restoration, prompt editing and upscaling",
                   style='Subtitle.TLabel').pack(anchor='w', pady=(2, 0))
 
-        notebook = ttk.Notebook(main_frame, style='Modern.TNotebook')
-        notebook.pack(fill=tk.X, pady=(0, 12))
+        section_notebook = ttk.Notebook(main_frame, style='Section.TNotebook')
+        section_notebook.pack(fill=tk.X, pady=(0, 8))
+        image_section = ttk.Frame(section_notebook, style='App.TFrame', padding=(0, 6, 0, 0))
+        models3d_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
+        section_notebook.add(models3d_tab, text='  3D MODELS  ')
+        section_notebook.add(image_section, text='  IMAGE & VIDEO  ')
+
+        notebook = ttk.Notebook(image_section, style='Modern.TNotebook')
+        notebook.pack(fill=tk.X)
         paths_tab = ttk.Frame(notebook, style='Panel.TFrame', padding=16)
         swap_tab = ttk.Frame(notebook, style='Panel.TFrame', padding=16)
         enhance_tab = ttk.Frame(notebook, style='Panel.TFrame', padding=16)
@@ -364,7 +372,8 @@ class FaceSwapApp:
         notebook.add(colorize_tab, text='  Colorize  ')
         notebook.add(rename_tab, text='  Rename  ')
         self.create_modern_tabs(paths_tab, swap_tab, enhance_tab, prompt_tab, crop_tab,
-                                colorize_tab, rename_tab)
+                                colorize_tab, rename_tab, models3d_tab)
+        section_notebook.select(image_section)
 
         progress_frame = ttk.Frame(main_frame, style='App.TFrame')
         progress_frame.pack(fill=tk.X, pady=(0, 10))
@@ -428,10 +437,10 @@ class FaceSwapApp:
         self.root.update_idletasks()
         screen_w = self.root.winfo_screenwidth()
         screen_h = self.root.winfo_screenheight()
-        requested_w = max(900, self.root.winfo_reqwidth() + 16)
-        requested_h = max(740, self.root.winfo_reqheight() + 24)
-        width = min(requested_w, max(820, screen_w - 60))
-        height = min(requested_h, max(640, screen_h - 40))
+        requested_w = max(1280, self.root.winfo_reqwidth() + 16)
+        requested_h = max(700, self.root.winfo_reqheight() + 18)
+        width = min(requested_w, max(1080, screen_w - 40))
+        height = min(requested_h, max(660, screen_h - 30))
         x = max(0, (screen_w - width) // 2)
         y = max(0, (screen_h - height) // 2 - 10)
         self.root.geometry(f'{width}x{height}+{x}+{y}')
@@ -457,6 +466,13 @@ class FaceSwapApp:
         style.configure('Modern.TNotebook.Tab', background='#374151', foreground='#cbd5e1',
                         padding=(16, 9), borderwidth=0)
         style.map('Modern.TNotebook.Tab', background=[('selected', '#2563eb')],
+                  foreground=[('selected', '#ffffff')])
+        style.configure('Section.TNotebook', background='#111827', borderwidth=0)
+        style.configure('Section.TNotebook.Tab', background='#0f172a', foreground='#94a3b8',
+                        padding=(24, 10), borderwidth=0,
+                        font=('Segoe UI Semibold', 10))
+        style.map('Section.TNotebook.Tab',
+                  background=[('selected', '#16a34a')],
                   foreground=[('selected', '#ffffff')])
         style.configure('Modern.TLabelframe', background='#111827', foreground='#cbd5e1')
         style.configure('Modern.TLabelframe.Label', background='#111827', foreground='#cbd5e1',
@@ -506,8 +522,9 @@ class FaceSwapApp:
         widget.grid(row=row, column=1, sticky='ew', pady=6)
         return widget
 
-    def create_modern_tabs(self, paths, swap, enhance, prompt, crop, colorize, rename):
-        for tab in (paths, swap, enhance, prompt, crop, colorize, rename):
+    def create_modern_tabs(self, paths, swap, enhance, prompt, crop, colorize, rename,
+                           models3d):
+        for tab in (paths, swap, enhance, prompt, crop, colorize, rename, models3d):
             tab.grid_columnconfigure(1, weight=1)
 
         self.create_path_entry(paths, "Source images", self.source_dir, self.browse_source_dir, 0)
@@ -739,6 +756,33 @@ class FaceSwapApp:
         RoundedButton(rename_buttons, text='Rename Files', command=self.run_batch_rename,
                       bg='#16a34a', hover='#22c55e', width=160,
                       canvas_bg='#1f2937').pack(side=tk.LEFT, padx=(8, 0))
+
+        ttk.Label(models3d, text='Raw 3D Model Scanner', style='Panel.TLabel',
+                  font=('Segoe UI Semibold', 12)).grid(
+                      row=0, column=0, columnspan=2, sticky='w', pady=(0, 8))
+        ttk.Label(
+            models3d,
+            text=('Open any file type and scan its raw bytes for possible vertex, UV, and '
+                  'face/index buffers. Ranked candidates can be adjusted manually and '
+                  'previewed before OBJ export.'),
+            style='Hint.TLabel', wraplength=760, justify='left').grid(
+                row=1, column=0, columnspan=2, sticky='w', pady=(0, 14))
+        ttk.Label(
+            models3d,
+            text=('Position/UV types: Float32, Float16, signed/unsigned 32-bit, 16-bit, '
+                  '8-bit, and normalized integer formats. Face indices: UInt16/UInt32; '
+                  'triangle lists and strips.'),
+            style='Hint.TLabel', wraplength=760, justify='left').grid(
+                row=2, column=0, columnspan=2, sticky='w', pady=(0, 14))
+        RoundedButton(models3d, text='Open 3D Model Scanner',
+                      command=self.open_3d_model_scanner,
+                      bg='#16a34a', hover='#22c55e', width=250,
+                      canvas_bg='#1f2937').grid(
+                          row=3, column=0, columnspan=2, sticky='w')
+        ttk.Label(models3d,
+                  text='Viewer controls: Ctrl + mouse wheel zooms; Alt + left drag rotates.',
+                  style='Hint.TLabel').grid(
+                      row=4, column=0, columnspan=2, sticky='w', pady=(12, 0))
 
     def create_settings_widgets(self, parent):
         tk.Label(parent, text="GPU Provider:").grid(row=0, column=0, sticky='w', padx=5, pady=2)
@@ -1711,6 +1755,34 @@ class FaceSwapApp:
             webbrowser.open_new_tab(url)
         except Exception as e:
             messagebox.showerror('Could not open link', str(e))
+
+    def open_3d_model_scanner(self):
+        try:
+            from model_scanner import open_model_scanner
+            if getattr(self, 'model_scanner_window', None):
+                return
+            self.main_frame.pack_forget()
+            self.root.title('AI Generator — 3D Model Tool')
+            self.model_scanner_window = open_model_scanner(
+                self.root, embedded=True, on_back=self.return_from_3d_model_scanner)
+        except Exception as error:
+            self.main_frame.pack(fill=tk.BOTH, expand=True)
+            self.root.title('AI Generator')
+            messagebox.showerror(
+                '3D Model Scanner',
+                'Could not open the scanner. Make sure model_scanner.py is in the same '
+                f'folder as main.py.\n\n{error}')
+
+    def return_from_3d_model_scanner(self, scanner=None):
+        active = scanner or getattr(self, 'model_scanner_window', None)
+        if active is not None:
+            try:
+                active.window.destroy()
+            except tk.TclError:
+                pass
+        self.model_scanner_window = None
+        self.root.title('AI Generator')
+        self.main_frame.pack(fill=tk.BOTH, expand=True)
 
     def _update_restoration_percent(self, *_):
         try:
