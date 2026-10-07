@@ -1,5 +1,5 @@
 """Embedded automatic and configurable raw-texture tool for AI Generator."""
-import bz2, gzip, io, lzma, os, struct, threading, tkinter as tk, zlib
+import bz2, gzip, io, lzma, os, struct, threading, tkinter as tk, zipfile, zlib
 from dataclasses import dataclass
 from tkinter import filedialog, messagebox, ttk
 
@@ -7,8 +7,18 @@ SIGNATURES={'PNG':b'\x89PNG\r\n\x1a\n','JPEG':b'\xff\xd8\xff','DDS':b'DDS ','BMP
 EXTENSIONS={'PNG':'.png','JPEG':'.jpg','DDS':'.dds','BMP':'.bmp','KTX':'.ktx','KTX2':'.ktx2','PVR':'.pvr'}
 FORMATS=('RGBA8888','BGRA8888','ARGB8888','ABGR8888','RGB888','BGR888','RGB565','BGR565','RGBA5551','ARGB1555','RGBA4444','ARGB4444','L8 Grayscale','A8 Alpha','LA88','Indexed 8-bit','Indexed 4-bit','DXT1 / BC1','DXT3 / BC2','DXT5 / BC3','ATI1 / BC4','ATI2 / BC5')
 PALETTES=('RGBA8888','BGRA8888','ARGB8888','ABGR8888','RGB565','BGR565','RGBA5551','ARGB1555','RGBA4444','ARGB4444')
-SWIZZLES=('Linear','Morton / Z-order','Tiled 4x4','Tiled 8x8','Tiled 16x16','PS2 GS 8x8','Wii 4x4 / CMPR','GameCube 4x4','Xbox 360 tiled (experimental)')
-COMPRESSIONS=('None','Auto detect','ZLIB','Raw DEFLATE','GZIP','BZIP2','LZMA / XZ')
+SWIZZLES=('Linear','Morton / Z-order','Tiled 4x4','Tiled 8x8','Tiled 16x16',
+          'PC Linear / Direct3D','PC Morton / tiled','Switch Tegra block-linear (experimental)',
+          'PS1 Linear 4/8/16-bit','PS1 Morton / twiddled','PS2 GS PSMCT32','PS2 GS PSMT8','PS2 GS PSMT4',
+          'PS3 RSX Linear','PS3 RSX Swizzled','PS4 GNM micro-tiled (experimental)',
+          'PS4 GNM macro-tiled (experimental)','PS5 GNMX tiled (experimental)',
+          'Wii 4x4 / CMPR','GameCube 4x4','Xbox 360 tiled (experimental)')
+COMPRESSIONS=('None','Auto detect','ZLIB','Raw DEFLATE','GZIP','BZIP2','LZMA / XZ',
+              'LZSS 12/4 (LSB flags)','LZSS 12/4 (MSB flags)',
+              'LZ4 Frame','LZ4 Block','Zstandard / ZSTD','Brotli','Snappy','LZO',
+              'LZF','ZIP first file','7-Zip first file',
+              'PackBits RLE','Byte-pair RLE','Nintendo LZ10','Nintendo LZ11','Nintendo Yaz0')
+MAX_DECOMPRESSED=1024*1024*1024
 
 def size_text(n):
     n=float(max(0,n))
@@ -53,8 +63,8 @@ class TextureScanner:
         f=ttk.Frame(p);f.pack(fill='both',expand=True);self.result_list=tk.Listbox(f,width=52,height=18,bg='#0f172a',fg='white',exportselection=False);sy=ttk.Scrollbar(f,orient='vertical',command=self.result_list.yview);sx=ttk.Scrollbar(f,orient='horizontal',command=self.result_list.xview);self.result_list.configure(yscrollcommand=sy.set,xscrollcommand=sx.set);self.result_list.grid(row=0,column=0,sticky='nsew');sy.grid(row=0,column=1,sticky='ns');sx.grid(row=1,column=0,sticky='ew');f.rowconfigure(0,weight=1);f.columnconfigure(0,weight=1);self.result_list.bind('<<ListboxSelect>>',self.preview_selected)
         b=ttk.Frame(p);b.pack(fill='x',pady=(6,0));ttk.Button(b,text='Extract Original',command=self.extract_selected).pack(side='left',fill='x',expand=True);ttk.Button(b,text='Export All',command=self.export_all_detected).pack(side='left',fill='x',expand=True,padx=4);ttk.Button(b,text='Use as Raw',command=self.use_as_raw).pack(side='left',fill='x',expand=True)
     def _raw_ui(self,p):
-        self.v={k:tk.StringVar(value=v) for k,v in {'width':'256','height':'256','offset':'0x0','stride':'0','format':'RGBA8888','endian':'Little','swizzle':'Linear','compression':'None','compressed_size':'0','palette_offset':'0x0','palette_format':'RGBA8888','palette_entries':'256','alpha':'Straight','count':'1','texture_stride':'0'}.items()}
-        rows=[('Width','width',None),('Height','height',None),('Data offset','offset',None),('Row stride (0=auto)','stride',None),('Format','format',FORMATS),('Endian','endian',('Little','Big')),('Swizzle','swizzle',SWIZZLES),('Compression','compression',COMPRESSIONS),('Compressed size (0=rest)','compressed_size',None),('Palette offset','palette_offset',None),('Palette format','palette_format',PALETTES),('Palette entries','palette_entries',('16','256')),('Alpha','alpha',('Straight','Premultiplied','Opaque')),('Texture count','count',None),('Texture stride (0=auto)','texture_stride',None)]
+        self.v={k:tk.StringVar(value=v) for k,v in {'width':'256','height':'256','offset':'0x0','stride':'0','format':'RGBA8888','endian':'Little','swizzle':'Linear','block_height':'8','compression':'None','compressed_size':'0','palette_offset':'0x0','palette_format':'RGBA8888','palette_entries':'256','alpha':'Straight','count':'1','texture_stride':'0'}.items()}
+        rows=[('Width','width',None),('Height','height',None),('Data offset','offset',None),('Row stride (0=auto)','stride',None),('Format','format',FORMATS),('Endian','endian',('Little','Big')),('Swizzle / platform','swizzle',SWIZZLES),('Tile/GOB block height','block_height',('1','2','4','8','16','32')),('Compression','compression',COMPRESSIONS),('Compressed size (0=rest)','compressed_size',None),('Palette offset','palette_offset',None),('Palette format','palette_format',PALETTES),('Palette entries','palette_entries',('16','256')),('Alpha','alpha',('Straight','Premultiplied','Opaque')),('Texture count','count',None),('Texture stride (0=auto)','texture_stride',None)]
         for r,(label,key,values) in enumerate(rows):
             ttk.Label(p,text=label).grid(row=r,column=0,sticky='w',pady=1);w=ttk.Combobox(p,textvariable=self.v[key],values=values,state='readonly',width=28) if values else ttk.Entry(p,textvariable=self.v[key],width=30);w.grid(row=r,column=1,sticky='ew',padx=(7,0),pady=1)
         p.columnconfigure(1,weight=1);r=len(rows);ttk.Button(p,text='Decode / Preview',command=self.decode_raw).grid(row=r,column=0,columnspan=2,sticky='ew',pady=(6,2));ttk.Button(p,text='Export All Raw Textures',command=self.export_all_raw).grid(row=r+1,column=0,columnspan=2,sticky='ew',pady=2);ttk.Label(p,text='Offsets accept decimal or 0x hex. Console layouts can be game-specific.',wraplength=370).grid(row=r+2,column=0,columnspan=2,sticky='w',pady=(4,0))
@@ -117,17 +127,161 @@ class TextureScanner:
         x=self.results[s[0]];self.v['offset'].set(hex(x.offset));self.v['width'].set(str(x.width or 256));self.v['height'].set(str(x.height or 256));self.status.set('Detected values copied. Choose Raw Settings and set the pixel format.')
     def decompress(self,payload,mode):
         if mode=='None':return payload
-        funcs={'ZLIB':lambda b:zlib.decompress(b),'Raw DEFLATE':lambda b:zlib.decompress(b,-15),'GZIP':gzip.decompress,'BZIP2':bz2.decompress,'LZMA / XZ':lzma.decompress}
-        if mode!='Auto detect':return funcs[mode](payload)
-        for f in (gzip.decompress,bz2.decompress,lzma.decompress,lambda b:zlib.decompress(b),lambda b:zlib.decompress(b,-15)):
-            try:return f(payload)
-            except:pass
-        raise ValueError('Compression could not be detected.')
+        if mode=='Auto detect':
+            signatures=((b'\x1f\x8b','GZIP'),(b'BZh','BZIP2'),(b'\xfd7zXZ\x00','LZMA / XZ'),
+                        (b'\x04\x22\x4d\x18','LZ4 Frame'),(b'\x28\xb5\x2f\xfd','Zstandard / ZSTD'),
+                        (b'Yaz0','Nintendo Yaz0'),(b'\x10','Nintendo LZ10'),(b'\x11','Nintendo LZ11'))
+            for magic,name in signatures:
+                if payload.startswith(magic):return self.decompress(payload,name)
+            for name in ('ZLIB','Raw DEFLATE'):
+                try:return self.decompress(payload,name)
+                except Exception:pass
+            raise ValueError('Compression could not be auto-detected. Select a method manually.')
+        basic={'ZLIB':lambda:zlib.decompress(payload),'Raw DEFLATE':lambda:zlib.decompress(payload,-15),
+               'GZIP':lambda:gzip.decompress(payload),'BZIP2':lambda:bz2.decompress(payload),
+               'LZMA / XZ':lambda:lzma.decompress(payload)}
+        if mode in basic:out=basic[mode]()
+        elif mode.startswith('LZSS 12/4'):out=self._lzss(payload,mode.endswith('MSB flags)'))
+        elif mode=='PackBits RLE':out=self._packbits(payload)
+        elif mode=='Byte-pair RLE':out=self._pair_rle(payload)
+        elif mode=='Nintendo Yaz0':out=self._yaz0(payload)
+        elif mode in ('Nintendo LZ10','Nintendo LZ11'):out=self._nintendo_lz(payload,mode.endswith('LZ11'))
+        elif mode=='LZ4 Frame':
+            try:import lz4.frame
+            except ImportError as e:raise RuntimeError('LZ4 support requires: Scripts\\python.exe -m pip install lz4') from e
+            out=lz4.frame.decompress(payload)
+        elif mode=='LZ4 Block':
+            try:import lz4.block
+            except ImportError as e:raise RuntimeError('LZ4 support requires: Scripts\\python.exe -m pip install lz4') from e
+            try:out=lz4.block.decompress(payload)
+            except Exception as e:raise RuntimeError('LZ4 Block often needs its uncompressed-size prefix or format-specific size.') from e
+        elif mode=='Zstandard / ZSTD':
+            try:import zstandard
+            except ImportError as e:raise RuntimeError('Zstandard support requires: Scripts\\python.exe -m pip install zstandard') from e
+            out=zstandard.ZstdDecompressor().decompress(payload,max_output_size=MAX_DECOMPRESSED)
+        elif mode=='Brotli':
+            try:import brotli
+            except ImportError as e:raise RuntimeError('Brotli support requires: Scripts\\python.exe -m pip install brotli') from e
+            out=brotli.decompress(payload)
+        elif mode=='Snappy':
+            try:import snappy
+            except ImportError as e:raise RuntimeError('Snappy support requires: Scripts\\python.exe -m pip install python-snappy') from e
+            out=snappy.decompress(payload)
+        elif mode=='LZO':
+            try:import lzo
+            except ImportError as e:raise RuntimeError('LZO support requires python-lzo and its Windows native library.') from e
+            out=lzo.decompress(payload)
+        elif mode=='LZF':
+            try:import lzf
+            except ImportError as e:raise RuntimeError('LZF support requires: Scripts\\python.exe -m pip install python-lzf') from e
+            out=lzf.decompress(payload,MAX_DECOMPRESSED)
+            if out is None:raise ValueError('LZF stream needs the correct compressed range or is not valid LZF data.')
+        elif mode=='ZIP first file':
+            with zipfile.ZipFile(io.BytesIO(payload)) as archive:
+                names=[n for n in archive.namelist() if not n.endswith('/')]
+                if not names:raise ValueError('ZIP contains no files.')
+                info=archive.getinfo(names[0])
+                if info.file_size>MAX_DECOMPRESSED:raise ValueError('ZIP output exceeds the 1 GB safety limit.')
+                out=archive.read(info)
+        elif mode=='7-Zip first file':
+            try:import py7zr
+            except ImportError as e:raise RuntimeError('7-Zip support requires: Scripts\\python.exe -m pip install py7zr') from e
+            with py7zr.SevenZipFile(io.BytesIO(payload),'r') as archive:
+                names=[n for n in archive.getnames() if not n.endswith('/')]
+                if not names:raise ValueError('7-Zip archive contains no files.')
+                extracted=archive.read([names[0]]) if hasattr(archive,'read') else archive.readall()
+                value=extracted[names[0]];out=value.read() if hasattr(value,'read') else bytes(value)
+        else:raise ValueError(f'Unsupported compression method: {mode}')
+        if len(out)>MAX_DECOMPRESSED:raise ValueError('Decompressed data exceeds the 1 GB safety limit.')
+        return out
+    def _lzss(self,data,msb=False):
+        out=bytearray();p=0
+        while p<len(data) and len(out)<=MAX_DECOMPRESSED:
+            flags=data[p];p+=1
+            for bit in range(8):
+                literal=bool(flags & ((0x80>>bit) if msb else (1<<bit)))
+                if literal:
+                    if p>=len(data):break
+                    out.append(data[p]);p+=1
+                else:
+                    if p+1>=len(data):break
+                    a,b=data[p],data[p+1];p+=2;distance=((a&0xF0)<<4)|b;length=(a&0x0F)+3;source=len(out)-distance-1
+                    if source<0:raise ValueError('Invalid LZSS back-reference; try the other flag order or format.')
+                    for _ in range(length):out.append(out[source]);source+=1
+                if p>=len(data):break
+        return bytes(out)
+    def _packbits(self,data):
+        out=bytearray();p=0
+        while p<len(data) and len(out)<=MAX_DECOMPRESSED:
+            n=struct.unpack('b',data[p:p+1])[0];p+=1
+            if 0<=n<=127:out.extend(data[p:p+n+1]);p+=n+1
+            elif -127<=n<=-1:
+                if p>=len(data):break
+                out.extend(data[p:p+1]*(1-n));p+=1
+        return bytes(out)
+    def _pair_rle(self,data):
+        out=bytearray()
+        for p in range(0,len(data)-1,2):
+            count=data[p] or 256
+            if len(out)+count>MAX_DECOMPRESSED:raise ValueError('RLE output exceeds the 1 GB safety limit.')
+            out.extend(bytes((data[p+1],))*count)
+        return bytes(out)
+    def _yaz0(self,data):
+        if not data.startswith(b'Yaz0') or len(data)<16:raise ValueError('Not a Yaz0 stream.')
+        target=int.from_bytes(data[4:8],'big');p=16;out=bytearray();code=0;bits=0
+        if target>MAX_DECOMPRESSED:raise ValueError('Yaz0 output exceeds the 1 GB safety limit.')
+        while len(out)<target and p<len(data):
+            if not bits:code=data[p];p+=1;bits=8
+            if code&0x80:out.append(data[p]);p+=1
+            else:
+                a,b=data[p],data[p+1];p+=2;dist=((a&15)<<8)|b;length=a>>4
+                if not length:length=data[p]+0x12;p+=1
+                else:length+=2
+                source=len(out)-dist-1
+                if source<0:raise ValueError('Invalid Yaz0 back-reference.')
+                for _ in range(length):
+                    if len(out)>=target:break
+                    out.append(out[source]);source+=1
+            code=(code<<1)&255;bits-=1
+        return bytes(out)
+    def _nintendo_lz(self,data,lz11=False):
+        marker=0x11 if lz11 else 0x10
+        if len(data)<4 or data[0]!=marker:raise ValueError(f'Not a Nintendo LZ{11 if lz11 else 10} stream.')
+        target=int.from_bytes(data[1:4],'little');p=4
+        if target==0 and lz11:
+            if len(data)<8:raise ValueError('Truncated LZ11 header.')
+            target=int.from_bytes(data[4:8],'little');p=8
+        if target>MAX_DECOMPRESSED:raise ValueError('Nintendo LZ output exceeds the 1 GB safety limit.')
+        out=bytearray()
+        while len(out)<target and p<len(data):
+            flags=data[p];p+=1
+            for bit in range(8):
+                if len(out)>=target or p>=len(data):break
+                if not(flags&(0x80>>bit)):out.append(data[p]);p+=1;continue
+                if not lz11:
+                    a,b=data[p],data[p+1];p+=2;length=(a>>4)+3;disp=((a&15)<<8)|b
+                else:
+                    a=data[p];p+=1;top=a>>4
+                    if top==0:
+                        b,c=data[p],data[p+1];p+=2;length=((a&15)<<4)+(b>>4)+0x11;disp=((b&15)<<8)|c
+                    elif top==1:
+                        b,c,d=data[p],data[p+1],data[p+2];p+=3;length=((a&15)<<12)+(b<<4)+(c>>4)+0x111;disp=((c&15)<<8)|d
+                    else:
+                        b=data[p];p+=1;length=top+1;disp=((a&15)<<8)|b
+                source=len(out)-disp-1
+                if source<0:raise ValueError('Invalid Nintendo LZ back-reference.')
+                for _ in range(length):
+                    if len(out)>=target:break
+                    out.append(out[source]);source+=1
+        return bytes(out)
     def bpp(self,f):return 4 if '8888' in f else 3 if f in ('RGB888','BGR888') else 2 if f in ('RGB565','BGR565','RGBA5551','ARGB1555','RGBA4444','ARGB4444','LA88') else 1
     def untile(self,raw,w,h,unit,mode):
-        if mode=='Linear':return raw
-        tile=4 if ('4x4' in mode or 'GameCube' in mode or 'Wii' in mode) else 8 if ('8x8' in mode or 'PS2' in mode) else 16 if '16x16' in mode else 32 if 'Xbox' in mode else 0;out=bytearray(w*h*unit)
-        if not tile:
+        if mode in ('Linear','PC Linear / Direct3D','PS1 Linear 4/8/16-bit','PS3 RSX Linear'):return raw
+        block_height=integer(self.v.get('block_height').get() if self.v.get('block_height') else '8','Block height',1)
+        if 'Switch Tegra' in mode:return self._tegra_untile(raw,w,h,unit,block_height)
+        morton=('Morton' in mode or 'PS3 RSX Swizzled' in mode)
+        tile=4 if ('4x4' in mode or 'GameCube' in mode or 'Wii' in mode or 'PS2 GS PSMT4' in mode) else 8 if ('8x8' in mode or 'PS2' in mode or 'micro-tiled' in mode) else 16 if ('16x16' in mode or 'PS5' in mode) else 32 if ('Xbox' in mode or 'macro-tiled' in mode) else 0;out=bytearray(w*h*unit)
+        if morton or not tile:
             def compact(v):v&=0x55555555;v=(v^(v>>1))&0x33333333;v=(v^(v>>2))&0x0f0f0f0f;v=(v^(v>>4))&0x00ff00ff;return (v^(v>>8))&0xffff
             for i in range(w*h):
                 x,y=compact(i),compact(i>>1)
@@ -140,6 +294,19 @@ class TextureScanner:
                     for x in range(tile):
                         if tx+x<w and ty+y<h and src+unit<=len(raw):d=((ty+y)*w+tx+x)*unit;out[d:d+unit]=raw[src:src+unit]
                         src+=unit
+        return bytes(out)
+    def _tegra_untile(self,raw,w,h,unit,block_height):
+        """Best-effort NVIDIA Tegra X1 block-linear GOB untile used by Switch."""
+        out=bytearray(w*h*unit);width_bytes=w*unit;gob_height=8;gob_width=64
+        width_in_gobs=(width_bytes+gob_width-1)//gob_width
+        for y in range(h):
+            for xbyte in range(width_bytes):
+                gob_x=xbyte//64;gob_y=y//(8*block_height);within_y=y%(8*block_height)
+                address=(gob_y*width_in_gobs*512*block_height+gob_x*512*block_height+
+                         (within_y//8)*512+((xbyte%64)//32)*256+((within_y%8)//2)*64+
+                         ((xbyte%32)//16)*32+(within_y%2)*16+(xbyte%16))
+                dst=y*width_bytes+xbyte
+                if address<len(raw) and dst<len(out):out[dst]=raw[address]
         return bytes(out)
     def dds(self,raw,w,h,cc):
         unit=8 if cc in (b'DXT1',b'ATI1') else 16;linear=((w+3)//4)*((h+3)//4)*unit
