@@ -1,9 +1,10 @@
-<img width="902" height="1035" alt="python_o1hNqLRtvF" src="https://github.com/user-attachments/assets/d6283e23-ad41-4e07-9a73-166e2f91e1d7" />
-<img width="902" height="1035" alt="python_r1e41M81RF" src="https://github.com/user-attachments/assets/70d1772c-54ab-4e0e-8969-392923c16ef0" />
-<img width="902" height="1035" alt="python_IthA5gm5nN" src="https://github.com/user-attachments/assets/d2ddc229-2c88-442f-b127-68b425d2afb5" />
-<img width="902" height="1035" alt="python_vvdGd1EjSo" src="https://github.com/user-attachments/assets/12a88884-bdff-4dc2-ba61-8b190c375828" />
-<img width="902" height="1035" alt="python_VSb7YmPPMT" src="https://github.com/user-attachments/assets/c9b242df-8f40-4cc2-ae05-1e0b9e41bfe9" />
-<img width="902" height="1035" alt="python_MgKst8SQUd" src="https://github.com/user-attachments/assets/3695871c-ccfc-4549-b6c5-ea74fc94c0d9" />
+<img width="902" height="997" alt="4" src="https://github.com/user-attachments/assets/d1c499a2-bc5d-433a-9d4d-7ba71c6193a9" />
+<img width="902" height="1000" alt="3" src="https://github.com/user-attachments/assets/f233c0e9-81b9-492b-9727-d469f26070ed" />
+<img width="902" height="994" alt="2" src="https://github.com/user-attachments/assets/7a3d4a33-5ff7-441c-adef-a136dfc327ed" />
+<img width="902" height="997" alt="1" src="https://github.com/user-attachments/assets/6a2be625-dc99-482a-9a7a-62cb34f75406" />
+<img width="902" height="992" alt="6" src="https://github.com/user-attachments/assets/4333e117-9d40-43b2-a62d-2aca3c2b9490" />
+<img width="902" height="997" alt="5" src="https://github.com/user-attachments/assets/3e901b6f-abfe-40e7-8c3b-f0f9b4e14604" />
+
 # AI Generator
 
 AI Generator is a Windows desktop application for batch face replacement, image and video processing, face restoration, colorization, upscaling, prompt-guided image editing, cropping, and batch file renaming.
