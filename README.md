@@ -1,5 +1,3 @@
-<img width="902" height="1035" alt="python_x8ypz3SOkS" src="https://github.com/user-attachments/assets/1c6eef73-523a-46de-a636-8e97f4f5a12d" />
-
 # AI Generator
 
 AI Generator is a Windows desktop application for batch face replacement, image and video processing, face restoration, colorization, upscaling, prompt-guided image editing, cropping, and batch file renaming.
@@ -52,6 +50,21 @@ Restoration strength has a visible percentage readout in the interface.
 - ColorizeStable
 - DDColor Natural
 - DDColor Artistic
+
+### Standalone Colorize tab
+
+- Colorize complete folders of black-and-white images without indexing source
+  faces and without performing a face swap.
+- Select independent input and output folders.
+- Choose DDColor Natural, DDColor Artistic, or ColorizeStable.
+- DDColor Natural is the recommended default for photographs because it keeps
+  the original full-resolution luminance and predicts new color channels.
+- Preserve every original filename.
+- Preserve the alpha channel of transparent PNG images.
+- Skip existing outputs or enable overwrite mode.
+- Download the selected ONNX model automatically when it is missing.
+- Display per-image and overall progress using the main green progress bars.
+- Stop an active standalone colorization batch with the main Stop button.
 
 ### Upscaling and sharpening
 
@@ -156,14 +169,24 @@ The Quadro P5000 configuration is expected to be slow. A single edit may take se
 
 - Open an individual image.
 - Drag a crop rectangle directly over the preview.
+- The rectangle is red while it is being drawn or scaled and turns green when
+  the final crop selection is valid.
 - Save the selected area as a new file.
 - Preserves PNG transparency.
 
 ### Batch crop
 
-- Crop an entire directory.
+- Crop an entire directory of images and videos.
 - Choose common aspect ratios.
 - Enter an exact output width and height.
+- Keep the original centered crop behavior or choose **Custom selection**.
+- Load the first image in the folder, or the first frame of the first video
+  when the folder contains no images, and draw a reusable crop template.
+- The template rectangle is red while being drawn and turns green after the
+  final selection is completed.
+- Apply the selected relative position to every image and video in the folder,
+  even when media dimensions differ.
+- Preserve video audio when producing the cropped video.
 - Control whether existing output files are overwritten.
 
 ## Batch Renamer
@@ -396,6 +419,15 @@ No usable source faces were indexed. Fix the source-face detection problem and r
 - Re-enable one post-processing stage at a time.
 - Confirm each ONNX file matches the exact expected model rather than only having the expected filename.
 
+### Standalone colorization fails
+
+- Start with DDColor Natural, which is recommended for complete photographs.
+- Confirm the input folder contains PNG, JPG, JPEG, WebP, BMP, TIF, or TIFF images.
+- Confirm the output folder is writable and has enough free disk space.
+- Delete a partially downloaded colorizer ONNX file and run the Colorize tab
+  again so AI Generator can download a clean copy.
+- Try CPUExecutionProvider if a GPU provider returns invalid or black output.
+
 ### Prompt result is unchanged
 
 - Confirm **Enable prompt editing** is selected.
@@ -414,4 +446,3 @@ Only process media you own or have permission to edit. Follow applicable privacy
 - Patreon: https://www.patreon.com/c/3dmodelserver
 - Discord: https://discord.com/invite/sMZuNzhmxC
 - PayPal: https://www.paypal.com/paypalme/GameModNation?country.x=US&locale.x=en_US
-

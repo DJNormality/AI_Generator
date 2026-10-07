@@ -297,6 +297,7 @@ class FaceSwapApp:
         self.cloud_image_model = tk.StringVar(value='gpt-image-2.5-sunburst')
         self.cloud_image_quality = tk.StringVar(value='high')
         self.qwen_image_model = tk.StringVar(value='Qwen/Qwen-Image-Edit')
+        self.qwen_local_model = tk.StringVar(value='Qwen/Qwen-Image-2.1')
         self.a2e_image_model = tk.StringVar(value='nano-banana-pro')
         self.a2e_resolution = tk.StringVar(value='2K')
         self.edit_prompt = tk.StringVar()
@@ -309,9 +310,16 @@ class FaceSwapApp:
         self.crop_output_dir = tk.StringVar()
         self.crop_mode = tk.StringVar(value='Aspect ratio')
         self.crop_ratio = tk.StringVar(value='1:1')
+        self.crop_placement = tk.StringVar(value='Center')
+        self.crop_selection_text = tk.StringVar(value='No custom crop area selected')
+        self.batch_crop_box_norm = None
         self.crop_width = tk.IntVar(value=1024)
         self.crop_height = tk.IntVar(value=1024)
         self.crop_overwrite = tk.BooleanVar(value=False)
+        self.colorize_input_dir = tk.StringVar()
+        self.colorize_output_dir = tk.StringVar()
+        self.standalone_colorizer = tk.StringVar(value='DDColor Natural')
+        self.colorize_overwrite = tk.BooleanVar(value=False)
         self.rename_dir = tk.StringVar()
         self.rename_filter = tk.StringVar(value='Images')
         self.rename_find = tk.StringVar()
@@ -346,15 +354,17 @@ class FaceSwapApp:
         enhance_tab = ttk.Frame(notebook, style='Panel.TFrame', padding=16)
         prompt_tab = ttk.Frame(notebook, style='Panel.TFrame', padding=16)
         crop_tab = ttk.Frame(notebook, style='Panel.TFrame', padding=16)
+        colorize_tab = ttk.Frame(notebook, style='Panel.TFrame', padding=16)
         rename_tab = ttk.Frame(notebook, style='Panel.TFrame', padding=16)
         notebook.add(paths_tab, text='  Paths  ')
         notebook.add(swap_tab, text='  Face Swap  ')
         notebook.add(enhance_tab, text='  Enhance  ')
         notebook.add(prompt_tab, text='  Prompt Edit  ')
         notebook.add(crop_tab, text='  Crop  ')
+        notebook.add(colorize_tab, text='  Colorize  ')
         notebook.add(rename_tab, text='  Rename  ')
         self.create_modern_tabs(paths_tab, swap_tab, enhance_tab, prompt_tab, crop_tab,
-                                rename_tab)
+                                colorize_tab, rename_tab)
 
         progress_frame = ttk.Frame(main_frame, style='App.TFrame')
         progress_frame.pack(fill=tk.X, pady=(0, 10))
@@ -496,8 +506,8 @@ class FaceSwapApp:
         widget.grid(row=row, column=1, sticky='ew', pady=6)
         return widget
 
-    def create_modern_tabs(self, paths, swap, enhance, prompt, crop, rename):
-        for tab in (paths, swap, enhance, prompt, crop, rename):
+    def create_modern_tabs(self, paths, swap, enhance, prompt, crop, colorize, rename):
+        for tab in (paths, swap, enhance, prompt, crop, colorize, rename):
             tab.grid_columnconfigure(1, weight=1)
 
         self.create_path_entry(paths, "Source images", self.source_dir, self.browse_source_dir, 0)
@@ -565,7 +575,8 @@ class FaceSwapApp:
                         variable=self.enable_prompt_edit, style='Modern.TCheckbutton').grid(
             row=0, column=0, columnspan=2, sticky='w', pady=(0, 6))
         self._tab_label(prompt, "Prompt engine", 1)
-        self._tab_combo(prompt, self.prompt_engine, ['A2E', 'Local', 'Cloud', 'Qwen Cloud'], 1)
+        self._tab_combo(prompt, self.prompt_engine,
+                        ['A2E', 'Local', 'Qwen 2.1 Local', 'Cloud', 'Qwen Cloud'], 1)
         self._tab_label(prompt, "Cloud model", 2)
         self._tab_combo(prompt, self.cloud_image_model,
                         ['gpt-image-2.5-sunburst', 'gpt-image-2.5-flare'], 2)
@@ -575,30 +586,33 @@ class FaceSwapApp:
         self._tab_label(prompt, "Qwen model", 4)
         self._tab_combo(prompt, self.qwen_image_model,
                         ['Qwen/Qwen-Image-Edit-2511', 'Qwen/Qwen-Image-Edit'], 4)
-        self._tab_label(prompt, "A2E model", 5)
+        self._tab_label(prompt, "Qwen 2.1 model/folder", 5)
+        ttk.Entry(prompt, textvariable=self.qwen_local_model,
+                  style='Modern.TEntry').grid(row=5, column=1, sticky='ew', pady=6)
+        self._tab_label(prompt, "A2E model", 6)
         self._tab_combo(prompt, self.a2e_image_model,
                         ['nano-banana-pro', 'nano-banana-2', 'nano-banana',
                          'nano-banana-2-lite',
                          'gpt-image-2.5-sunburst', 'gpt-image-2.5-flare',
                          'gpt-image-2', 'gpt-image-1.5',
                          'qwen-image-3.0-pro', 'qwen-image-3.0',
-                         'qwen-image-2.0-pro', 'qwen-image-2.0'], 5)
-        self._tab_label(prompt, "A2E resolution", 6)
-        self._tab_combo(prompt, self.a2e_resolution, ['2K', '1K'], 6)
+                         'qwen-image-2.0-pro', 'qwen-image-2.0'], 6)
+        self._tab_label(prompt, "A2E resolution", 7)
+        self._tab_combo(prompt, self.a2e_resolution, ['2K', '1K'], 7)
         ttk.Entry(prompt, textvariable=self.edit_prompt,
-                  style='Modern.TEntry').grid(row=7, column=1, sticky='ew', pady=6)
-        self._tab_label(prompt, "Edit prompt", 7)
-        self._tab_label(prompt, "Negative prompt", 8)
-        ttk.Entry(prompt, textvariable=self.negative_prompt,
                   style='Modern.TEntry').grid(row=8, column=1, sticky='ew', pady=6)
-        self._tab_label(prompt, "Local / Qwen steps", 9)
+        self._tab_label(prompt, "Edit prompt", 8)
+        self._tab_label(prompt, "Negative prompt", 9)
+        ttk.Entry(prompt, textvariable=self.negative_prompt,
+                  style='Modern.TEntry').grid(row=9, column=1, sticky='ew', pady=6)
+        self._tab_label(prompt, "Local / Qwen steps", 10)
         ttk.Spinbox(prompt, from_=10, to=50, textvariable=self.prompt_steps,
-                    width=8, style='Modern.TSpinbox').grid(row=9, column=1, sticky='w', pady=6)
+                    width=8, style='Modern.TSpinbox').grid(row=10, column=1, sticky='w', pady=6)
         ttk.Checkbutton(prompt, text="Apply to video frames (slow and may flicker)",
                         variable=self.prompt_for_videos, style='Modern.TCheckbutton').grid(
-            row=10, column=0, columnspan=2, sticky='w', pady=6)
+            row=11, column=0, columnspan=2, sticky='w', pady=6)
         ttk.Label(prompt, text="Example: give her straight hair, subtle makeup and glasses",
-                  style='Hint.TLabel').grid(row=11, column=0, columnspan=2, sticky='w', pady=(8, 0))
+                  style='Hint.TLabel').grid(row=12, column=0, columnspan=2, sticky='w', pady=(8, 0))
 
         ttk.Label(crop, text="Manual crop", style='Panel.TLabel',
                   font=('Segoe UI Semibold', 11)).grid(
@@ -622,10 +636,20 @@ class FaceSwapApp:
         self._tab_label(crop, "Aspect ratio", 7)
         self._tab_combo(crop, self.crop_ratio,
                         ['1:1', '4:5', '3:4', '2:3', '16:9', '9:16'], 7)
+        self._tab_label(crop, "Crop placement", 8)
+        self._tab_combo(crop, self.crop_placement, ['Center', 'Custom selection'], 8)
+        selection_row = ttk.Frame(crop, style='Panel.TFrame')
+        selection_row.grid(row=9, column=0, columnspan=3, sticky='ew', pady=4)
+        RoundedButton(selection_row, text="Set Crop Area from First Media",
+                      command=self.open_batch_crop_template_editor,
+                      bg='#2563eb', hover='#3b82f6', width=260,
+                      canvas_bg='#1f2937').pack(side=tk.LEFT)
+        ttk.Label(selection_row, textvariable=self.crop_selection_text,
+                  style='Hint.TLabel').pack(side=tk.LEFT, padx=(12, 0))
         exact_row = ttk.Frame(crop, style='Panel.TFrame')
-        exact_row.grid(row=8, column=1, sticky='w', pady=6)
+        exact_row.grid(row=10, column=1, sticky='w', pady=6)
         ttk.Label(crop, text="Exact output size", style='Panel.TLabel').grid(
-            row=8, column=0, sticky='w', padx=(0, 12), pady=6)
+            row=10, column=0, sticky='w', padx=(0, 12), pady=6)
         ttk.Spinbox(exact_row, from_=16, to=8192, textvariable=self.crop_width,
                     width=8, style='Modern.TSpinbox').pack(side=tk.LEFT)
         ttk.Label(exact_row, text=' × ', style='Panel.TLabel').pack(side=tk.LEFT)
@@ -633,10 +657,37 @@ class FaceSwapApp:
                     width=8, style='Modern.TSpinbox').pack(side=tk.LEFT)
         ttk.Checkbutton(crop, text="Overwrite files that already exist",
                         variable=self.crop_overwrite, style='Modern.TCheckbutton').grid(
-                            row=9, column=0, columnspan=2, sticky='w', pady=4)
+                            row=11, column=0, columnspan=2, sticky='w', pady=4)
         RoundedButton(crop, text="Run Batch Crop", command=self.run_batch_crop_thread,
                       bg='#16a34a', hover='#22c55e', width=210).grid(
-                          row=10, column=0, columnspan=2, sticky='w', pady=(8, 0))
+                          row=12, column=0, columnspan=2, sticky='w', pady=(8, 0))
+
+        ttk.Label(colorize, text="Standalone black-and-white colorization",
+                  style='Panel.TLabel', font=('Segoe UI Semibold', 11)).grid(
+                      row=0, column=0, columnspan=2, sticky='w', pady=(0, 5))
+        ttk.Label(colorize,
+                  text="Colorize complete image folders without face indexing or face swapping.",
+                  style='Hint.TLabel').grid(
+                      row=1, column=0, columnspan=2, sticky='w', pady=(0, 12))
+        self.create_path_entry(colorize, "Input folder", self.colorize_input_dir,
+                               self.browse_colorize_input_dir, 2)
+        self.create_path_entry(colorize, "Output folder", self.colorize_output_dir,
+                               self.browse_colorize_output_dir, 3)
+        self._tab_label(colorize, "Colorization model", 4)
+        self._tab_combo(colorize, self.standalone_colorizer,
+                        ['DDColor Natural', 'DDColor Artistic', 'ColorizeStable'], 4)
+        ttk.Checkbutton(colorize, text="Overwrite files that already exist",
+                        variable=self.colorize_overwrite,
+                        style='Modern.TCheckbutton').grid(
+                            row=5, column=0, columnspan=2, sticky='w', pady=6)
+        RoundedButton(colorize, text="Colorize Images",
+                      command=self.run_standalone_colorize_thread,
+                      bg='#16a34a', hover='#22c55e', width=220).grid(
+                          row=6, column=0, columnspan=2, sticky='w', pady=(12, 0))
+        ttk.Label(colorize,
+                  text="DDColor preserves full-image detail and is recommended for photographs.",
+                  style='Hint.TLabel').grid(
+                      row=7, column=0, columnspan=2, sticky='w', pady=(10, 0))
 
         self.create_path_entry(rename, "Files folder", self.rename_dir,
                                self.browse_rename_dir, 0)
@@ -772,6 +823,7 @@ class FaceSwapApp:
             'cloud_image_model': self.cloud_image_model.get(),
             'cloud_image_quality': self.cloud_image_quality.get(),
             'qwen_image_model': self.qwen_image_model.get(),
+            'qwen_local_model': self.qwen_local_model.get(),
             'a2e_image_model': self.a2e_image_model.get(),
             'a2e_resolution': self.a2e_resolution.get(),
             'edit_prompt': self.edit_prompt.get(),
@@ -783,9 +835,14 @@ class FaceSwapApp:
             'crop_output_dir': self.crop_output_dir.get(),
             'crop_mode': self.crop_mode.get(),
             'crop_ratio': self.crop_ratio.get(),
+            'crop_placement': self.crop_placement.get(),
             'crop_width': self.crop_width.get(),
             'crop_height': self.crop_height.get(),
             'crop_overwrite': self.crop_overwrite.get(),
+            'colorize_input_dir': self.colorize_input_dir.get(),
+            'colorize_output_dir': self.colorize_output_dir.get(),
+            'standalone_colorizer': self.standalone_colorizer.get(),
+            'colorize_overwrite': self.colorize_overwrite.get(),
             'rename_dir': self.rename_dir.get(),
             'rename_filter': self.rename_filter.get(),
             'rename_find': self.rename_find.get(),
@@ -826,6 +883,7 @@ class FaceSwapApp:
             self.cloud_image_model.set(settings.get('cloud_image_model', 'gpt-image-2.5-sunburst'))
             self.cloud_image_quality.set(settings.get('cloud_image_quality', 'high'))
             self.qwen_image_model.set(settings.get('qwen_image_model', 'Qwen/Qwen-Image-Edit'))
+            self.qwen_local_model.set(settings.get('qwen_local_model', 'Qwen/Qwen-Image-2.1'))
             # Older installs saved Sunburst before Nano Banana became the
             # recommended A2E editor. Migrate that old default once, while
             # preserving any model choice made after this settings revision.
@@ -843,9 +901,15 @@ class FaceSwapApp:
             self.crop_output_dir.set(settings.get('crop_output_dir', ''))
             self.crop_mode.set(settings.get('crop_mode', 'Aspect ratio'))
             self.crop_ratio.set(settings.get('crop_ratio', '1:1'))
+            self.crop_placement.set('Center')
             self.crop_width.set(settings.get('crop_width', 1024))
             self.crop_height.set(settings.get('crop_height', 1024))
             self.crop_overwrite.set(settings.get('crop_overwrite', False))
+            self.colorize_input_dir.set(settings.get('colorize_input_dir', ''))
+            self.colorize_output_dir.set(settings.get('colorize_output_dir', ''))
+            self.standalone_colorizer.set(
+                settings.get('standalone_colorizer', 'DDColor Natural'))
+            self.colorize_overwrite.set(settings.get('colorize_overwrite', False))
             self.rename_dir.set(settings.get('rename_dir', ''))
             self.rename_filter.set(settings.get('rename_filter', 'Images'))
             self.rename_find.set(settings.get('rename_find', ''))
@@ -872,6 +936,7 @@ class FaceSwapApp:
             self.cloud_image_model.set('gpt-image-2.5-sunburst')
             self.cloud_image_quality.set('high')
             self.qwen_image_model.set('Qwen/Qwen-Image-Edit')
+            self.qwen_local_model.set('Qwen/Qwen-Image-2.1')
             self.a2e_image_model.set('nano-banana-pro')
             self.a2e_resolution.set('2K')
             self.negative_prompt.set('blurry, distorted, deformed')
@@ -879,8 +944,12 @@ class FaceSwapApp:
             self.reprocess_existing.set(False)
             self.crop_input_dir.set(''); self.crop_output_dir.set('')
             self.crop_mode.set('Aspect ratio'); self.crop_ratio.set('1:1')
+            self.crop_placement.set('Center')
             self.crop_width.set(1024); self.crop_height.set(1024)
             self.crop_overwrite.set(False)
+            self.colorize_input_dir.set(''); self.colorize_output_dir.set('')
+            self.standalone_colorizer.set('DDColor Natural')
+            self.colorize_overwrite.set(False)
             self.rename_dir.set(''); self.rename_filter.set('Images')
             self.rename_find.set(''); self.rename_replace.set('')
             self.rename_prefix.set(''); self.rename_suffix.set('')
@@ -919,6 +988,9 @@ class FaceSwapApp:
             title="Select Images to Batch Crop")
         if path:
             self.crop_input_dir.set(path)
+            self.batch_crop_box_norm = None
+            self.crop_placement.set('Center')
+            self.crop_selection_text.set('No custom crop area selected')
             if not self.crop_output_dir.get():
                 self.crop_output_dir.set(os.path.join(path, 'cropped'))
 
@@ -928,6 +1000,162 @@ class FaceSwapApp:
             title="Select Cropped Image Output Folder")
         if path:
             self.crop_output_dir.set(path)
+
+    def open_batch_crop_template_editor(self):
+        input_dir = self.crop_input_dir.get().strip()
+        if not input_dir or not os.path.isdir(input_dir):
+            messagebox.showerror('Custom batch crop',
+                                 'Select a valid batch-crop input folder first.')
+            return
+        image_extensions = ('.png', '.jpg', '.jpeg', '.webp', '.bmp', '.tif', '.tiff')
+        video_extensions = ('.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v')
+        names = sorted(os.listdir(input_dir))
+        candidates = [name for name in names if name.lower().endswith(image_extensions)]
+        candidates += [name for name in names if name.lower().endswith(video_extensions)]
+        if not candidates:
+            messagebox.showerror('Custom batch crop',
+                                 'No supported images or videos were found.')
+            return
+
+        source_name = candidates[0]
+        source_path = os.path.join(input_dir, source_name)
+        try:
+            from PIL import Image, ImageOps, ImageTk
+            if source_name.lower().endswith(image_extensions):
+                with Image.open(source_path) as opened:
+                    source_image = ImageOps.exif_transpose(opened).convert('RGB')
+            else:
+                capture = cv2.VideoCapture(source_path)
+                ok, frame = capture.read()
+                capture.release()
+                if not ok or frame is None:
+                    raise RuntimeError('Could not read the first video frame.')
+                source_image = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        except Exception as error:
+            messagebox.showerror('Custom batch crop', str(error))
+            return
+
+        editor = Toplevel(self.root)
+        editor.title(f'Batch Crop Template — {source_name}')
+        editor.configure(bg='#111827')
+        editor.transient(self.root)
+        editor.grab_set()
+
+        image_w, image_h = source_image.size
+        max_w = min(1100, max(600, self.root.winfo_screenwidth() - 140))
+        max_h = min(700, max(400, self.root.winfo_screenheight() - 220))
+        preview_scale = min(max_w / image_w, max_h / image_h, 1.0)
+        preview_w = max(1, int(round(image_w * preview_scale)))
+        preview_h = max(1, int(round(image_h * preview_scale)))
+        preview = source_image.resize(
+            (preview_w, preview_h), getattr(Image, 'Resampling', Image).LANCZOS)
+        preview_photo = ImageTk.PhotoImage(preview)
+
+        info = tk.StringVar(
+            value='Drag a rectangle over the first media preview, then choose Use Selection.')
+        ttk.Label(editor, textvariable=info, style='Status.TLabel').pack(
+            fill=tk.X, padx=14, pady=(12, 8))
+        canvas = tk.Canvas(editor, width=preview_w, height=preview_h,
+                           bg='#020617', highlightthickness=1,
+                           highlightbackground='#475569', cursor='crosshair')
+        canvas.pack(padx=14, pady=(0, 10))
+        canvas.create_image(0, 0, image=preview_photo, anchor='nw')
+        canvas.preview_photo = preview_photo
+        selection = {'start': None, 'box': None, 'item': None}
+
+        def clamp(event):
+            return (max(0, min(preview_w, event.x)),
+                    max(0, min(preview_h, event.y)))
+
+        def drag_start(event):
+            x, y = clamp(event)
+            selection['start'] = (x, y)
+            selection['box'] = None
+            if selection['item'] is not None:
+                canvas.delete(selection['item'])
+            # Red means the crop rectangle is still being drawn/scaled.
+            selection['item'] = canvas.create_rectangle(
+                x, y, x, y, outline='#ef4444', width=3)
+
+        def drag_move(event):
+            if selection['start'] is None:
+                return
+            x, y = clamp(event)
+            x0, y0 = selection['start']
+            canvas.coords(selection['item'], x0, y0, x, y)
+            left, right = sorted((x0, x))
+            top, bottom = sorted((y0, y))
+            original_w = int(round((right - left) / preview_scale))
+            original_h = int(round((bottom - top) / preview_scale))
+            info.set(f'Selection: {original_w} × {original_h} pixels')
+
+        def drag_end(event):
+            if selection['start'] is None:
+                return
+            x, y = clamp(event)
+            x0, y0 = selection['start']
+            left, right = sorted((x0, x))
+            top, bottom = sorted((y0, y))
+            if right - left < 8 or bottom - top < 8:
+                selection['box'] = None
+                info.set('Selection is too small. Draw a larger rectangle.')
+            else:
+                selection['box'] = (left, top, right, bottom)
+                # Green means a valid crop selection has been completed.
+                canvas.itemconfigure(selection['item'], outline='#22c55e')
+                selection['start'] = None
+
+        def use_selection():
+            if selection['box'] is None:
+                messagebox.showwarning('Custom batch crop',
+                                       'Draw a crop rectangle first.', parent=editor)
+                return
+            left, top, right, bottom = selection['box']
+            original_box = (
+                max(0, min(image_w, int(round(left / preview_scale)))),
+                max(0, min(image_h, int(round(top / preview_scale)))),
+                max(1, min(image_w, int(round(right / preview_scale)))),
+                max(1, min(image_h, int(round(bottom / preview_scale)))),
+            )
+            left_o, top_o, right_o, bottom_o = original_box
+            self.batch_crop_box_norm = (
+                left_o / image_w, top_o / image_h,
+                right_o / image_w, bottom_o / image_h)
+            selected_w = right_o - left_o
+            selected_h = bottom_o - top_o
+            self.crop_width.set(selected_w)
+            self.crop_height.set(selected_h)
+            self.crop_placement.set('Custom selection')
+            self.crop_selection_text.set(
+                f'{source_name}: {selected_w} × {selected_h} at ({left_o}, {top_o})')
+            editor.destroy()
+
+        canvas.bind('<ButtonPress-1>', drag_start)
+        canvas.bind('<B1-Motion>', drag_move)
+        canvas.bind('<ButtonRelease-1>', drag_end)
+        buttons = ttk.Frame(editor, style='App.TFrame')
+        buttons.pack(fill=tk.X, padx=14, pady=(0, 12))
+        RoundedButton(buttons, text='Cancel', command=editor.destroy,
+                      width=120).pack(side=tk.RIGHT)
+        RoundedButton(buttons, text='Use Selection', command=use_selection,
+                      bg='#16a34a', hover='#22c55e', width=160).pack(
+                          side=tk.RIGHT, padx=(0, 8))
+
+    def browse_colorize_input_dir(self):
+        path = filedialog.askdirectory(
+            initialdir=self.colorize_input_dir.get() or self.target_dir.get(),
+            title="Select Black-and-White Images Folder")
+        if path:
+            self.colorize_input_dir.set(path)
+            if not self.colorize_output_dir.get():
+                self.colorize_output_dir.set(os.path.join(path, 'colorized'))
+
+    def browse_colorize_output_dir(self):
+        path = filedialog.askdirectory(
+            initialdir=self.colorize_output_dir.get() or self.output_dir.get(),
+            title="Select Colorized Image Output Folder")
+        if path:
+            self.colorize_output_dir.set(path)
 
     def browse_rename_dir(self):
         path = filedialog.askdirectory(
@@ -1142,7 +1370,7 @@ class FaceSwapApp:
                 canvas.delete(state['rect'])
             x, y = state['start']
             state['rect'] = canvas.create_rectangle(
-                x, y, x, y, outline='#22c55e', width=3, dash=(7, 4))
+                x, y, x, y, outline='#ef4444', width=3, dash=(7, 4))
 
         def drag_move(event):
             if state['start'] is None or state['rect'] is None:
@@ -1169,6 +1397,7 @@ class FaceSwapApp:
                 crop_info.set('Selection is too small. Drag a larger crop area.')
                 return
             state['selection'] = box
+            canvas.itemconfigure(state['rect'], outline='#22c55e')
             crop_info.set(
                 f'Crop: {box[2] - box[0]} × {box[3] - box[1]} px '
                 f'at ({box[0]}, {box[1]})')
@@ -1229,7 +1458,20 @@ class FaceSwapApp:
         return left, top, left + crop_width, top + crop_height
 
     def run_batch_crop_thread(self):
-        threading.Thread(target=self._run_batch_crop, daemon=True).start()
+        if self.is_processing:
+            messagebox.showwarning('Batch crop', 'Another processing task is already running.')
+            return
+        self.is_processing = True
+        self.stop_event.clear()
+        self.stop_button.config(state='normal')
+        threading.Thread(target=self._batch_crop_worker, daemon=True).start()
+
+    def _batch_crop_worker(self):
+        try:
+            self._run_batch_crop()
+        finally:
+            self.is_processing = False
+            self.stop_button.config(state='disabled')
 
     def _run_batch_crop(self):
         input_dir = self.crop_input_dir.get().strip()
@@ -1245,6 +1487,10 @@ class FaceSwapApp:
         try:
             from PIL import Image, ImageOps
             mode = self.crop_mode.get()
+            use_custom = self.crop_placement.get() == 'Custom selection'
+            if use_custom and self.batch_crop_box_norm is None:
+                raise ValueError(
+                    'Choose Set Crop Area from First Media before using Custom selection.')
             if mode == 'Exact size':
                 out_width = max(16, int(self.crop_width.get()))
                 out_height = max(16, int(self.crop_height.get()))
@@ -1258,48 +1504,207 @@ class FaceSwapApp:
                 'Batch crop settings', err))
             return
 
-        extensions = ('.png', '.jpg', '.jpeg', '.webp', '.bmp', '.tif', '.tiff')
-        files = sorted(name for name in os.listdir(input_dir) if name.lower().endswith(extensions))
+        image_extensions = ('.png', '.jpg', '.jpeg', '.webp', '.bmp', '.tif', '.tiff')
+        video_extensions = ('.mp4', '.mov', '.avi', '.mkv', '.m4v')
+        extensions = image_extensions + video_extensions
+        files = sorted(name for name in os.listdir(input_dir)
+                       if name.lower().endswith(extensions))
         if not files:
             self.root.after(0, lambda: messagebox.showinfo(
-                'Batch crop', 'No supported images were found.'))
+                'Batch crop', 'No supported images or videos were found.'))
             return
         os.makedirs(output_dir, exist_ok=True)
         completed = skipped = failed = 0
         self.last_issue_text.set('')
-        self.update_task_progress(0, f'Batch cropping {len(files)} images')
+        self.update_task_progress(0, f'Batch cropping {len(files)} media files')
+        self.update_overall_progress(0, 'Batch crop started')
         resampling = getattr(Image, 'Resampling', Image).LANCZOS
+
+        def crop_box_for_size(width, height):
+            if use_custom:
+                left_n, top_n, right_n, bottom_n = self.batch_crop_box_norm
+                left = max(0, min(width - 1, int(round(left_n * width))))
+                top = max(0, min(height - 1, int(round(top_n * height))))
+                right = max(left + 1, min(width, int(round(right_n * width))))
+                bottom = max(top + 1, min(height, int(round(bottom_n * height))))
+                return left, top, right, bottom
+            return self._center_crop_box(width, height, ratio)
+
         for index, filename in enumerate(files, 1):
+            if self.stop_event.is_set():
+                break
             source_path = os.path.join(input_dir, filename)
             destination_path = os.path.join(output_dir, filename)
             if os.path.exists(destination_path) and not self.crop_overwrite.get():
                 skipped += 1
             else:
                 try:
-                    with Image.open(source_path) as opened:
-                        image = ImageOps.exif_transpose(opened).copy()
-                    cropped = image.crop(self._center_crop_box(*image.size, ratio))
-                    if mode == 'Exact size':
-                        cropped = cropped.resize((out_width, out_height), resampling)
-                    if os.path.splitext(destination_path)[1].lower() in ('.jpg', '.jpeg') and cropped.mode != 'RGB':
-                        if cropped.mode in ('RGBA', 'LA'):
-                            background = Image.new('RGB', cropped.size, 'white')
-                            background.paste(cropped, mask=cropped.getchannel('A'))
-                            cropped = background
-                        else:
-                            cropped = cropped.convert('RGB')
-                    save_options = {'quality': 95} if os.path.splitext(destination_path)[1].lower() in (
-                        '.jpg', '.jpeg', '.webp') else {}
-                    cropped.save(destination_path, **save_options)
+                    if filename.lower().endswith(image_extensions):
+                        with Image.open(source_path) as opened:
+                            image = ImageOps.exif_transpose(opened).copy()
+                        cropped = image.crop(crop_box_for_size(*image.size))
+                        if mode == 'Exact size':
+                            cropped = cropped.resize((out_width, out_height), resampling)
+                        if (os.path.splitext(destination_path)[1].lower() in ('.jpg', '.jpeg')
+                                and cropped.mode != 'RGB'):
+                            if cropped.mode in ('RGBA', 'LA'):
+                                background = Image.new('RGB', cropped.size, 'white')
+                                background.paste(cropped, mask=cropped.getchannel('A'))
+                                cropped = background
+                            else:
+                                cropped = cropped.convert('RGB')
+                        save_options = {'quality': 95} if os.path.splitext(
+                            destination_path)[1].lower() in ('.jpg', '.jpeg', '.webp') else {}
+                        cropped.save(destination_path, **save_options)
+                    else:
+                        if os.path.abspath(source_path) == os.path.abspath(destination_path):
+                            raise RuntimeError(
+                                'Video input and output cannot be the same file. '
+                                'Choose a different output folder.')
+                        clip = VideoFileClip(source_path)
+                        cropped_clip = None
+                        resized_clip = None
+                        try:
+                            video_w, video_h = map(int, clip.size)
+                            left, top, right, bottom = crop_box_for_size(video_w, video_h)
+                            if hasattr(clip, 'cropped'):
+                                cropped_clip = clip.cropped(
+                                    x1=left, y1=top, x2=right, y2=bottom)
+                            else:
+                                cropped_clip = clip.crop(
+                                    x1=left, y1=top, x2=right, y2=bottom)
+                            final_clip = cropped_clip
+                            if mode == 'Exact size':
+                                if hasattr(cropped_clip, 'resized'):
+                                    resized_clip = cropped_clip.resized(
+                                        new_size=(out_width, out_height))
+                                else:
+                                    resized_clip = cropped_clip.resize(
+                                        newsize=(out_width, out_height))
+                                final_clip = resized_clip
+                            final_clip.write_videofile(
+                                destination_path, codec='libx264', audio_codec='aac',
+                                fps=clip.fps, logger=None)
+                        finally:
+                            if resized_clip is not None:
+                                resized_clip.close()
+                            if cropped_clip is not None:
+                                cropped_clip.close()
+                            clip.close()
                     completed += 1
                 except Exception as e:
                     failed += 1
                     self.log(f'Warning: could not crop {filename}: {e}')
-            self.update_task_progress(index / len(files) * 100,
-                                      f'Batch crop {index} of {len(files)}')
-        summary = f'Batch crop complete: {completed} saved, {skipped} skipped, {failed} failed.'
+            percent = index / len(files) * 100
+            self.update_task_progress(percent, f'Batch crop {index} of {len(files)}')
+            self.update_overall_progress(percent)
+        stopped = self.stop_event.is_set()
+        summary = (f'Batch crop {"stopped" if stopped else "complete"}: '
+                   f'{completed} saved, {skipped} skipped, {failed} failed.')
         self.status_text.set(summary)
         self.root.after(0, lambda text=summary: messagebox.showinfo('Batch crop complete', text))
+
+    def run_standalone_colorize_thread(self):
+        if self.is_processing:
+            messagebox.showwarning('Colorize images',
+                                   'Another processing task is already running.')
+            return
+        self.is_processing = True
+        self.stop_event.clear()
+        self.stop_button.config(state='normal')
+        threading.Thread(target=self._run_standalone_colorize, daemon=True).start()
+
+    def _run_standalone_colorize(self):
+        try:
+            input_dir = self.colorize_input_dir.get().strip()
+            output_dir = self.colorize_output_dir.get().strip()
+            if not input_dir or not os.path.isdir(input_dir):
+                raise ValueError('Select a valid input folder containing images.')
+            if not output_dir:
+                raise ValueError('Select an output folder for colorized images.')
+
+            extensions = ('.png', '.jpg', '.jpeg', '.webp', '.bmp', '.tif', '.tiff')
+            files = sorted(name for name in os.listdir(input_dir)
+                           if name.lower().endswith(extensions))
+            if not files:
+                raise ValueError('No supported images were found in the input folder.')
+
+            os.makedirs(output_dir, exist_ok=True)
+            os.makedirs(self.models_dir.get(), exist_ok=True)
+            model_name = self.standalone_colorizer.get()
+            if model_name not in ('ColorizeStable', 'DDColor Natural', 'DDColor Artistic'):
+                model_name = 'DDColor Natural'
+            info = POST_PROCESS_MODELS[model_name]
+            model_path = os.path.join(self.models_dir.get(), info['filename'])
+            _download_model(model_path, info['url'], model_name, self.log)
+            providers = [self.gpu_provider.get(), 'CUDAExecutionProvider',
+                         'DmlExecutionProvider', 'CPUExecutionProvider']
+            if model_name.startswith('DDColor'):
+                model = DDColorModel(model_path, providers, model_name)
+            else:
+                model = OnnxImageModel(model_path, providers, 'face', model_name)
+
+            completed = skipped = failed = 0
+            self.last_issue_text.set('')
+            self.update_task_progress(0, f'Colorizing {len(files)} images')
+            self.update_overall_progress(0, 'Standalone colorization started')
+            for index, filename in enumerate(files, 1):
+                if self.stop_event.is_set():
+                    break
+                source_path = os.path.join(input_dir, filename)
+                destination_path = os.path.join(output_dir, filename)
+                if (os.path.exists(destination_path) and
+                        not self.colorize_overwrite.get()):
+                    skipped += 1
+                else:
+                    try:
+                        source = cv2.imread(source_path, cv2.IMREAD_UNCHANGED)
+                        if source is None:
+                            raise RuntimeError('OpenCV could not decode the image.')
+                        alpha = None
+                        if source.ndim == 2:
+                            bgr = cv2.cvtColor(source, cv2.COLOR_GRAY2BGR)
+                        elif source.shape[2] == 4:
+                            alpha = source[:, :, 3]
+                            bgr = source[:, :, :3]
+                        else:
+                            bgr = source[:, :, :3]
+                        original_size = (bgr.shape[1], bgr.shape[0])
+                        colorized = model.run(bgr)
+                        if colorized.shape[:2] != bgr.shape[:2]:
+                            colorized = cv2.resize(
+                                colorized, original_size, interpolation=cv2.INTER_LANCZOS4)
+                        if alpha is not None and filename.lower().endswith('.png'):
+                            if alpha.shape[:2] != colorized.shape[:2]:
+                                alpha = cv2.resize(alpha, original_size,
+                                                   interpolation=cv2.INTER_LINEAR)
+                            output = np.dstack((colorized, alpha))
+                        else:
+                            output = colorized
+                        if not cv2.imwrite(destination_path, output):
+                            raise RuntimeError('OpenCV could not save the output image.')
+                        completed += 1
+                    except Exception as error:
+                        failed += 1
+                        self.log(f'Warning: could not colorize {filename}: {error}')
+                percent = index / len(files) * 100
+                self.update_task_progress(percent,
+                                          f'Colorizing {index} of {len(files)}: {filename}')
+                self.update_overall_progress(percent)
+
+            stopped = self.stop_event.is_set()
+            summary = (f'Colorization {"stopped" if stopped else "complete"}: '
+                       f'{completed} saved, {skipped} skipped, {failed} failed.')
+            self.status_text.set(summary)
+            self.root.after(0, lambda text=summary: messagebox.showinfo(
+                'Colorize images', text))
+        except Exception as error:
+            self.log(f'Error: standalone colorization failed: {error}')
+            self.root.after(0, lambda text=str(error): messagebox.showerror(
+                'Colorize images', text))
+        finally:
+            self.is_processing = False
+            self.stop_button.config(state='disabled')
 
     def open_external_link(self, url):
         try:
@@ -1549,6 +1954,7 @@ class FaceSwapApp:
             'CLOUD_IMAGE_MODEL': self.cloud_image_model.get(),
             'CLOUD_IMAGE_QUALITY': self.cloud_image_quality.get(),
             'QWEN_IMAGE_MODEL': self.qwen_image_model.get(),
+            'QWEN_LOCAL_MODEL': self.qwen_local_model.get().strip() or 'Qwen/Qwen-Image-2.1',
             'A2E_IMAGE_MODEL': self.a2e_image_model.get(),
             'A2E_RESOLUTION': self.a2e_resolution.get(),
             'EDIT_PROMPT': self.edit_prompt.get().strip(),
@@ -2111,6 +2517,106 @@ class LocalPromptEditor:
         return result
 
 
+class Qwen21LocalImageEditor:
+    """Memory-conscious local Qwen-Image-2.1 editor for 16 GB NVIDIA cards."""
+
+    def __init__(self, model_id, log):
+        self.log = log
+        self.model_id = model_id or 'Qwen/Qwen-Image-2.1'
+        try:
+            import torch
+            from diffusers import QwenImage21Pipeline
+        except (ImportError, AttributeError) as e:
+            raise RuntimeError(
+                "Qwen 2.1 Local requires a current Diffusers build, Transformers "
+                "5.17 or newer, Accelerate and Safetensors. Run "
+                "Install_NVIDIA_Prompt.bat from the AI Generator folder."
+            ) from e
+        if not torch.cuda.is_available():
+            raise RuntimeError(
+                "Qwen 2.1 Local requires CUDA, but CUDA is unavailable. Confirm "
+                "that CUDA-enabled PyTorch and the NVIDIA driver are installed."
+            )
+
+        self.torch = torch
+        device = torch.cuda.get_device_properties(0)
+        memory_gb = device.total_memory / (1024 ** 3)
+        log(f"    Loading Qwen 2.1 Local: {self.model_id}")
+        log("    The complete model is about 33 GB; the first download can take a long time.")
+        log(f"    Using FP16 with sequential CPU offload on {device.name} "
+            f"({memory_gb:.1f} GB VRAM).")
+        try:
+            self.pipe = QwenImage21Pipeline.from_pretrained(
+                self.model_id,
+                torch_dtype=torch.float16,
+                low_cpu_mem_usage=True,
+            )
+        except Exception as e:
+            raise RuntimeError(
+                f"Could not download or load Qwen Image 2.1 from "
+                f"'{self.model_id}'. A text_encoder folder by itself is not enough; "
+                f"the folder must contain model_index.json, transformer, VAE, "
+                f"processor, scheduler and text_encoder. Details: {e}"
+            ) from e
+
+        if hasattr(self.pipe, 'enable_vae_slicing'):
+            self.pipe.enable_vae_slicing()
+        if hasattr(self.pipe, 'enable_vae_tiling'):
+            self.pipe.enable_vae_tiling()
+        if hasattr(self.pipe, 'enable_attention_slicing'):
+            self.pipe.enable_attention_slicing()
+        try:
+            self.pipe.enable_sequential_cpu_offload()
+        except Exception as e:
+            raise RuntimeError(
+                "Qwen Image 2.1 loaded, but CPU offload could not be enabled. "
+                "Install or update Accelerate. Details: " + str(e)
+            ) from e
+        log("    Qwen 2.1 Local is ready. Subsequent runs use the Hugging Face cache offline.")
+
+    def edit(self, bgr_image, prompt, negative_prompt='', steps=20):
+        import inspect
+        from PIL import Image
+
+        original_h, original_w = bgr_image.shape[:2]
+        # The P5000 has 16 GB VRAM. Keep the working image modest and aligned
+        # to Qwen Image 2.1's spatial scale factor; restore original dimensions
+        # after editing so the rest of the pipeline remains unchanged.
+        scale = min(1.0, 768.0 / max(original_w, original_h))
+        work_w = max(256, int(original_w * scale) // 16 * 16)
+        work_h = max(256, int(original_h * scale) // 16 * 16)
+        rgb = cv2.cvtColor(bgr_image, cv2.COLOR_BGR2RGB)
+        interpolation = cv2.INTER_AREA if scale < 1.0 else cv2.INTER_LANCZOS4
+        rgb = cv2.resize(rgb, (work_w, work_h), interpolation=interpolation)
+        pil_image = Image.fromarray(rgb)
+
+        call_args = {
+            'prompt': prompt,
+            'image': pil_image,
+            'num_inference_steps': int(steps),
+            'generator': self.torch.Generator(device='cuda').manual_seed(0),
+        }
+        try:
+            parameters = inspect.signature(self.pipe.__call__).parameters
+            if negative_prompt and 'negative_prompt' in parameters:
+                call_args['negative_prompt'] = negative_prompt
+        except (TypeError, ValueError):
+            pass
+
+        try:
+            with self.torch.inference_mode():
+                output = self.pipe(**call_args).images[0]
+        finally:
+            self.torch.cuda.empty_cache()
+
+        output = output.convert('RGB')
+        result = cv2.cvtColor(np.asarray(output), cv2.COLOR_RGB2BGR)
+        if result.shape[:2] != (original_h, original_w):
+            result = cv2.resize(
+                result, (original_w, original_h), interpolation=cv2.INTER_LANCZOS4)
+        return result
+
+
 class CloudImageEditor:
     """High-fidelity reference image editing through the OpenAI Images API."""
     def __init__(self, model, quality, log):
@@ -2650,6 +3156,7 @@ class A2EImageEditor:
 
 
 _PROMPT_EDITOR_CACHE = None
+_QWEN_LOCAL_EDITOR_CACHE = {}
 _CLOUD_EDITOR_CACHE = {}
 _QWEN_EDITOR_CACHE = {}
 _A2E_EDITOR_CACHE = {}
@@ -2660,6 +3167,13 @@ def get_prompt_editor(log):
     if _PROMPT_EDITOR_CACHE is None:
         _PROMPT_EDITOR_CACHE = LocalPromptEditor(log)
     return _PROMPT_EDITOR_CACHE
+
+
+def get_qwen_local_editor(model, log):
+    model = model or 'Qwen/Qwen-Image-2.1'
+    if model not in _QWEN_LOCAL_EDITOR_CACHE:
+        _QWEN_LOCAL_EDITOR_CACHE[model] = Qwen21LocalImageEditor(model, log)
+    return _QWEN_LOCAL_EDITOR_CACHE[model]
 
 
 def get_cloud_editor(model, quality, log):
@@ -2745,6 +3259,11 @@ class PostProcessChain:
                     elif prompt_engine == 'Qwen Cloud':
                         self.prompt_editor = get_qwen_cloud_editor(
                             config.get('QWEN_IMAGE_MODEL', 'Qwen/Qwen-Image-Edit'),
+                            log,
+                        )
+                    elif prompt_engine == 'Qwen 2.1 Local':
+                        self.prompt_editor = get_qwen_local_editor(
+                            config.get('QWEN_LOCAL_MODEL', 'Qwen/Qwen-Image-2.1'),
                             log,
                         )
                     elif prompt_engine == 'A2E':
