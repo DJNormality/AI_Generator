@@ -1,562 +1,415 @@
-<img width="1261" height="999" alt="pythonw3 13_NozENWqvnU" src="https://github.com/user-attachments/assets/5b6afbea-4fa4-48e4-a77b-31c5214bb52f" />
-
-
-
-
 # AI Generator
 
-AI Generator is a Windows desktop application for batch face swapping, face restoration, prompt-guided image editing, colorization, upscaling, tone correction, video processing, image review, and cropping.
+AI Generator is a Windows desktop application for batch face replacement, image and video processing, face restoration, colorization, upscaling, prompt-guided image editing, cropping, and batch file renaming.
 
-The interface is designed around a folder-based workflow: place identity portraits in the source folder, place images or videos in the target folder, choose the processing options, and run the complete pipeline.
+It began as a fork of Smart Face Swapper and has been expanded with a modern tabbed interface, persistent source-face indexing, multiple restoration and upscaling models, local and cloud prompt editors, processing progress displays, and utility tools.
 
-> Use face-swapping and generative editing only with material you own or have permission to process. Do not use the application for impersonation, deception, harassment, or non-consensual imagery.
+## Main Features
 
-## Main features
+### Face replacement
 
-- Batch processing for images and videos
-- Three compatible face-swap model choices, including 128 and 256 input sizes
-- Persistent source-face indexing with incremental resume support
-- Automatic face matching using InsightFace embeddings
-- Multiple ONNX face-restoration models
-- Multiple ONNX upscalers and colorization models
-- Brightness and gamma correction
-- Smart occlusion and face-boundary protection
-- Local and cloud prompt-guided image editing
-- A2E GPT Image and Qwen editing with 1K or 2K output
-- OpenAI-compatible cloud image editing
-- Hugging Face Qwen cloud editing
-- Local Diffusers prompt editing for supported NVIDIA systems
-- Manual image crop editor and batch cropping
-- Video quick scan, automatic review pass, manual review, pause/resume, and audio restoration
-- Separate task and overall progress bars
-- Persistent settings in `config.json`
-- Automatic model downloads when a feature is first enabled
-- Modern, slightly transparent Windows interface
+- Batch-process image and video folders.
+- Detect and replace one or more faces in each target.
+- Choose the closest indexed source face automatically.
+- Use the original InsightFace-compatible 128 model, FP16 128 model, or compatible ReSwapper 256 model.
+- Processing-resolution and face-consistency controls.
+- Optional color correction.
+- Quick scan, review pass, and manual review options.
+- Pause, resume, stop, and reprocess-existing controls.
+- NVIDIA, DirectML, and CPU execution options, depending on installed providers.
 
-## Recommended system
+### Persistent source-face indexing
 
-- Windows 10 or Windows 11, 64-bit
-- 64-bit Python 3.11 recommended; the installer also checks Python 3.12 and `python` on PATH
-- 16 GB RAM minimum; 32 GB or more recommended for large batches
-- NVIDIA GPU recommended for CUDA processing and local prompt editing
-- Current NVIDIA display driver
-- Internet connection for installation, automatic model downloads, and cloud prompt engines
-- Several gigabytes of free storage for Python packages, ONNX models, temporary video frames, and local Diffusers models
+- Source faces are indexed once and stored for later sessions.
+- Unchanged source folders reuse their existing index.
+- New or changed source images can be added without discarding completed work.
+- A **Rebuild face index this run** option forces a clean index when necessary.
+- Indexing and overall progress are displayed as green progress bars with percentages.
+- More forgiving face-detection passes improve recognition of angled, small, or difficult portraits.
 
-## New-user installation
+Persistent indexes are stored as:
 
-### 1. Prepare the application folder
+    models/source_faces_*.pkl
 
-Extract the complete package to a normal writable folder, for example:
-
-```text
-D:\PROGRAMS\AI_Generator
-```
-
-Do not run the application from inside a ZIP file. Confirm that `main.py`, `Setup.bat`, `Run.bat`, and `requirements.txt` are in the same top-level folder.
-
-### 2. Install Python
-
-Install 64-bit Python 3.11 from [python.org](https://www.python.org/downloads/). During installation, enable **Add Python to PATH**.
-
-Verify Python from Command Prompt:
-
-```bat
-py -3.11 --version
-```
-
-### 3. Run the installer
-
-Double-click `Setup.bat`.
-
-The installer:
-
-1. Finds an available Python installation.
-2. Creates a private `.venv` environment inside the application folder.
-3. Updates `pip`, `setuptools`, and `wheel`.
-4. Installs the packages from `requirements.txt`.
-5. Creates the standard application folders.
-
-Wait for **Setup completed successfully** before closing the window.
-
-### 4. Start AI Generator
-
-Double-click `Run.bat`. It launches `main.py` through `pythonw.exe`, so a second Command Prompt window is not left open.
-
-Run `Setup.bat` again only when requirements change, the `.venv` folder is removed, or the Python environment becomes damaged.
-
-## Standard folder layout
-
-```text
-AI_Generator\
-├─ main.py
-├─ Setup.bat
-├─ Run.bat
-├─ requirements.txt
-├─ config.json                 Generated after settings are saved
-├─ .venv\                     Private Python environment
-├─ models\                    ONNX models and persistent face indexes
-├─ resources\                 Discord.png, Patreon.png and PayPal.png
-├─ source\                    Source identity portraits
-├─ target\                    Target images and videos
-├─ result\                    Finished outputs
-└─ temp_processing\           Frames, working files and prompt previews
-```
-
-Folder paths can be changed from the **Paths** tab. The names above are the defaults created by `Setup.bat`.
-
-## Quick start
-
-1. Place clear portraits of the identity to copy in `source`.
-2. Place the images or videos to modify in `target`.
-3. Start AI Generator with `Run.bat`.
-4. Confirm the four paths on the **Paths** tab.
-5. On **Face Swap**, select the GPU provider and swapper model.
-6. Choose optional restoration, colorization, upscaling, tone, or prompt-editing features.
-7. Click **Run Full Process**.
-8. Finished files are written to `result` or the selected output folder.
-
-Output names include the target name and source-folder name so batches from different identities remain distinguishable.
-
-## Paths tab
-
-| Setting | Purpose |
-|---|---|
-| Source images | Portraits used to build identity embeddings. |
-| Target media | Images and videos that receive the face swap. |
-| Output folder | Final processed images and videos. |
-| Temporary folder | Extracted frames, prompt previews, working indexes, and interrupted video data. |
-
-Supported source formats are PNG, JPG, and JPEG. The target processor supports common image formats and video formats readable by OpenCV/MoviePy.
-
-## Face Swap tab
-
-### GPU provider
-
-- **CUDAExecutionProvider** — recommended for a compatible NVIDIA GPU.
-- **DmlExecutionProvider** — DirectML option for supported Windows GPUs.
-- **CPUExecutionProvider** — slow fallback when GPU execution is unavailable.
-
-If the selected GPU provider fails while loading a model, the program attempts a CPU fallback.
-
-### Swapper models
-
-| Interface option | File | Use |
-|---|---|---|
-| inswapper 128 Quality | `inswapper_128.onnx` | Standard compatibility and quality. |
-| inswapper 128 FP16 Speed | `inswapper_128_fp16.onnx` | Faster/lighter FP16 processing. |
-| reswapper 256 Quality | `reswapper_256.onnx` | Higher 256-pixel face input when using the original InswapperClass-compatible build. |
-
-Do not substitute an arbitrary 256 ONNX file. `reswapper_256.onnx` must be the original InswapperClass-compatible build expected by the program.
-
-### Processing resolution
-
-- **Original** preserves the target dimensions during face processing.
-- **1280×720** and **854×480** reduce video workload and improve speed.
-
-Use **Original** for still-image quality and when final resolution matters most.
-
-### Face consistency
-
-Low, Medium, High, and Maximum adjust how strictly target faces are matched to indexed source identities. Higher settings can improve identity consistency but may reject more uncertain matches.
-
-### Face-swap checkboxes
-
-- **Enable color correction** — adjusts the swapped face toward the target image's color and lighting.
-- **Enable quick scan** — uses a lightweight detector to skip expensive video-frame processing where no face is likely present.
-- **Enable review pass** — examines processed video frames and repairs likely missed swaps.
-- **Enable manual review mode** — keeps processed frames available for review before final video creation.
-- **Rebuild face index this run** — ignores the persistent cache and rescans every source image.
-- **Reprocess existing outputs** — replaces outputs that would otherwise be skipped because their filenames already exist.
-
-## Persistent source-face indexing
-
-Source portraits are indexed once and cached as:
-
-```text
-models\source_faces_<folder-hash>.pkl
-```
-
-The cache stores embeddings, source filenames, file sizes, modification times, and remembered detection failures. On later launches:
-
-- Unchanged successful portraits are reused immediately.
-- New or modified portraits are indexed.
-- Unchanged unreadable/no-face images are skipped without repeating full detection.
-- A checkpoint is saved every 25 newly processed files, allowing a large index to continue after interruption.
-
-Indexing tries the original image, mirrored orientation, 90/180-degree rotations, and a contrast-enhanced pass. If several faces are found, the largest face is selected.
-
-Use **Rebuild face index this run** after intentionally replacing many source files, changing their contents without updating timestamps, or troubleshooting a corrupted cache.
-
-### Good source portraits
-
-- One clearly visible face
-- Face large enough to identify
-- Sharp eyes and facial features
-- Reasonable lighting and contrast
-- Limited obstruction from hands, hair, sunglasses, or extreme angles
-- A useful range of front, three-quarter, profile, upward, and downward angles
-
-## Enhance tab
+These files contain data derived from personal source images. Remove them before distributing a clean copy of the application.
 
 ### Face restoration
 
-| Option | Model file | Typical use |
-|---|---|---|
-| CodeFormer | `codeformer_fp16.onnx` | Balanced cleanup and facial-detail restoration. |
-| GFPGAN 1024 | `gfpgan-1024.onnx` | Strong 1024-pixel face restoration. |
-| RestoreFormer++ | `RestoreFormerPlusPlus.fp16.onnx` | Alternative restoration for damaged or soft faces. |
-| GPEN 512 | `GPEN-BFR-512.onnx` | Lighter GPEN restoration. |
-| GPEN 1024 | `GPEN-BFR-1024.onnx` | Higher-resolution GPEN restoration. |
+Supported restoration choices:
 
-The **Restoration strength** slider shows an exact percentage. Start around 25–35%. Excessive restoration can change identity, create artificial skin, or exaggerate facial details.
+- CodeFormer
+- GFPGAN 1024
+- RestoreFormer++
+- GPEN 512
+- GPEN 1024
+
+Restoration strength has a visible percentage readout in the interface.
 
 ### Colorization
 
-- **Off** — no colorization.
-- **ColorizeStable** — ONNX colorization using `ColorizeStable.fp16.onnx`.
-- **DDColor Natural** — natural colorization using `ddcolor.onnx`.
-- **DDColor Artistic** — stronger artistic colorization using `ddcolor_artistic.onnx`.
+- ColorizeStable
+- DDColor Natural
+- DDColor Artistic
 
-Colorization is intended mainly for grayscale or faded images. Enabling it on already-correct color images can shift skin, hair, and clothing colors.
+### Upscaling and sharpening
 
-### Upscaling
+- RealESRGAN x4
+- 4x UltraSharp
+- 4x UltraMix Smooth
+- 2x and 4x output options
 
-| Option | Model file | Character |
-|---|---|---|
-| RealESRGAN | `RealESRGAN_x4plus.fp16.onnx` | General photographic enhancement. |
-| UltraSharp | `4x-UltraSharp.fp16.onnx` | Strong edges and sharper texture. |
-| UltraMix Smooth | `4x-UltraMix_Smooth.fp16.onnx` | Smoother enlargement with fewer harsh edges. |
+### Tone correction
 
-Select **2×** or **4×** as the upscale factor. Upscaling increases dimensions and processing time; it cannot restore details that were completely absent from the source.
+- Brightness adjustment from -100 to +100.
+- Gamma adjustment from 0.20 to 3.00.
+- Tone correction can be combined with restoration, colorization, and upscaling.
 
-### Brightness and gamma
+### Smart face-boundary protection
 
-- **Brightness** ranges from -100 to +100. Positive values brighten; negative values darken.
-- **Gamma** ranges from 0.20 to 3.00. Values below 1 generally brighten midtones; values above 1 darken midtones.
+The optional smart-mask stage combines:
 
-Apply small adjustments first to avoid clipped highlights, crushed shadows, or washed-out skin.
+- Occluder
+- FaceParser
+- XSeg
 
-### Smart masking
+This helps protect hair, glasses, hats, face boundaries, and foreground obstructions while compositing a swapped face.
 
-Smart occlusion and face-boundary protection combines:
+## Prompt Editing
 
-- `occluder.onnx`
-- `faceparser_resnet34.onnx`
-- `XSeg_model.onnx`
+Prompt editing is applied before the final face replacement for still images. This lets an editor change hair, clothing, glasses, makeup, pose, or background, after which the face swap restores the selected identity.
 
-It helps protect hair, hands, glasses, foreground objects, and the transition around the swapped face. It costs additional processing time.
+Example:
 
-## Prompt Edit tab
+    Change her hair to long black hair fully braided into pigtails.
 
-Prompt editing is optional. For still images it runs **before** the final face swap. This allows the creative editor to change hair, clothing, or background while the later face swap restores the chosen source identity.
-
-The program saves a diagnostic preview before face swapping:
-
-```text
-temp_processing\prompt_previews\<target-name>_before_face_swap.png
-```
-
-Use this preview to determine whether a cloud/local editor made the requested change before restoration and swapping.
+Prompt editing for every video frame is optional because it is slow and may flicker between frames.
 
 ### A2E
 
-A2E is recommended for results closest to the A2E web editor.
-
-Available models:
-
-- `gpt-image-2.5-sunburst` — recommended default
-- `gpt-image-2.5-flare`
-- `gpt-image-2`
-- `gpt-image-1.5`
-- `qwen-image-3.0-pro`
-- `qwen-image-3.0`
-- `qwen-image-2.0-pro`
-- `qwen-image-2.0`
-
-Available resolution settings are 1K and 2K. Qwen 2K output requires `qwen-image-3.0-pro`. A2E GPT Image models use the selected A2E resolution directly.
-
-To configure A2E:
-
-1. Revoke any token accidentally exposed in a screenshot or public file.
-2. Create a new token at [A2E API Token](https://video.a2e.ai/account/token).
-3. Run `Configure_A2E_API_Token.bat`.
-4. Paste the token. The secure prompt intentionally displays no characters.
-5. Completely close and reopen AI Generator.
-6. Select **A2E**, `gpt-image-2.5-sunburst`, and **2K**.
-
-The token is stored in the Windows user environment as `A2E_API_TOKEN`; it is not written to `main.py` or `config.json`. A2E processing consumes account credits.
-
-### Cloud
-
-The Cloud engine uses the OpenAI-compatible image edit client and the selected Cloud model/quality.
-
-1. Run `Configure_Cloud_API_Key.bat`.
-2. Enter the API key at the hidden prompt.
-3. Close and reopen AI Generator.
-4. Select **Cloud** and choose a model and quality.
-
-Cloud usage can incur API charges. Never distribute your configured token or place it in source control.
-
-### Qwen Cloud
-
-Qwen Cloud routes Qwen Image Edit through Hugging Face Inference Providers.
-
-1. Create a Hugging Face token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens).
-2. Run `Configure_HuggingFace_Token.bat`.
-3. Close and reopen AI Generator.
-4. Select **Qwen Cloud** and a Qwen model.
-
-The application measures the returned pixel change and automatically retries with a stronger instruction if the first result is almost unchanged. Provider availability and behavior can vary; A2E is the recommended alternative when this route returns a no-op result.
+- Uses the official A2E REST API.
+- Supports Nano Banana, GPT Image, and Qwen choices exposed by A2E.
+- Supports 1K and 2K output selections.
+- Saves a redacted diagnostic file when a task fails.
+- Requires an A2E token configured with `Configure_A2E_API_Token.bat`.
+- Uses online credits.
 
 ### Local
 
-The Local engine uses Diffusers on the local system.
+- Uses `timbrooks/instruct-pix2pix`.
+- Runs through PyTorch and Diffusers on an NVIDIA GPU.
+- Uses FP16, attention slicing, and VAE slicing.
+- Processes a reduced working image and restores the original dimensions afterward.
+- Does not require credits after the model has been downloaded.
 
-1. Complete `Setup.bat`.
-2. Run `Install_NVIDIA_Prompt.bat`.
-3. Confirm the NVIDIA driver and CUDA-compatible packages are working.
-4. Select **Local** in the Prompt Edit tab.
+### Qwen 2.1 Local
 
-The local model may download several gigabytes on first use. Local prompt editing is slower, uses substantial VRAM, and may not match modern cloud editors for reference preservation or prompt accuracy.
+- Uses the complete `Qwen/Qwen-Image-2.1` Diffusers pipeline.
+- Supports reference-preserving prompt-based image editing.
+- Uses FP16 on the Quadro P5000 instead of the model's native BF16 configuration.
+- Uses sequential CPU offload, attention slicing, VAE slicing, and VAE tiling.
+- Limits the working image to 768 pixels on its longest side to reduce VRAM usage.
+- Restores the original image dimensions after editing.
+- Keeps the model cached between edits during a session.
+- Can load from a Hugging Face model ID or a complete local folder.
 
-### Writing effective edit prompts
+The complete Qwen Image 2.1 repository is approximately 33 GB. The `text_encoder` folder alone is not enough. The local folder must contain:
 
-Use one direct, visible instruction and describe what must remain unchanged.
+    models/Qwen-Image-2.1/
+    ├── model_index.json
+    ├── processor/
+    ├── scheduler/
+    ├── text_encoder/
+    ├── transformer/
+    └── vae/
 
-```text
-Change her visible hair to natural jet black. Preserve her face, pose,
-expression, clothing, lighting, framing, and background.
-```
+In the GUI, select **Qwen 2.1 Local** and enter:
 
-For a hairstyle:
+    D:\PROGRAMS\AI_Generator\models\Qwen-Image-2.1
 
-```text
-Change her hair to long jet-black hair braided into two symmetrical pigtails.
-Preserve her identity, face, pose, expression, clothing, and background.
-```
+Alternatively, leave the model field as:
 
-Very tight face crops do not contain enough canvas area for long hair or pigtails. Use a wider portrait when the requested hairstyle must extend below the shoulders.
+    Qwen/Qwen-Image-2.1
 
-### Negative prompt
+The Hugging Face model ID downloads into the normal Hugging Face cache on first use. A complete cached model can be used offline afterward.
 
-Use the negative prompt sparingly. An overly restrictive negative prompt can cause the editor to preserve the original image or resist the requested change. For A2E GPT edits, a short positive prompt often works better.
+The Quadro P5000 configuration is expected to be slow. A single edit may take several minutes.
 
-### Steps
+### Cloud
 
-The Local/Qwen steps control ranges from 10 to 50. Higher values generally take longer. Cloud services may use their own internal settings.
+- Uses the OpenAI Images API.
+- Supports the Cloud model and quality choices displayed in the GUI.
+- Requires `OPENAI_API_KEY`, configured with `Configure_Cloud_API_Key.bat`.
+- Uses online API credits.
 
-### Video prompts
+### Qwen Cloud
 
-Enable **Apply to video frames** only when needed. Editing every frame is slow and can introduce temporal flicker because each frame is generated independently.
+- Uses Qwen Image Edit through Hugging Face Inference Providers.
+- Includes retry logic when a provider returns an almost unchanged image.
+- Requires `HF_TOKEN`, configured with `Configure_HuggingFace_Token.bat`.
+- Provider availability and charges depend on the Hugging Face account.
 
-## Crop tab
+## Crop Tools
 
 ### Manual crop editor
 
-Open one image, drag the crop rectangle, preview the selected pixel dimensions, and save a new cropped copy.
+- Open an individual image.
+- Drag a crop rectangle directly over the preview.
+- Save the selected area as a new file.
+- Preserves PNG transparency.
 
 ### Batch crop
 
-Choose an input folder and output folder, then select:
+- Crop an entire directory.
+- Choose common aspect ratios.
+- Enter an exact output width and height.
+- Control whether existing output files are overwritten.
 
-- **Aspect ratio** — 1:1, 4:5, 3:4, 2:3, 16:9, or 9:16.
-- **Exact size** — width and height from 16 to 8192 pixels.
-- **Overwrite existing files** — replace matching output files instead of skipping them.
+## Batch Renamer
 
-Batch cropping uses image-aware center cropping for each file rather than assuming that every source belongs to a fixed contact-sheet grid.
+- Rename images, videos, or all supported files.
+- Find and replace text in filenames.
+- Add prefixes and suffixes.
+- Add sequential numbers with selectable starting value and digit count.
+- Optionally include subfolders.
+- Preview every old and new filename before applying changes.
+- Uses temporary names internally to avoid collisions.
 
-## Video workflow
+## Interface Improvements
 
-1. Frames are extracted to a video-specific temporary folder.
-2. Source faces are loaded from the persistent index.
-3. Faces are detected, matched, swapped, masked, restored, and enhanced.
-4. The optional review pass repairs likely missed frames.
-5. Manual review can be used before final rendering.
-6. MoviePy rebuilds the video and restores the original audio when available.
-7. Temporary frames are removed after successful automatic completion.
+- Application renamed to **AI Generator**.
+- Modern dark tabbed interface.
+- Slightly transparent main window.
+- Rounded controls and buttons.
+- Green indexing, task, and overall progress bars with percentages.
+- No permanent activity-log panel occupying the interface.
+- Larger startup window so bottom controls remain visible.
+- Customizable application icon from `resources/AI_Generator.ico` or `resources/AI_Generator.png`.
+- Icon-only Patreon, Discord, and PayPal buttons at the bottom-right.
+- Support artwork is loaded from:
 
-The default saved processing rate is 15 frames per second. Long videos can require substantial temporary storage.
+    resources/Patreon.png
+    resources/Discord.png
+    resources/PayPal.png
 
-## Progress and controls
+- Settings are saved between sessions in `config.json`.
+- `Run.bat` uses `pythonw.exe` so the GUI does not keep a separate Command Prompt window open.
 
-- **Current task** shows progress for the active operation, including indexing and the current media file.
-- **Overall** shows progress across all selected target media.
-- **Run Full Process** starts indexing and processing.
-- **Create Videos** rebuilds videos from existing processed frame folders.
-- **Review** opens manual review/correction tools.
-- **Clear Temp** removes disposable working data.
-- **Stop** requests a safe stop after the current operation reaches a stopping point.
+## System Requirements
 
-The interface displays the latest issue instead of a large activity-log panel.
+Recommended:
 
-## Model downloads
+- Windows 10 or Windows 11, 64-bit
+- Python 3.13, 64-bit
+- 64 GB system RAM for Qwen Image 2.1 Local
+- NVIDIA Quadro P5000 or newer GPU
+- Current NVIDIA display driver
+- At least 40 GB of free disk space for Qwen Image 2.1 alone
+- Additional space for ONNX models, Hugging Face caches, temporary frames, and results
+- Internet access for initial setup and model downloads
 
-Required ONNX files download automatically only when the associated option is enabled. Keep ONNX files in `models`.
+Cloud prompt engines always require internet access.
 
-If a download is interrupted:
+## First-Time Installation
 
-1. Close AI Generator.
-2. Remove only the incomplete model file.
-3. Reopen the application and enable the feature again.
+1. Extract the complete AI Generator folder. Do not run it from inside a ZIP.
+2. Install 64-bit Python 3.13.
+3. During Python installation, enable **Add Python to PATH** and install the Python launcher.
+4. Place the newest setup files beside `main.py`.
+5. Run `Setup.bat`.
+6. Wait for **Setup completed successfully**.
+7. Run `Run.bat`.
 
-Do not rename models unless the corresponding filename in `main.py` is also intentionally changed.
+The Python environment is installed directly into the AI Generator directory. It creates:
 
-## Recommended quality settings
+    Include/
+    Lib/
+    Scripts/
+    pyvenv.cfg
 
-For high-quality still images on an NVIDIA P5000:
+The current setup does not use a `.venv` folder.
 
-```text
-GPU provider: CUDAExecutionProvider
-Swapper: reswapper_256.onnx (256 Quality)
-Processing resolution: Original
-Face consistency: High
-Color correction: On
-Face restoration: CodeFormer
-Restoration strength: 25–35%
-Smart masking: On when hair, hands or glasses cross the face
-A2E model: gpt-image-2.5-sunburst
-A2E resolution: 2K
-Upscaling: Off during testing; enable 2× after the pipeline is correct
-```
+Setup also applies these Python 3.13 compatibility requirements:
 
-Test one image before running a large batch. Cloud prompt editing and high-resolution upscaling can consume considerable time or credits across hundreds of files.
+- `setuptools==81.0.0` for current CUDA PyTorch compatibility.
+- NumPy 2.x for Python 3.13.
+- Precompiled `ml_dtypes==0.6.0` to avoid the failed `share.h` source build.
+
+### Microsoft C++ Build Tools
+
+Some Python packages may require Microsoft C++ Build Tools. Install the **Desktop development with C++** workload, including the MSVC x64/x86 compiler and Windows SDK.
+
+Official installer:
+
+https://visualstudio.microsoft.com/visual-cpp-build-tools/
+
+## Installing NVIDIA Prompt Support
+
+After `Setup.bat` completes, run:
+
+    Install_NVIDIA_Prompt.bat
+
+This installs:
+
+- CUDA-enabled PyTorch and TorchVision
+- Transformers 5.17 or newer
+- Accelerate
+- Safetensors
+- SentencePiece
+- A current Diffusers build with Qwen Image 2.1 support
+
+## Downloading Qwen 2.1 from a Hugging Face Bucket
+
+For the private bucket `Normality1/Qwen-Image-2.1-bucket`, open Command Prompt inside:
+
+    D:\PROGRAMS\AI_Generator
+
+If `Scripts\hf.exe` still points to an old `.venv`, recreate its launcher:
+
+    Scripts\python.exe -m pip install --force-reinstall --no-cache-dir huggingface_hub
+
+Log in:
+
+    Scripts\hf.exe auth login
+
+Download the complete bucket:
+
+    Scripts\hf.exe buckets sync hf://buckets/Normality1/Qwen-Image-2.1-bucket "models\Qwen-Image-2.1"
+
+The sync command can be run again after interruption. It compares the bucket and local directory and transfers only missing or changed files.
+
+## Application Folders
+
+| Folder or file | Purpose |
+| --- | --- |
+| `source/` | Source identity portraits |
+| `target/` | Target images and videos |
+| `result/` or configured output | Finished media |
+| `models/` | ONNX models, persistent face indexes, and optional local Qwen model |
+| `resources/` | GUI icons and support-button images |
+| `temp_processing/` | Temporary frames, prompt previews, and diagnostics |
+| `Lib/` | Main-directory Python packages |
+| `Scripts/` | Python executables and command-line launchers |
+| `pyvenv.cfg` | Identifies the main folder as the Python environment |
+| `config.json` | Saved local GUI settings |
+
+## Supported Swapper Models
+
+| GUI choice | Expected file |
+| --- | --- |
+| InsightFace 128 Quality | `inswapper_128.onnx` |
+| InsightFace 128 FP16 Speed | `inswapper_128_fp16.onnx` |
+| ReSwapper 256 Quality | `reswapper_256.onnx` |
+
+`reswapper_256.onnx` must be the original InsightFace/Inswapper-class-compatible build. An unrelated ONNX file renamed to `reswapper_256.onnx` will not work.
+
+## Automatic Model Downloads
+
+When a supported ONNX feature is enabled and its model is missing, AI Generator downloads the configured model into `models/`. Keep the original filenames because the loader uses them to select preprocessing and output behavior.
+
+## Clean Distribution
+
+Before sharing or publishing the application, do not include:
+
+- Personal files from `source/`, `target/`, `result/`, or `temp_processing/`
+- `config.json`
+- API keys or access tokens
+- `source_faces_*.pkl`
+- `.venv/`
+- `Lib/`
+- `Scripts/`
+- `Include/`
+- `pyvenv.cfg`
+- Hugging Face cache directories
+- Private Qwen model files unless their license permits redistribution
+
+New users should generate their own Python environment with `Setup.bat`.
+
+Never place API keys directly in `main.py`, `config.json`, screenshots, ZIP archives, or the GitHub repository.
 
 ## Troubleshooting
 
-### No source faces were indexed
+### Failed to locate pyvenv.cfg
 
-- Confirm the source path is correct.
-- Confirm it contains readable PNG/JPG/JPEG portraits.
-- Use larger, sharper faces with less obstruction.
-- Enable **Rebuild face index this run** after correcting the files.
-- Do not use Resume with an empty index.
+Run the newest `Setup.bat`. It detects an incomplete main-directory environment and recreates the missing `pyvenv.cfg`.
 
-### Only part of a large source folder is indexed
+### A launcher still references .venv
 
-The index saves every 25 files. Restarting should reuse completed records and continue with new or changed files. If it repeatedly stops at the same file, inspect that image for corruption or an unsupported encoding.
+Old executable launchers can retain the path where they were originally created. Reinstall the affected package through the active Python executable:
 
-### `attempt to get argmin of an empty sequence`
+    Scripts\python.exe -m pip install --force-reinstall --no-cache-dir PACKAGE_NAME
 
-The source index contained no usable embeddings. The current build stops earlier with a clearer empty-index error. Rebuild the index with valid source portraits.
+For the Hugging Face CLI:
 
-### Black squares in results
+    Scripts\python.exe -m pip install --force-reinstall --no-cache-dir huggingface_hub
 
-Common causes include an incompatible ONNX model, incorrect tensor type/layout, a restoration model being applied with the wrong preprocessing, or an excessively strong restoration blend.
+### setuptools conflict with PyTorch
 
-- Disable all Enhance options and test face swapping alone.
-- Re-enable one enhancement at a time.
-- Confirm each model has the exact expected filename and build.
-- Lower restoration strength.
-- Delete and redownload a possibly incomplete model.
+Repair it with:
 
-### ONNX expected `tensor(double)` but received `tensor(float)`
+    Scripts\python.exe -m pip install --upgrade "setuptools==81.0.0"
 
-The model expects float64 input. Use the current model adapter or a compatible model build; do not assume all ONNX files share the same input type.
+### ml_dtypes fails while compiling share.h
 
-### Prompt result is unchanged
+Install the Python 3.13 wheel:
 
-1. Enable **Reprocess existing outputs**.
-2. Inspect `temp_processing\prompt_previews`.
-3. Use a short, direct prompt.
-4. Reduce or clear the negative prompt.
-5. For A2E, select `gpt-image-2.5-sunburst` rather than a Qwen model.
-6. Confirm the account has credits and the token is enabled.
+    Scripts\python.exe -m pip install --upgrade --no-cache-dir --only-binary=:all: "numpy>=2,<3" "ml_dtypes==0.6.0"
 
-If the pre-swap preview changed but the finished output did not, disable restoration and masking temporarily to identify the later stage affecting the result.
+### Microsoft Visual C++ 14.0 or greater is required
 
-### API token appears as one asterisk
+Install Microsoft C++ Build Tools with **Desktop development with C++**, then restart Windows and rerun `Setup.bat`.
 
-This is normal for the secure BAT prompts. They intentionally do not display the actual token length. Paste once, press Enter, then completely close and reopen AI Generator.
+### Qwen 2.1 does not load
 
-### API token exposed in a screenshot
+Confirm the selected folder contains `model_index.json` and all five required component directories. Rerun the bucket sync to restore missing files.
 
-Immediately revoke/delete it in the provider dashboard and create a new token. Never reuse an exposed secret.
+Also rerun:
+
+    Install_NVIDIA_Prompt.bat
 
 ### CUDA is unavailable
 
-- Update the NVIDIA driver.
-- Run `Setup.bat` again.
-- Confirm `onnxruntime-gpu` installed in `.venv`.
-- Select `CPUExecutionProvider` temporarily to verify the rest of the application.
-- Local Diffusers may require the CUDA-specific PyTorch installation performed by `Install_NVIDIA_Prompt.bat`.
+- Update the NVIDIA display driver.
+- Confirm CUDA-enabled PyTorch was installed.
+- Run:
 
-### Bottom controls are cut off
+      Scripts\python.exe -c "import torch; print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'No CUDA GPU')"
 
-Maximize the window or use a Windows display scaling setting that leaves enough vertical space. The current interface uses a larger initial window and resizable tab layout.
+### A source folder indexes zero faces
 
-### Existing outputs are skipped
+- Use clear, well-lit source portraits.
+- Make the face large enough in the frame.
+- Avoid heavy blur and extreme occlusion.
+- Enable the review pass.
+- Select **Rebuild face index this run** after changing the source folder.
+- Remove an obsolete or invalid `source_faces_*.pkl` only when rebuilding.
 
-Enable **Reprocess existing outputs** on the Face Swap tab.
+### attempt to get argmin of an empty sequence
 
-## Updating an existing installation
+No usable source faces were indexed. Fix the source-face detection problem and rebuild the index before processing targets.
 
-1. Close AI Generator.
-2. Back up the current `main.py`.
-3. Replace it with the new `main.py`.
-4. Keep `models`, `resources`, source images, targets, results, and face-index caches.
-5. Run `Setup.bat` if `requirements.txt` changed.
-6. Start with `Run.bat`.
+### Black squares or damaged output
 
-Delete or rename `config.json` only when you want all GUI settings reset to defaults.
+- Disable restoration, colorization, upscaling, and smart masking temporarily.
+- Test face swapping alone.
+- Re-enable one post-processing stage at a time.
+- Confirm each ONNX file matches the exact expected model rather than only having the expected filename.
 
-## Clean distribution and GitHub publishing
+### Prompt result is unchanged
 
-Include:
+- Confirm **Enable prompt editing** is selected.
+- Confirm the desired prompt engine is selected.
+- Use a direct instruction describing only the requested change.
+- Check `temp_processing/prompt_previews/` to see the image produced before face swapping.
+- For A2E, inspect the redacted `a2e_last_task.json` diagnostic.
+- Remember that the final face swap intentionally restores facial identity after the prompt edit.
 
-- `main.py`
-- `README.md`
-- `Setup.bat`
-- `Run.bat`
-- `Install_NVIDIA_Prompt.bat`
-- API-token configuration BAT files
-- `requirements.txt`
-- Required non-personal resource icons
-- Placeholder files such as `.gitkeep` when GitHub must retain empty folders
+## Privacy and Responsible Use
 
-Do not distribute:
+Only process media you own or have permission to edit. Follow applicable privacy, identity, copyright, model-license, and platform rules. Clearly label synthetic or altered media when appropriate.
 
-- `.venv`, `Lib`, `Scripts`, `Include`, or `pyvenv.cfg`
-- `config.json` containing personal paths
-- Source, target, result, or temporary images
-- `source_faces_*.pkl` identity caches
-- Downloaded ONNX models unless their licenses explicitly allow redistribution
-- API keys, environment exports, tokens, logs, or screenshots containing secrets
+## Support Links
 
-Git does not store empty directories. Add a `.gitkeep` file to an otherwise empty `models`, `source`, `target`, `result`, `resources`, or `temp_processing` folder when the directory must appear in the repository.
-
-## Installed Python packages
-
-The supplied requirements include:
-
-- NumPy below version 2
-- OpenCV
-- ONNX Runtime GPU and ONNX
-- InsightFace
-- MoviePy
-- Requests
-- tqdm
-- Pillow
-- OpenAI client
-- Hugging Face Hub client
-- scikit-image, scikit-learn, and SciPy
-
-## Privacy and security
-
-- Tokens belong in Windows user environment variables, not source files.
-- Never commit `config.json`, personal images, face embeddings, or secrets.
-- Cloud prompt engines upload selected images to their providers for processing.
-- Review each provider's pricing, privacy policy, retention policy, and acceptable-use terms before processing sensitive media.
-- Keep backups of original images; generated output should not be treated as the only copy.
-
-## Support links
-
-The bottom-right icon buttons open the configured Patreon, Discord, and PayPal support pages. Their icon files belong in `resources` as:
-
-Paypal
-https://www.paypal.com/paypalme/GameModNation
-Patreon
-https://www.patreon.com/c/3dmodelserver
-Join the Discord
-https://discord.com/invite/sMZuNzhmxC
+- Patreon: https://www.patreon.com/c/3dmodelserver
+- Discord: https://discord.com/invite/sMZuNzhmxC
+- PayPal: https://www.paypal.com/paypalme/GameModNation?country.x=US&locale.x=en_US
 
