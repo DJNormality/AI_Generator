@@ -9,11 +9,11 @@ datas=[]
 binaries=[]
 hiddenimports=[
     'model_scanner','texture_scanner','file_scanner','sound_scanner','extract_tool','music_tool',
-    'audio_splitter','video_tool','design_tool','research_tool','library_tool','sort_tool',
+    'audio_splitter','video_tool','design_tool','research_tool','library_tool','sort_tool','converter_tool','uv_layout_tool',
     'tkinter','tkinter.ttk','PIL.ImageTk','imageio_ffmpeg','moviepy','onnx','onnxruntime',
 ]
 
-for folder in ('resources','tools'):
+for folder in ('resources','tools','Python'):
     source=os.path.join(project_root,folder)
     if os.path.isdir(source):datas.append((source,folder))
 

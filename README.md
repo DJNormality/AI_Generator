@@ -221,9 +221,10 @@ extra tool windows, and embedded Back to Home buttons are no longer required.
 - A cleaner settings notebook separates **Mesh**, **UV**, **Animation**, and
   **Texture** controls while keeping the compact results list and viewport
   visible. Selecting Animation / Rigging automatically opens its settings tab.
-- Load an optional second **Animation / Skeleton File** using the unrestricted
-  **All files (`*.*`)** picker. DAT, BIN, ANM, ANIM, SKEL, console-specific,
-  extensionless, and other file types are accepted and scanned as raw bytes.
+- Append up to two companion files directly above the viewport in a defined
+  order: **1 Import Skeleton**, then **2 Append Animation**. Both pickers accept
+  any file type, including DAT, BIN, ANM, SKEL, extensionless, and proprietary
+  console files. The viewport status shows how many companions are attached.
 - Search animation and skeleton data for Float32/Float16 4x4 matrices, 3x4
   matrices, TRS transforms, common strides, both byte orders, and assumed bone
   hierarchy sequences.
@@ -272,7 +273,8 @@ image and video tools are grouped under **Images**, while **3D Models** and
 **Textures** remain separate neighboring sections. Each expanded tool runs
 inside the same application window with a **Back to Home** button.
 
-The embedded Textures tool:
+The embedded Textures section contains **Scan** and **UV Layout** subtabs. The
+Scan tool:
 
 - Opens any file extension and searches its raw bytes.
 - Detects embedded PNG, JPEG, DDS, BMP, KTX, KTX2, and PVR signatures.
@@ -312,6 +314,18 @@ The embedded Textures tool:
   configurable texture arrays into the selected PNG/JPG/DDS/TGA format.
 - **Stop Scan** interrupts automatic scanning or a long batch export while
   preserving results and files already completed.
+
+The **UV Layout** workspace opens OBJ models in a split Model/UV editor. It uses
+supplied texture coordinates when present and can generate missing UVs with
+Auto UV, random selected-part islands, Flat, Edge, Top, Bottom, Left, Right,
+planar XY/XZ/YZ, Box, Cylindrical, Spherical, Shrink Wrap, Peel/Seam,
+Symmetrical, or Line projection. The model viewport supports mouse-wheel zoom,
+drag rotation, middle-drag movement, and Polygon/Line/Vertex modes. Alt-click
+selects a polygon, line, or vertex; Ctrl-click removes it. **Select Loop** follows
+connected mesh edges, highlights the loop in orange in both views, and **Apply
+Loops to UV** transfers its adjacent polygons to the UV selection. UVs can be
+generated from only the current selection. Both views support independent zoom
+and movement, with transparent UV PNG and UV-enabled OBJ export.
 
 ## Files
 
@@ -360,6 +374,22 @@ cracking or encryption bypass.
   documentation or a QuickBMS `.bms` script using the game and archive name.
   This is identification guidance only: no passwords, keys, or encryption are
   brute-forced or bypassed.
+
+### Convert
+
+- Adds **Files → Convert**, based on the complete behavior found in the supplied
+  Python/PyInstaller mass converter without launching the external EXE.
+- Batch converts PNG, JPG/JPEG, and WebP images to DDS. Filters include all
+  three formats and every two-format or single-format combination from the
+  reference converter.
+- Creates the output folder, retains source basenames with `.dds`, continues
+  past individual errors, and reports per-file conversion status and progress.
+- Adds optional subfolder scanning, preserved directory structure, safe
+  skip-existing behavior, Stop, and explicit overwrite control.
+- Supports uncompressed RGBA, DXT1/BC1, DXT3/BC2, DXT5/BC3, and BC5 DDS output.
+- Converter plug-ins are discovered from `Python\Coverters`. The included
+  `image_to_dds.py` script supplies PNG/JPG/WebP conversion, and additional
+  trusted scripts can implement the same `convert_file()` interface.
 
 ## Interface Improvements
 
@@ -441,8 +471,8 @@ The top-level **Videos** section opens a dark embedded non-destructive editor.
 ## Home Visuals
 
 - Uses the supplied blue binary artwork as a responsive cover background.
-- Keeps the visible neon disc at 100% opacity, removes its exact-black rectangle
-  with a shape mask, and Overlay-blends it into the Home wallpaper.
+- The spinning disc has been removed from Home. The blue cyber artwork, Matrix
+  rain, rolling fog, and support shortcuts remain.
 - Home is now background-only below the primary tabs. Image progress bars,
   status controls, and processing buttons are hidden there.
 - Run `Install_Music_Tools.bat` from the main folder for complete audio setup.
@@ -527,7 +557,8 @@ The top-level **Videos** section opens a dark embedded non-destructive editor.
 
 ## Sound Scanner
 
-- Adds a dedicated **Sound** tab immediately after Textures.
+- Sound scanning is embedded in **Extract > Sound**, immediately after the
+  Animations subtab, instead of occupying a separate top-level tab.
 - Scans arbitrary binary files and banks for documented WAV/WEM, AIFF, Ogg,
   Opus, FLAC, MP3, AAC, MIDI, FSB4/FSB5, Wwise BNK, Sony VAG/PSF, CRI ADX,
   Nintendo BRSTM/BFSTM/BCSTM, Xbox XMA, XM, S3M, and IT signatures.
@@ -537,12 +568,34 @@ The top-level **Videos** section opens a dark embedded non-destructive editor.
 - Includes Stop scan, Extract selected, and Extract all controls. Existing
   files are never overwritten; numbered suffixes are added automatically.
 
-## PS2 Extract Workspace
+## PS1 / PS2 Extract Workspace
 
 - Adds an embedded **Extract** main tab with Archives, Models, Textures,
-  Animations, and Batch Processing sections.
-- Includes PS2 Generic, Wild Arms 3, Wild Arms Alter Code: F, and Auto Detect
+  Animations, Sound, and Batch Processing sections.
+- Archive, Model, Texture, and Animation searches use a split results-and-preview
+  layout. Selecting a result immediately displays metadata or a supported 2D
+  texture. Texture previews support mouse-wheel zoom and Fit.
+- Compressed or unsupported payloads remain visible in the result list; the
+  preview shows a clear red error with the detected compression type rather
+  than silently failing.
+- **Add Index File** accepts multiple companion index/name-table files for each
+  scan. Likely stored filenames are recovered from those files and assigned to
+  matching assets, while every selected index file remains associated with its
+  scan section.
+- The Models section can append exactly two ordered companion files: a skeleton
+  first and an animation sequence second. Their names and attachment state are
+  shown in the viewport.
+- Includes Auto Detect, PS1 Generic, PSXPrev Compatible, Parasite Eve,
+  Parasite Eve 2, PS2 Generic, Wild Arms 3, and Wild Arms Alter Code: F
   profiles so game-specific rules can be refined without changing the GUI.
+- The native PS1 scanner recognizes validated TIM textures and TMD models plus
+  HMD, BFF, PMD, MOD/Croc, PSX, TOD, VDF, AN, VAG, VAB, SEQ, CD-XA, CDF, and
+  PKG candidates. Archive scanning annotates recognized candidates aligned to
+  2048-byte data sectors or 2352-byte raw CD sectors, matching the useful BIN
+  scanning behavior identified in PSXPrev.
+- The supplied Parasite Eve, Parasite Eve 2, TMSB, MR-to-OBJ, and PSXPrev
+  executables were inspected as format references only. They are not bundled,
+  executed, or required by AI Generator.
 - Archives can scan BIN files for embedded headers and plausible little-endian
   offset tables. The LZSS action implements the common PS2/Okumura 4 KB ring
   buffer variant with LSB-first flags, 12-bit distance, and 4-bit length.
@@ -562,14 +615,12 @@ The top-level **Videos** section opens a dark embedded non-destructive editor.
 
 ## Animated interface
 
-- Main navigation uses precision-rounded buttons in this order: Home, 3D
-  Models, Textures, Sound, Files, Music, Videos, Design, Sort, and Research.
+- Main navigation uses precision-rounded buttons in this order: Home, Models,
+  Textures, Files, Extract, Music, Videos, Design, Sort, and Research.
 - The animated cyber background is restricted to **Home** so tool tables and
   text fields stay readable. Blue Matrix-style data flows downward while a
   soft blue fog layer rolls across the original cyber artwork.
-- The Multiply-blended disc appears only on Home. Its redraw interval is halved
-  to 14 ms for a true 100% increase over the prior speed. Home also contains
-  icon-only Patreon, Discord, PayPal, and Website
+- Home contains icon-only Patreon, Discord, PayPal, and Website
   shortcuts. The Website globe opens the 3D Model Archives site.
 - **Midi** is a dedicated subtab inside the Music studio.
 

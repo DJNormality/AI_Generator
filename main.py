@@ -358,7 +358,6 @@ class FaceSwapApp:
         image_section = ttk.Frame(section_notebook, style='App.TFrame', padding=(0, 6, 0, 0))
         models3d_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
         texture_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
-        sound_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=5)
         files_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=8)
         extract_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=5)
         music_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
@@ -370,7 +369,6 @@ class FaceSwapApp:
         section_notebook.add(home_tab, text='  Home  ')
         section_notebook.add(models3d_tab, text='  Models  ')
         section_notebook.add(texture_tab, text='  Textures  ')
-        section_notebook.add(sound_tab, text='  Sound  ')
         section_notebook.add(files_tab, text='  Files  ')
         section_notebook.add(extract_tab, text='  Extract  ')
         section_notebook.add(music_tab, text='  Music  ')
@@ -379,7 +377,7 @@ class FaceSwapApp:
         section_notebook.add(sort_tab, text='  Sort  ')
         section_notebook.add(research_tab, text='  Research  ')
         self.section_nav_buttons={}
-        rounded_sections=(('Home',home_tab),('Models',models3d_tab),('Textures',texture_tab),('Sound',sound_tab),('Files',files_tab),('Extract',extract_tab),('Music',music_tab),('Videos',videos_tab),('Design',design_tab),('Sort',sort_tab),('Research',research_tab))
+        rounded_sections=(('Home',home_tab),('Models',models3d_tab),('Textures',texture_tab),('Files',files_tab),('Extract',extract_tab),('Music',music_tab),('Videos',videos_tab),('Design',design_tab),('Sort',sort_tab),('Research',research_tab))
         for label,page in rounded_sections:
             button=RoundedButton(section_nav,text=label,command=lambda target=page:section_notebook.select(target),bg='#172033',hover='#243244',width=92,height=38,radius=17)
             button.pack(side='left',fill='x',expand=True,padx=2);self.section_nav_buttons[str(page)]=button
@@ -405,8 +403,10 @@ class FaceSwapApp:
         files_notebook = ttk.Notebook(files_tab, style='Modern.TNotebook')
         files_notebook.pack(fill=tk.BOTH, expand=True)
         files_overview = ttk.Frame(files_notebook, style='Panel.TFrame', padding=10)
+        convert_tab = ttk.Frame(files_notebook, style='Panel.TFrame', padding=10)
         rename_shell, rename_tab = self.create_scrollable_tab(files_notebook)
         files_notebook.add(files_overview, text='  Extractor  ')
+        files_notebook.add(convert_tab, text='  Convert  ')
         files_notebook.add(rename_shell, text='  Rename  ')
         self.create_modern_tabs(paths_tab, swap_tab, enhance_tab, prompt_tab, crop_tab,
                                 colorize_tab, rename_tab, models3d_tab, texture_tab,
@@ -417,16 +417,28 @@ class FaceSwapApp:
             self.embedded_model_scanner=open_model_scanner(models3d_tab,embedded=True)
         except Exception as error:
             ttk.Label(models3d_tab,text=f'Models could not start: {error}',style='Hint.TLabel').pack(anchor='w',padx=8,pady=8)
+        texture_notebook=ttk.Notebook(texture_tab,style='Modern.TNotebook');texture_notebook.pack(fill='both',expand=True)
+        texture_scan_tab=ttk.Frame(texture_notebook,style='Panel.TFrame');uv_layout_tab=ttk.Frame(texture_notebook,style='Panel.TFrame')
+        texture_notebook.add(texture_scan_tab,text='  Scan  ');texture_notebook.add(uv_layout_tab,text='  UV Layout  ')
         try:
             from texture_scanner import open_texture_scanner
-            self.embedded_texture_scanner=open_texture_scanner(texture_tab)
+            self.embedded_texture_scanner=open_texture_scanner(texture_scan_tab)
         except Exception as error:
-            ttk.Label(texture_tab,text=f'Textures could not start: {error}',style='Hint.TLabel').pack(anchor='w',padx=8,pady=8)
+            ttk.Label(texture_scan_tab,text=f'Textures could not start: {error}',style='Hint.TLabel').pack(anchor='w',padx=8,pady=8)
+        try:
+            from uv_layout_tool import build_uv_layout_tool
+            self.uv_layout_tool=build_uv_layout_tool(uv_layout_tab)
+        except Exception as error:ttk.Label(uv_layout_tab,text=f'UV Layout could not start: {error}',style='Hint.TLabel').pack(anchor='w',padx=8,pady=8)
         try:
             from file_scanner import open_file_scanner
             self.embedded_file_scanner=open_file_scanner(files_overview)
         except Exception as error:
             ttk.Label(files_overview,text=f'Files could not start: {error}',style='Hint.TLabel').pack(anchor='w',padx=8,pady=8)
+        try:
+            from converter_tool import build_converter_tool
+            self.embedded_converter_tool=build_converter_tool(convert_tab)
+        except Exception as error:
+            ttk.Label(convert_tab,text=f'Convert could not start: {error}',style='Hint.TLabel').pack(anchor='w',padx=8,pady=8)
         music_notebook=ttk.Notebook(music_tab,style='Modern.TNotebook');music_notebook.pack(fill='both',expand=True)
         song_studio_tab=ttk.Frame(music_notebook,style='Panel.TFrame');audio_split_tab=ttk.Frame(music_notebook,style='Panel.TFrame')
         music_notebook.add(song_studio_tab,text='  Studio  ');music_notebook.add(audio_split_tab,text='  Audio Split  ')
@@ -445,12 +457,6 @@ class FaceSwapApp:
             self.embedded_video_tool=open_video_tool(videos_tab)
         except Exception as error:
             ttk.Label(videos_tab,text=f'Videos could not start: {error}',style='Hint.TLabel').pack(anchor='w',padx=8,pady=8)
-        try:
-            from sound_scanner import build_sound_scanner
-            self.sound_scanner = build_sound_scanner(sound_tab)
-        except Exception as error:
-            ttk.Label(sound_tab, text=f'Sound scanner could not start: {error}',
-                      style='Hint.TLabel').pack(anchor='w', padx=8, pady=8)
         try:
             from extract_tool import build_extract_tool
             self.extract_tool = build_extract_tool(extract_tab)
@@ -573,27 +579,20 @@ class FaceSwapApp:
             button._normal_bg='#16a34a' if page_id==selected else '#172033';button._hover_bg='#22c55e' if page_id==selected else '#243244';button._draw()
 
     def build_home_visual(self, parent):
-        """Animated Home background with a Lighten-blended quarter-disc logo."""
+        """Animated Home background with Matrix rain and rolling blue fog."""
         self.home_canvas = tk.Canvas(parent, bg='#000000', highlightthickness=0)
         self.home_canvas.pack(fill=tk.BOTH, expand=True)
         self.home_background_source = None
-        self.home_disc_sources = []
-        self.home_frame_index = 0
         self.home_background_photo = None
-        self.home_disc_photo = None
         self.tab_background_photos = {}
         self.visual_started_at = time.monotonic()
         asset_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources')
         try:
-            from PIL import Image, ImageSequence
+            from PIL import Image
             self.home_background_source = Image.open(
                 os.path.join(asset_root, 'HomeBackground.jpg')).convert('RGB')
-            gif = Image.open(os.path.join(asset_root, 'HomeDisc.gif'))
-            self.home_disc_sources = [frame.convert('RGBA').copy()
-                                      for frame in ImageSequence.Iterator(gif)]
         except Exception:
             self.home_background_source = None
-            self.home_disc_sources = []
         # Home-only support and community shortcuts. These stay above the
         # animated Canvas and do not appear on tool pages.
         self.home_support_bar=tk.Frame(parent,bg='#020617',highlightthickness=0)
@@ -612,7 +611,7 @@ class FaceSwapApp:
                                  bg=bg,hover=hover,width=56,height=48,radius=17)
             button.pack(side='left',padx=5,pady=4);self.home_link_buttons.append(button)
         self.home_canvas.bind('<Configure>', lambda _event: self.render_home_visual())
-        self.root.after(35, self.animate_home_disc)
+        self.root.after(35, self.animate_home_visual)
 
     def add_animated_tab_background(self, parent):
         """Place the shared cyber backdrop below a tool tab's controls."""
@@ -673,37 +672,11 @@ class FaceSwapApp:
         height = max(2, self.home_canvas.winfo_height())
         self.home_canvas.delete('all')
         try:
-            from PIL import Image, ImageChops, ImageTk
-            resampling = getattr(Image, 'Resampling', Image)
+            from PIL import Image, ImageTk
             background = self._animated_background_image(width, height)
             if background is None:
                 background = Image.new('RGB', (width, height), '#000000')
-            if self.home_disc_sources:
-                frame = self.home_disc_sources[
-                    self.home_frame_index % len(self.home_disc_sources)].copy()
-                # Center the disc on the lower-right corner. The visible disc
-                # stays at full opacity, while an exact-black shape mask removes
-                # the GIF's rectangular background before Overlay compositing.
-                size = max(320, int(height * 2.0))
-                frame = frame.resize((size, size), resampling.LANCZOS)
-                source_alpha = frame.getchannel('A')
-                rgb_frame = frame.convert('RGB')
-                corners = (rgb_frame.getpixel((0, 0)), rgb_frame.getpixel((size-1, 0)),
-                           rgb_frame.getpixel((0, size-1)), rgb_frame.getpixel((size-1, size-1)))
-                key_color = tuple(sum(pixel[channel] for pixel in corners)//4 for channel in range(3))
-                difference = ImageChops.difference(rgb_frame, Image.new('RGB', frame.size, key_color))
-                red, green, blue = difference.split()
-                distance = ImageChops.lighter(ImageChops.lighter(red, green), blue)
-                shape_mask = distance.point(lambda value: 255 if value > 14 else 0)
-                alpha = ImageChops.multiply(source_alpha, shape_mask)
-                disc_rgb = Image.new('RGB', (width, height), '#000000')
-                disc_mask = Image.new('L', (width, height), 0)
-                position = (width - size // 2, height - size // 2)
-                disc_rgb.paste(rgb_frame, position)
-                disc_mask.paste(alpha, position)
-                overlaid = ImageChops.overlay(background, disc_rgb)
-                background = Image.composite(overlaid, background, disc_mask)
-            if self.home_background_source is not None or self.home_disc_sources:
+            if self.home_background_source is not None:
                 self.home_background_photo = ImageTk.PhotoImage(background)
                 self.home_canvas.create_image(0, 0, image=self.home_background_photo,
                                               anchor='nw',tags='home-base')
@@ -711,14 +684,9 @@ class FaceSwapApp:
         except Exception:
             pass
 
-    def animate_home_disc(self):
-        if getattr(self, 'home_disc_sources', None):
-            # Sixteen frames per redraw is exactly twice the previous spin rate.
-            self.home_frame_index = (self.home_frame_index + 16) % len(self.home_disc_sources)
-            self.render_home_visual()
-        # Halving the refresh interval produces a real 100% speed increase;
-        # the six-frame GIF cannot be accelerated reliably with larger skips.
-        self.root.after(14, self.animate_home_disc)
+    def animate_home_visual(self):
+        self.render_home_visual()
+        self.root.after(35, self.animate_home_visual)
 
     def configure_modern_styles(self):
         style = ttk.Style(self.root)

@@ -146,8 +146,10 @@ class BinaryMeshScanner:
             self.window.configure(bg='#111827')
         self.data = b''
         self.skeleton_data = b''
+        self.animation_data = b''
         self.path = ''
         self.skeleton_path = ''
+        self.animation_path = ''
         self.candidates = []
         self.vertices = []
         self.uvs = []
@@ -315,6 +317,11 @@ class BinaryMeshScanner:
         ttk.Label(controls, textvariable=self.status, wraplength=380).grid(
             row=4, column=0, columnspan=3, sticky='w', pady=(5, 0))
 
+        append_bar=ttk.Frame(viewer,padding=(0,0,0,5));append_bar.pack(fill='x')
+        ttk.Label(append_bar,text='Viewport companions:').pack(side='left')
+        ttk.Button(append_bar,text='1  Import Skeleton',command=self.open_skeleton_file).pack(side='left',padx=5)
+        ttk.Button(append_bar,text='2  Append Animation',command=self.open_animation_file).pack(side='left')
+        self.appended_text=tk.StringVar(value='0 / 2 appended');ttk.Label(append_bar,textvariable=self.appended_text).pack(side='right')
         self.canvas = tk.Canvas(viewer, bg='#020617', highlightthickness=0)
         self.canvas.pack(fill=tk.BOTH, expand=True)
         self.canvas.bind('<Configure>', lambda _event: self.draw())
@@ -396,7 +403,7 @@ class BinaryMeshScanner:
             with open(path, 'rb') as stream:
                 self.skeleton_data = stream.read()
             self.skeleton_path = path
-            self.path_var.set(path)
+            self.appended_text.set(f'1 / 2  {os.path.basename(path)}')
             self.search_mode.set('Animation / Rigging')
             self.update_search_mode_ui()
             self.status.set(
@@ -404,6 +411,20 @@ class BinaryMeshScanner:
                 f'({_friendly_size(len(self.skeleton_data))}). Choose Scan.')
         except Exception as error:
             messagebox.showerror('Open skeleton file', str(error))
+
+    def open_animation_file(self):
+        if not self.skeleton_data:
+            messagebox.showwarning('Append animation','Import the skeleton first, then append the animation sequence.')
+            return
+        path=filedialog.askopenfilename(title='Append animation sequence',filetypes=[('All files','*.*')])
+        if not path:return
+        try:
+            with open(path,'rb') as stream:self.animation_data=stream.read()
+            self.animation_path=path
+            self.appended_text.set(f'2 / 2  {os.path.basename(self.skeleton_path)} + {os.path.basename(path)}')
+            self.status.set(f'Animation sequence appended: {os.path.basename(path)} ({_friendly_size(len(self.animation_data))}). Skeleton remains active in the viewport.')
+            self.draw()
+        except Exception as error:messagebox.showerror('Append animation',str(error))
 
     def _detect_console_container(self):
         header = self.data[:4096]

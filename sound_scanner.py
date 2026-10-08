@@ -10,6 +10,8 @@ SIGNATURES = (
     ('MP3 ID3', b'ID3', '.mp3'), ('MIDI', b'MThd', '.mid'),
     ('FSB4 bank', b'FSB4', '.fsb'), ('FSB5 bank', b'FSB5', '.fsb'),
     ('Wwise bank', b'BKHD', '.bnk'), ('PlayStation VAG', b'VAGp', '.vag'),
+    ('PlayStation VAB header', b'pBAV', '.vh'),
+    ('PlayStation SEQ', b'pQES', '.seq'), ('PlayStation CD-XA', b'CDXA', '.xa'),
     ('CRI ADX', b'\x80\x00', '.adx'), ('Nintendo BRSTM', b'RSTM', '.brstm'),
     ('Nintendo BFSTM', b'FSTM', '.bfstm'), ('Nintendo BCSTM', b'CSTM', '.bcstm'),
     ('Xbox XMA', b'XMA2', '.xma'), ('Tracker XM', b'Extended Module: ', '.xm'),
@@ -97,6 +99,8 @@ class SoundScanner:
         for index,(offset,kind,extension) in enumerate(raw):
             end=raw[index+1][0] if index+1<len(raw) else len(self.data)
             if self.data[offset:offset+4] in (b'RIFF',b'FORM') and offset+8<=len(self.data):end=min(len(self.data),offset+8+int.from_bytes(self.data[offset+4:offset+8],'little'))
+            elif kind=='PlayStation VAG' and offset+48<=len(self.data):
+                data_size=int.from_bytes(self.data[offset+12:offset+16],'big');end=min(end,offset+48+data_size)
             elif kind=='MIDI' and offset+14<=len(self.data):end=self._midi_end(offset,end)
             relative=os.path.join('sound_data',f'{index+1:04d}_{offset:08X}{extension}')
             hits.append(SoundItem(os.path.basename(relative),kind,offset,max(offset+1,end),relative))
