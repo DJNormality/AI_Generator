@@ -1,4 +1,4 @@
-<img width="1282" height="732" alt="python_PpCa5a7EeM" src="https://github.com/user-attachments/assets/950e0035-6a68-448a-a5d0-7ec3f3292838" />
+<img width="1282" height="732" alt="python_PpCa5a7EeM" src="https://github.com/user-attachments/assets/2500fc5f-e546-4e79-8954-233064f60f17" />
 
 # AI Generator
 
