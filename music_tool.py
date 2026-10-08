@@ -26,6 +26,17 @@ GUITAR_TUNINGS={'Standard E':(40,45,50,55,59,64),'Drop D':(38,45,50,55,59,64),
  'Half-step down':(39,44,49,54,58,63),'Whole-step down':(38,43,48,53,57,62),
  'DADGAD':(38,45,50,55,57,62),'Open G':(38,43,50,55,59,62),'Open D':(38,45,50,54,57,62)}
 
+def configure_local_ffmpeg():
+    app_dir=os.path.dirname(os.path.abspath(__file__));bin_dir=os.path.join(app_dir,'tools','ffmpeg','bin');ffmpeg=os.path.join(bin_dir,'ffmpeg.exe');ffprobe=os.path.join(bin_dir,'ffprobe.exe')
+    if os.path.isfile(ffmpeg):
+        os.environ['PATH']=bin_dir+os.pathsep+os.environ.get('PATH','')
+        try:
+            from pydub import AudioSegment
+            AudioSegment.converter=ffmpeg
+            if os.path.isfile(ffprobe):AudioSegment.ffprobe=ffprobe
+        except ImportError:pass
+    return ffmpeg if os.path.isfile(ffmpeg) else shutil.which('ffmpeg')
+
 class MusicTool:
     def __init__(self,parent,on_back=None):
         self.on_back=on_back;self.window=ttk.Frame(parent,style='App.TFrame');self.window.pack(fill='both',expand=True)
@@ -36,13 +47,13 @@ class MusicTool:
         self.stop_button=ttk.Button(top,text='Stop',command=self.stop,state='disabled');self.stop_button.pack(side='left')
         pane=ttk.Panedwindow(self.window,orient='horizontal');pane.pack(fill='both',expand=True,padx=10,pady=(0,6));controls=ttk.Frame(pane,padding=8);preview=ttk.Frame(pane,padding=4);pane.add(controls,weight=0);pane.add(preview,weight=1)
         self.v={k:tk.StringVar(value=v) for k,v in {'start':'0','end':'0','speed':'1.00','gain':'0','channels':'Keep original','fade_in':'0','fade_out':'0','vocals':'Keep vocals','bitrate':'320k','midi_engine':'Built-in melody detection'}.items()};self.merge_stems=tk.BooleanVar(value=False)
-        rows=[('Trim start (seconds)','start',None),('Trim end (0 = song end)','end',None),('Speed multiplier','speed',('0.25','0.50','0.75','1.00','1.25','1.50','2.00','3.00','4.00')),('Volume change (dB)','gain',None),('Channels','channels',('Keep original','Mono','Stereo','Left only','Right only')),('Fade in (seconds)','fade_in',None),('Fade out (seconds)','fade_out',None),('Vocal processing','vocals',('Keep vocals','Center-cancel vocals','Demucs instrumental')),('MP3 bitrate','bitrate',('128k','192k','256k','320k')),('MIDI engine','midi_engine',('Built-in melody detection','Basic Pitch AI'))]
+        rows=[('Trim start (seconds)','start',None),('Trim end (0 = song end)','end',None),('Speed multiplier','speed',('0.25','0.50','0.75','1.00','1.25','1.50','2.00','3.00','4.00')),('Volume change (dB)','gain',None),('Channels','channels',('Keep original','Mono','Stereo','Left only','Right only')),('Fade in (seconds)','fade_in',None),('Fade out (seconds)','fade_out',None),('MP3 bitrate','bitrate',('128k','192k','256k','320k')),('MIDI engine','midi_engine',('Built-in melody detection','Basic Pitch AI'))]
         for r,(label,key,values) in enumerate(rows):
             ttk.Label(controls,text=label).grid(row=r,column=0,sticky='w',pady=4);w=ttk.Combobox(controls,textvariable=self.v[key],values=values,state='readonly',width=24) if values else ttk.Entry(controls,textvariable=self.v[key],width=26);w.grid(row=r,column=1,sticky='ew',padx=(8,0),pady=4)
         controls.columnconfigure(1,weight=1);r=len(rows)
         ttk.Button(controls,text='Export Edited MP3',command=lambda:self.export_audio('mp3')).grid(row=r,column=0,columnspan=2,sticky='ew',pady=(10,3));ttk.Button(controls,text='Export Edited WAV',command=lambda:self.export_audio('wav')).grid(row=r+1,column=0,columnspan=2,sticky='ew',pady=3)
-        ttk.Button(controls,text='Split Vocals + Instrumental',command=self.split_vocals).grid(row=r+2,column=0,columnspan=2,sticky='ew',pady=3);ttk.Checkbutton(controls,text='Also merge stems for export',variable=self.merge_stems).grid(row=r+3,column=0,columnspan=2,sticky='w',pady=3);ttk.Button(controls,text='Transcribe to MIDI',command=self.export_midi).grid(row=r+4,column=0,columnspan=2,sticky='ew',pady=3)
-        ttk.Label(controls,text='Center-cancel is fast but approximate. Demucs gives cleaner AI stems.\nMIDI export transcribes notes; it does not contain the original audio.',wraplength=380,justify='left').grid(row=r+5,column=0,columnspan=2,sticky='w',pady=(8,0))
+        ttk.Button(controls,text='Transcribe to MIDI',command=self.export_midi).grid(row=r+2,column=0,columnspan=2,sticky='ew',pady=3)
+        ttk.Label(controls,text='Vocal and instrumental separation is now in the separate Audio Split tool.\nMIDI export transcribes notes; it does not contain the original audio.',wraplength=380,justify='left').grid(row=r+3,column=0,columnspan=2,sticky='w',pady=(8,0))
         view_tabs=ttk.Notebook(preview);view_tabs.pack(fill='both',expand=True);wave=ttk.Frame(view_tabs);piano_shell=ttk.Frame(view_tabs);guitar_shell=ttk.Frame(view_tabs);song=ttk.Frame(view_tabs);view_tabs.add(wave,text='Waveform');view_tabs.add(piano_shell,text='Piano & Scales');view_tabs.add(guitar_shell,text='Guitar & Chords');view_tabs.add(song,text='Song')
         self.canvas=tk.Canvas(wave,bg='#020617',highlightthickness=0);self.canvas.pack(fill='both',expand=True);self.canvas.bind('<Configure>',lambda e:self.draw_waveform())
         self.info=tk.StringVar(value='No song loaded');ttk.Label(wave,textvariable=self.info).pack(fill='x',pady=(5,0));guitar=self._scroll_workspace(guitar_shell);self._build_piano(piano_shell);self._build_guitar(guitar);self._build_song(song)
@@ -335,7 +346,9 @@ class MusicTool:
         p=filedialog.askopenfilename(title='Open song',filetypes=[('Audio','*.mp3 *.wav *.flac *.m4a *.aac *.ogg *.wma'),('All files','*.*')])
         if not p:return
         try:
+            ffmpeg=configure_local_ffmpeg()
             from pydub import AudioSegment
+            if not ffmpeg and os.path.splitext(p)[1].lower()!='.wav':raise RuntimeError('FFmpeg was not found. Run Install_Music_Tools.bat, then restart AI Generator.')
             self.audio=AudioSegment.from_file(p);self.path=p;self.path_var.set(p);self.v['end'].set(f'{len(self.audio)/1000:.3f}');self.info.set(f'{len(self.audio)/1000:.2f} sec | {self.audio.frame_rate:,} Hz | {self.audio.channels} channel(s) | {self.audio.sample_width*8}-bit');self.draw_waveform()
         except ImportError as e:messagebox.showerror('Music',f'Audio support could not load.\n\nRun Install_Music_Tools.bat from the main AI_Generator folder, then restart the app.\n\nPython: {sys.executable}\nDetails: {e}')
         except Exception as e:messagebox.showerror('Open song',f'{e}\n\nFFmpeg is required for MP3/M4A/AAC and many other formats.')

@@ -14,6 +14,9 @@ goto :environment_ready
 
 :environment_ready
 
+rem Prefer the private FFmpeg installed by Install_Music_Tools.bat.
+if exist "%CD%\tools\ffmpeg\bin\ffmpeg.exe" set "PATH=%CD%\tools\ffmpeg\bin;%PATH%"
+
 if not exist "main.py" (
     echo ERROR: main.py was not found.
     pause

@@ -39,7 +39,7 @@ class TextureResult:
 class TextureScanner:
     def __init__(self,parent,on_back=None):
         self.on_back=on_back;self.window=ttk.Frame(parent,style='App.TFrame');self.window.pack(fill='both',expand=True)
-        self.data=b'';self.path='';self.results=[];self.scanning=False;self.stop_event=threading.Event();self.preview_image=None;self.preview_photo=None;self.zoom=1.;self.pan=[0,0];self.drag=None
+        self.data=b'';self.path='';self.results=[];self.scanning=False;self.stop_event=threading.Event();self.preview_image=None;self.preview_photo=None;self.zoom=1.;self.pan=[0,0];self.drag=None;self.selected_index=-1;self.gallery_photos=[]
         self._build_ui()
     def _build_ui(self):
         bar=ttk.Frame(self.window,padding=(10,8,10,6));bar.pack(fill='x')
@@ -60,7 +60,7 @@ class TextureScanner:
         for text,ext in [('PNG','.png'),('JPG','.jpg'),('DDS','.dds'),('TGA','.tga')]:ttk.Button(ex,text=text,command=lambda x=ext:self.export_preview(x)).pack(side='left',padx=(6,0))
         self.status=tk.StringVar(value='Open a file, scan containers, or use Raw Settings.');ttk.Label(self.window,textvariable=self.status).pack(fill='x',padx=10,pady=(0,8))
     def _detected_ui(self,p):
-        f=ttk.Frame(p);f.pack(fill='both',expand=True);self.result_list=tk.Listbox(f,width=52,height=18,bg='#0f172a',fg='white',exportselection=False);sy=ttk.Scrollbar(f,orient='vertical',command=self.result_list.yview);sx=ttk.Scrollbar(f,orient='horizontal',command=self.result_list.xview);self.result_list.configure(yscrollcommand=sy.set,xscrollcommand=sx.set);self.result_list.grid(row=0,column=0,sticky='nsew');sy.grid(row=0,column=1,sticky='ns');sx.grid(row=1,column=0,sticky='ew');f.rowconfigure(0,weight=1);f.columnconfigure(0,weight=1);self.result_list.bind('<<ListboxSelect>>',self.preview_selected)
+        ttk.Label(p,text='Decoded texture filmstrip').pack(anchor='w',pady=(0,4));f=ttk.Frame(p);f.pack(fill='both',expand=True);self.gallery_canvas=tk.Canvas(f,bg='#0f172a',height=150,highlightthickness=0);sx=ttk.Scrollbar(f,orient='horizontal',command=self.gallery_canvas.xview);self.gallery_canvas.configure(xscrollcommand=sx.set);self.gallery_canvas.pack(fill='both',expand=True);sx.pack(fill='x');self.gallery_inner=ttk.Frame(self.gallery_canvas);self.gallery_window=self.gallery_canvas.create_window((0,0),window=self.gallery_inner,anchor='nw');self.gallery_inner.bind('<Configure>',lambda _e:self.gallery_canvas.configure(scrollregion=self.gallery_canvas.bbox('all')));self.gallery_canvas.bind('<MouseWheel>',lambda e:self.gallery_canvas.xview_scroll(-3 if e.delta>0 else 3,'units'))
         b=ttk.Frame(p);b.pack(fill='x',pady=(6,0));ttk.Button(b,text='Extract Original',command=self.extract_selected).pack(side='left',fill='x',expand=True);ttk.Button(b,text='Export All',command=self.export_all_detected).pack(side='left',fill='x',expand=True,padx=4);ttk.Button(b,text='Use as Raw',command=self.use_as_raw).pack(side='left',fill='x',expand=True)
     def _raw_ui(self,p):
         self.v={k:tk.StringVar(value=v) for k,v in {'width':'256','height':'256','offset':'0x0','stride':'0','format':'RGBA8888','endian':'Little','swizzle':'Linear','block_height':'8','compression':'None','compressed_size':'0','palette_offset':'0x0','palette_format':'RGBA8888','palette_entries':'256','alpha':'Straight','count':'1','texture_stride':'0'}.items()}
@@ -109,22 +109,39 @@ class TextureScanner:
         x=[self.data.find(s,start) for s in SIGNATURES.values()];x=[n for n in x if n>=0];return min(x) if x else len(self.data)
     def set_progress(self,p,n):self.progress.set(p);self.progress_text.set(f'{p:.0f}%');self.results_text.set(f'Results: {n:,}')
     def finish(self,results,stopped):
-        self.scanning=False;self.scan_button.config(state='normal');self.stop_button.config(state='disabled');self.results=results;self.result_list.delete(0,'end')
-        for n,x in enumerate(results,1):self.result_list.insert('end',x.label(n))
-        self.set_progress(100 if not stopped else self.progress.get(),len(results));self.status.set(f'{"Stopped; kept" if stopped else "Search complete:"} {len(results)} textures.')
-        if results:self.result_list.selection_set(0);self.preview_selected()
+        self.scanning=False;self.scan_button.config(state='normal');self.stop_button.config(state='disabled');valid=[]
+        try:
+            from PIL import Image
+            for item in results:
+                try:
+                    with Image.open(io.BytesIO(self.data[item.offset:item.offset+item.size])) as im:
+                        im.load()
+                        if im.width>1 and im.height>1:valid.append(item)
+                except Exception:pass
+        except ImportError:valid=results
+        self.results=valid;self.build_gallery();self.set_progress(100 if not stopped else self.progress.get(),len(valid));self.status.set(f'{"Stopped; kept" if stopped else "Search complete:"} {len(valid)} verified images shown; invalid detections hidden.')
+        if valid:self.select_gallery(0)
+    def build_gallery(self):
+        for child in self.gallery_inner.winfo_children():child.destroy()
+        self.gallery_photos=[]
+        from PIL import Image,ImageTk
+        for index,item in enumerate(self.results):
+            try:
+                with Image.open(io.BytesIO(self.data[item.offset:item.offset+item.size])) as source:thumb=source.convert('RGBA');thumb.thumbnail((112,92),getattr(Image,'Resampling',Image).LANCZOS)
+                photo=ImageTk.PhotoImage(thumb);self.gallery_photos.append(photo);tile=tk.Frame(self.gallery_inner,bg='#1f2937',bd=1,relief='solid');tile.grid(row=0,column=index,padx=4,pady=5);image=tk.Label(tile,image=photo,bg='#1f2937',cursor='hand2');image.pack(padx=5,pady=5);label=tk.Label(tile,text=f'{index+1:03d}  {item.kind}\n{thumb.width}×{thumb.height}',bg='#1f2937',fg='white',cursor='hand2');label.pack(padx=4,pady=(0,4));image.bind('<Button-1>',lambda _e,i=index:self.select_gallery(i));label.bind('<Button-1>',lambda _e,i=index:self.select_gallery(i))
+            except Exception:pass
+    def select_gallery(self,index):
+        self.selected_index=index;self.preview_selected()
     def preview_selected(self,e=None):
-        s=self.result_list.curselection()
-        if not s:return
-        x=self.results[s[0]]
+        if not (0<=self.selected_index<len(self.results)):return
+        x=self.results[self.selected_index]
         try:
             from PIL import Image
             with Image.open(io.BytesIO(self.data[x.offset:x.offset+x.size])) as im:self.set_image(im.convert('RGBA'))
         except Exception:self.preview_image=None;self.canvas.delete('all');self.canvas.create_text(self.canvas.winfo_width()/2,self.canvas.winfo_height()/2,text=f'{x.kind} {x.width}×{x.height}\nSelect Use as Raw to decode manually.',fill='white',justify='center')
     def use_as_raw(self):
-        s=self.result_list.curselection()
-        if not s:return
-        x=self.results[s[0]];self.v['offset'].set(hex(x.offset));self.v['width'].set(str(x.width or 256));self.v['height'].set(str(x.height or 256));self.status.set('Detected values copied. Choose Raw Settings and set the pixel format.')
+        if not (0<=self.selected_index<len(self.results)):return
+        x=self.results[self.selected_index];self.v['offset'].set(hex(x.offset));self.v['width'].set(str(x.width or 256));self.v['height'].set(str(x.height or 256));self.status.set('Detected values copied. Choose Raw Settings and set the pixel format.')
     def decompress(self,payload,mode):
         if mode=='None':return payload
         if mode=='Auto detect':
@@ -373,9 +390,8 @@ class TextureScanner:
             try:self.save_image(self.preview_image,p);self.status.set(f'Exported {p}')
             except Exception as e:messagebox.showerror('Export',str(e))
     def extract_selected(self):
-        s=self.result_list.curselection()
-        if not s:return
-        x=self.results[s[0]];p=filedialog.asksaveasfilename(defaultextension=EXTENSIONS[x.kind])
+        if not (0<=self.selected_index<len(self.results)):return
+        x=self.results[self.selected_index];p=filedialog.asksaveasfilename(defaultextension=EXTENSIONS[x.kind])
         if p:
             with open(p,'wb') as f:f.write(self.data[x.offset:x.offset+x.size])
     def export_all_detected(self):

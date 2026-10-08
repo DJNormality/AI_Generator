@@ -1,5 +1,3 @@
-<img width="1282" height="732" alt="python_PpCa5a7EeM" src="https://github.com/user-attachments/assets/2500fc5f-e546-4e79-8954-233064f60f17" />
-
 # AI Generator
 
 AI Generator is a Windows desktop application for batch face replacement, image and video processing, face restoration, colorization, upscaling, prompt-guided image editing, cropping, batch file renaming, and exploratory 3D mesh scanning.
@@ -378,9 +376,9 @@ The top-level **Music** section opens an embedded audio editor.
   sixth, seventh, ninth, eleventh, thirteenth, altered dominant, and add chords.
   The fretboard displays the chord notes, generated fret positions, orange
   active strings, plus Play Chord and up/down strum controls.
-- Piano and guitar now each include a modern translucent 16-step piano-roll
-  sequencer above the instrument. Click grid cells to toggle notes, set BPM,
-  press **Play Loop**, and let the pattern repeat until **Stop** is pressed.
+- Piano and guitar include compact horizontal step sequencers with no embedded
+  scrollbars. The Piano section adds a dedicated falling-note playback window
+  inspired by modern piano visualizers and a compact three-octave keyboard.
 - Each sequencer has independent volume and left/right panning plus customizable
   note, background, measure-column, and bar/grid colors.
 - Piano and guitar patterns export from their own sections as WAV, MP3, or a
@@ -389,6 +387,75 @@ The top-level **Music** section opens an embedded audio editor.
 - Guitar customization includes Standard, Drop D, half/whole-step down, DADGAD,
   Open G, and Open D tunings; capo positions 0–12; and separate color pickers
   for the wood fretboard, strings, metal frets, and fret dots.
+- Piano and guitar sequencers support 1–9,999 bars with horizontal scrolling.
+  Patterns can be saved into any of ten mixer channels.
+- The **Song** window places saved channel patterns on a multichannel timeline.
+  Blocks can be snapped by sixteenth, quarter, or bar; freely positioned;
+  dragged between channels; right-click removed; played; and mixed to WAV/MP3.
+- Demucs splitting saves vocals and instrumental as individual WAV files, with
+  an option to reconstruct and save `merged_stems.wav` in the same folder.
+- Audio separation now opens as its own **Audio Split** tool instead of being
+  mixed into the custom Song Studio. It offers a source file, output folder,
+  Demucs model choice, Stop control, individual vocal/instrumental outputs,
+  and optional merged-stem export.
+- Song Studio now locates `tools\\ffmpeg\\bin` directly in code, so opening
+  MP3/M4A/AAC files works even when `main.py` was launched without `Run.bat`.
+
+## Video Editor
+
+The top-level **Videos** section opens a dark embedded non-destructive editor.
+
+- Add multiple MP4, MOV, MKV, AVI, WebM, or M4V clips to a visual timeline.
+- Drag clips with frame, 0.1-second, 0.5-second, one-second, or free movement;
+  enter an exact custom timeline position; cut a selected clip at an exact time;
+  remove clips; or clear the project.
+- Crop, scale, rotate, zoom, change speed, and apply video fade-in/fade-out.
+- Adjust brightness, contrast, saturation, and hue with grayscale, sepia,
+  vintage, cool, warm, sharpen, and blur filters.
+- Exports the processed timeline to H.264/AAC MP4 using FFmpeg and includes a
+  Stop button. Every launch begins with empty clips and default settings.
+
+## Home Visuals
+
+- Uses the supplied blue binary artwork as a responsive cover background.
+- Animates the supplied neon disc at 70% opacity in the bottom-right corner.
+  Its visible quarter now spans the full Home background height.
+- Home is now background-only below the primary tabs. Image progress bars,
+  status controls, and processing buttons are hidden there.
+- Run `Install_Music_Tools.bat` from the main folder for complete audio setup.
+  It installs Pydub, Python 3.13's `audioop-lts`, ImageIO-FFmpeg, downloads a
+  private FFmpeg/FFprobe build into `tools\\ffmpeg\\bin`, installs Demucs when
+  compatible, and verifies the finished installation. `Run.bat` automatically
+  adds the private FFmpeg folder for AI Generator without changing system PATH.
+- Basic Pitch is installed only on its supported Python versions (3.7-3.11).
+  Python 3.13 installations continue to use the built-in MIDI detector.
+
+## Online Library
+
+- Adds an embedded **Library** tab with Tutorials, Instructions,
+  Configurations, and Research views.
+- Organizes searches by Games, Movies, Sports, TV, Stream, Music, Nature,
+  Companies, Jobs, Crypto, Stocks, and Gas.
+- Uses public Wikipedia and Google News results without requiring an API key.
+- Checks internet access automatically. When offline it displays
+  **Not Connected** at the bottom and disables online searching.
+- Opens broader Google searches in the default browser, Microsoft Edge,
+  Firefox, Safari, or every detected installed browser. Missing browsers are
+  reported instead of being launched blindly.
+
+## Asset Sorter
+
+- Adds a dedicated **Sort** tab with directory selection and a complete move
+  preview before filesystem changes begin.
+- Creates Models, Textures, Animations, and Sounds folders while preserving
+  every source subdirectory beneath its assigned category.
+- Recognizes common model, animation, texture, and audio extensions. Unknown
+  types always prompt for Models, Textures, Animations, Sounds, or Skip.
+- For same-name `.fbx`, `.smd`, or `.cast` files, the largest is treated as the
+  model and smaller matches receive `_anim_1`, `_anim_2`, etc. in Animations.
+- Never overwrites a file. Every existing or planned collision receives a
+  numbered filename, including an existing `Extracted.zip` archive.
+- Builds `Extracted.zip` containing only the four organized category folders.
 - Requires `pydub` and FFmpeg for general audio. Optional features use `demucs` and
   `basic-pitch`; missing packages produce an exact installation message in the GUI.
 
@@ -404,8 +471,17 @@ The top-level **Music** section opens an embedded audio editor.
   size change instead of pushing controls below the screen.
 - Home tool tabs have vertical scrollbars and mouse-wheel scrolling, so longer
   Prompt Edit, Crop, and Rename controls remain reachable in short windows.
+- Image processing progress bars and Run/Review/Clear/Stop controls are now
+  visible only inside the **Images** section and no longer appear beneath the
+  Home, 3D Models, Textures, Files, Music, Videos, or Library sections.
 - Reduced minimum window size and compact bottom-button widths support smaller
   desktop layouts without clipping the GUI.
+- Startup is centered at approximately 1120×700 with a 900×620 minimum.
+- The Rename utility now lives under **Files → Rename**, not Images.
+- The 3D viewport adds Solid, Wireframe, Solid + outline, and Points modes,
+  customizable background/surface/outline/vertex colors, line width, and point size.
+- Texture scan results are validated by decoding them first. False detections
+  are hidden and verified images appear in a thumbnail filmstrip/gallery.
 - Slightly transparent main window.
 - Rounded controls and buttons.
 - Green indexing, task, and overall progress bars with percentages.
@@ -646,12 +722,6 @@ No usable source faces were indexed. Fix the source-face detection problem and r
 ## Privacy and Responsible Use
 
 Only process media you own or have permission to edit. Follow applicable privacy, identity, copyright, model-license, and platform rules. Clearly label synthetic or altered media when appropriate.
-
-## Support Links
-
-- Patreon: https://www.patreon.com/c/3dmodelserver
-- Discord: https://discord.com/invite/sMZuNzhmxC
-- PayPal: https://www.paypal.com/paypalme/GameModNation?country.x=US&locale.x=en_US
 
 ## Support Links
 

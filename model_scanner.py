@@ -6,7 +6,7 @@ import struct
 import threading
 import tkinter as tk
 from dataclasses import dataclass
-from tkinter import filedialog, messagebox, ttk
+from tkinter import colorchooser, filedialog, messagebox, ttk
 
 
 FORMATS = {
@@ -156,6 +156,10 @@ class BinaryMeshScanner:
         self.yaw = -0.55
         self.pitch = 0.35
         self.zoom = 1.0
+        self.render_mode = tk.StringVar(value='Solid + outline')
+        self.mesh_colors = {'background':'#020617','surface':'#1e3a5f','outline':'#60a5fa','vertices':'#60a5fa'}
+        self.line_width = tk.IntVar(value=1)
+        self.point_size = tk.IntVar(value=2)
         self.drag_origin = None
         self.scanning = False
         self.scan_stop_event = threading.Event()
@@ -290,11 +294,17 @@ class BinaryMeshScanner:
             row=action_row, column=0, columnspan=2, sticky='ew', pady=(5, 2))
         ttk.Button(self.geometry_controls, text='Export OBJ', command=self.export_obj).grid(
             row=action_row, column=2, sticky='ew', padx=(5, 0), pady=(5, 2))
+        appearance=ttk.LabelFrame(controls,text='Viewport appearance',padding=5);appearance.grid(row=2,column=0,columnspan=3,sticky='ew',pady=(5,0));appearance.columnconfigure(1,weight=1)
+        ttk.Label(appearance,text='Geometry').grid(row=0,column=0,sticky='w');mode=ttk.Combobox(appearance,textvariable=self.render_mode,values=('Solid','Wireframe','Solid + outline','Points'),state='readonly',width=18);mode.grid(row=0,column=1,sticky='ew',padx=4);mode.bind('<<ComboboxSelected>>',lambda _e:self.draw())
+        ttk.Label(appearance,text='Line').grid(row=1,column=0,sticky='w');ttk.Spinbox(appearance,from_=1,to=8,textvariable=self.line_width,width=5,command=self.draw).grid(row=1,column=1,sticky='w',padx=4)
+        ttk.Label(appearance,text='Point').grid(row=1,column=1,sticky='e',padx=(0,48));ttk.Spinbox(appearance,from_=1,to=10,textvariable=self.point_size,width=5,command=self.draw).grid(row=1,column=2,sticky='e')
+        colors=ttk.Frame(appearance);colors.grid(row=2,column=0,columnspan=3,sticky='ew',pady=(4,0))
+        for label,key in (('Background','background'),('Surface','surface'),('Outline','outline'),('Vertices','vertices')):ttk.Button(colors,text=label,command=lambda k=key:self.choose_mesh_color(k)).pack(side='left',padx=(0,3))
         ttk.Button(controls, text='Reset View', command=self.reset_view).grid(
-            row=2, column=0, columnspan=3, sticky='ew', pady=(3, 0))
+            row=3, column=0, columnspan=3, sticky='ew', pady=(3, 0))
         self.status = tk.StringVar(value='Open any binary file to begin.')
         ttk.Label(controls, textvariable=self.status, wraplength=380).grid(
-            row=3, column=0, columnspan=3, sticky='w', pady=(5, 0))
+            row=4, column=0, columnspan=3, sticky='w', pady=(5, 0))
 
         self.canvas = tk.Canvas(viewer, bg='#020617', highlightthickness=0)
         self.canvas.pack(fill=tk.BOTH, expand=True)
@@ -306,6 +316,13 @@ class BinaryMeshScanner:
         self.canvas.bind('<Alt-B1-Motion>', self.rotate_move)
         self.canvas.create_text(20, 20, anchor='nw', fill='#94a3b8',
                                 text='Ctrl + mouse wheel: zoom\nAlt + left drag: rotate')
+
+    def choose_mesh_color(self,key):
+        color=colorchooser.askcolor(color=self.mesh_colors[key],title=f'Choose {key} color')[1]
+        if color:
+            self.mesh_colors[key]=color
+            if key=='background':self.canvas.configure(bg=color)
+            self.draw()
 
     @staticmethod
     def _number(value):
@@ -843,6 +860,7 @@ class BinaryMeshScanner:
 
     def draw(self):
         self.canvas.delete('mesh')
+        self.canvas.configure(bg=self.mesh_colors['background'])
         bone_points = [position for _parent, position in self.bones]
         all_points = list(self.vertices) + bone_points
         if not all_points:
@@ -865,17 +883,18 @@ class BinaryMeshScanner:
         projected = [project(vertex) for vertex in self.vertices]
         faces = self.faces[:20000]
         faces = sorted(faces, key=lambda face: sum(projected[i][2] for i in face) / 3)
+        mode=self.render_mode.get();line=max(1,int(self.line_width.get()));point=max(1,int(self.point_size.get()))
         for face in faces:
             try:
                 points = [(projected[i][0], projected[i][1]) for i in face]
                 flat = [value for point in points for value in point]
-                self.canvas.create_polygon(*flat, fill='#1e3a5f', outline='#60a5fa',
-                                           width=1, tags='mesh')
+                fill='' if mode=='Wireframe' else self.mesh_colors['surface'];outline=self.mesh_colors['outline'] if mode in ('Wireframe','Solid + outline') else ''
+                if mode!='Points':self.canvas.create_polygon(*flat, fill=fill, outline=outline,width=line, tags='mesh')
             except (IndexError, tk.TclError):
                 continue
-        if not faces:
+        if not faces or mode=='Points':
             for x, y, _z in projected[:30000]:
-                self.canvas.create_oval(x-1, y-1, x+1, y+1, fill='#60a5fa',
+                self.canvas.create_oval(x-point, y-point, x+point, y+point, fill=self.mesh_colors['vertices'],
                                         outline='', tags='mesh')
         if self.bones:
             projected_bones = [project(position) for _parent, position in self.bones]

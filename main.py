@@ -252,8 +252,8 @@ class FaceSwapApp:
         except (tk.TclError, OSError):
             # Missing or invalid custom artwork should never prevent startup.
             self._window_icon_image = None
-        self.root.geometry("1320x760")
-        self.root.minsize(780, 560)
+        self.root.geometry("1120x700")
+        self.root.minsize(900, 620)
         self.root.configure(bg='#111827')
         try:
             self.root.attributes('-alpha', 0.96)
@@ -356,9 +356,11 @@ class FaceSwapApp:
         image_section = ttk.Frame(section_notebook, style='App.TFrame', padding=(0, 6, 0, 0))
         models3d_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
         texture_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
-        files_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
+        files_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=8)
         music_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
         videos_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
+        library_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=8)
+        sort_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=8)
         section_notebook.add(home_tab, text='  HOME  ')
         section_notebook.add(image_section, text='  IMAGES  ')
         section_notebook.add(models3d_tab, text='  3D MODELS  ')
@@ -366,6 +368,8 @@ class FaceSwapApp:
         section_notebook.add(files_tab, text='  FILES  ')
         section_notebook.add(music_tab, text='  MUSIC  ')
         section_notebook.add(videos_tab, text='  VIDEOS  ')
+        section_notebook.add(library_tab, text='  LIBRARY  ')
+        section_notebook.add(sort_tab, text='  SORT  ')
         self.build_home_visual(home_tab)
 
         notebook = ttk.Notebook(image_section, style='Modern.TNotebook')
@@ -376,17 +380,33 @@ class FaceSwapApp:
         prompt_shell, prompt_tab = self.create_scrollable_tab(notebook)
         crop_shell, crop_tab = self.create_scrollable_tab(notebook)
         colorize_shell, colorize_tab = self.create_scrollable_tab(notebook)
-        rename_shell, rename_tab = self.create_scrollable_tab(notebook)
         notebook.add(paths_shell, text='  Paths  ')
         notebook.add(swap_shell, text='  Face Swap  ')
         notebook.add(enhance_shell, text='  Enhance  ')
         notebook.add(prompt_shell, text='  Prompt Edit  ')
         notebook.add(crop_shell, text='  Crop  ')
         notebook.add(colorize_shell, text='  Colorize  ')
-        notebook.add(rename_shell, text='  Rename  ')
+        files_notebook = ttk.Notebook(files_tab, style='Modern.TNotebook')
+        files_notebook.pack(fill=tk.BOTH, expand=True)
+        files_overview = ttk.Frame(files_notebook, style='Panel.TFrame', padding=10)
+        rename_shell, rename_tab = self.create_scrollable_tab(files_notebook)
+        files_notebook.add(files_overview, text='  Extractor  ')
+        files_notebook.add(rename_shell, text='  Rename  ')
         self.create_modern_tabs(paths_tab, swap_tab, enhance_tab, prompt_tab, crop_tab,
                                 colorize_tab, rename_tab, models3d_tab, texture_tab,
-                                files_tab, music_tab, videos_tab)
+                                files_overview, music_tab, videos_tab)
+        try:
+            from library_tool import build_library_tool
+            self.library_tool = build_library_tool(library_tab)
+        except Exception as error:
+            ttk.Label(library_tab, text=f'Library could not start: {error}',
+                      style='Hint.TLabel').pack(anchor='w', padx=8, pady=8)
+        try:
+            from sort_tool import build_sort_tool
+            self.sort_tool = build_sort_tool(sort_tab)
+        except Exception as error:
+            ttk.Label(sort_tab, text=f'Sort could not start: {error}',
+                      style='Hint.TLabel').pack(anchor='w', padx=8, pady=8)
         section_notebook.select(home_tab)
 
         progress_frame = ttk.Frame(main_frame, style='App.TFrame')
@@ -443,21 +463,37 @@ class FaceSwapApp:
                           'https://www.paypal.com/paypalme/GameModNation?country.x=US&locale.x=en_US'),
                       bg='#0070ba', hover='#169bd7', width=54, height=46, radius=16).pack(side=tk.LEFT, padx=8)
 
+        self.image_only_widgets = (progress_frame, control_frame, link_frame)
+        self.home_tab_id = str(home_tab)
+        self.image_tab_id = str(image_section)
+        section_notebook.bind('<<NotebookTabChanged>>', self.on_main_section_changed)
+        self.section_notebook = section_notebook
+
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
         self.check_for_resume_state()
+        self.root.after_idle(self.on_main_section_changed)
         self.root.after_idle(self.fit_window_to_screen)
 
     def fit_window_to_screen(self):
         self.root.update_idletasks()
         screen_w = self.root.winfo_screenwidth()
         screen_h = self.root.winfo_screenheight()
-        requested_w = max(1280, self.root.winfo_reqwidth() + 16)
-        requested_h = max(700, self.root.winfo_reqheight() + 18)
-        width = min(requested_w, max(780, screen_w - 40))
-        height = min(requested_h, max(560, screen_h - 30))
+        width = min(1120, max(900, screen_w - 60))
+        height = min(700, max(620, screen_h - 80))
         x = max(0, (screen_w - width) // 2)
         y = max(0, (screen_h - height) // 2 - 10)
         self.root.geometry(f'{width}x{height}+{x}+{y}')
+
+    def on_main_section_changed(self, _event=None):
+        is_home = self.section_notebook.select() == self.home_tab_id
+        is_images = self.section_notebook.select() == self.image_tab_id
+        for widget in self.image_only_widgets:
+            if is_images:
+                widget.grid()
+            else:
+                widget.grid_remove()
+        if is_home:
+            self.render_home_visual()
 
     def build_home_visual(self, parent):
         """Animated Home background with a translucent quarter-disc logo."""
@@ -963,13 +999,15 @@ class FaceSwapApp:
                   'formats/tools, but passwords and keys are never cracked.'),
             style='Hint.TLabel', wraplength=780, justify='left').grid(
                 row=3, column=0, columnspan=2, sticky='w', pady=(12, 0))
-        ttk.Label(music, text='Music Editor & Vocal Tools', style='Panel.TLabel',
+        ttk.Label(music, text='Music Tools', style='Panel.TLabel',
                   font=('Segoe UI Semibold', 12)).grid(row=0,column=0,columnspan=2,sticky='w',pady=(0,8))
         ttk.Label(music,text=('Trim songs, change speed and dB volume, select channels, add fades, '
                               'remove or split vocals, and export WAV, MP3, or transcribed MIDI.'),
                   style='Hint.TLabel',wraplength=780,justify='left').grid(row=1,column=0,columnspan=2,sticky='w',pady=(0,14))
-        RoundedButton(music,text='Open Music Editor',command=self.open_music_tool,
+        RoundedButton(music,text='Open Song Studio',command=self.open_music_tool,
                       bg='#16a34a',hover='#22c55e',width=250,canvas_bg='#1f2937').grid(row=2,column=0,columnspan=2,sticky='w')
+        RoundedButton(music,text='Open Audio Split',command=self.open_audio_splitter,
+                      bg='#2563eb',hover='#3b82f6',width=250,canvas_bg='#1f2937').grid(row=3,column=0,columnspan=2,sticky='w',pady=(8,0))
         ttk.Label(videos,text='Video Tools',style='Panel.TLabel',
                   font=('Segoe UI Semibold',12)).grid(row=0,column=0,sticky='w',pady=(0,8))
         ttk.Label(videos,text='Crop, scale, rotate, zoom, trim, cut, move, snap, recolor, filter, fade, change speed, and export an MP4 timeline.',
@@ -2049,6 +2087,20 @@ class FaceSwapApp:
             try:active.window.destroy()
             except tk.TclError:pass
         self.music_tool_window=None;self.root.title('AI Generator');self.main_frame.pack(fill=tk.BOTH,expand=True)
+
+    def open_audio_splitter(self):
+        try:
+            from audio_splitter import open_audio_splitter
+            if getattr(self,'audio_splitter_window',None):return
+            self.main_frame.pack_forget();self.root.title('AI Generator — Audio Split');self.audio_splitter_window=open_audio_splitter(self.root,on_back=self.return_from_audio_splitter)
+        except Exception as error:
+            self.main_frame.pack(fill=tk.BOTH,expand=True);self.root.title('AI Generator');messagebox.showerror('Audio Split',f'Could not open Audio Split.\n\n{error}')
+    def return_from_audio_splitter(self,tool=None):
+        active=tool or getattr(self,'audio_splitter_window',None)
+        if active is not None:
+            try:active.window.destroy()
+            except tk.TclError:pass
+        self.audio_splitter_window=None;self.root.title('AI Generator');self.main_frame.pack(fill=tk.BOTH,expand=True)
 
     def open_video_tool(self):
         try:
