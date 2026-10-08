@@ -1,8 +1,5 @@
+<img width="1282" height="732" alt="python_PpCa5a7EeM" src="https://github.com/user-attachments/assets/950e0035-6a68-448a-a5d0-7ec3f3292838" />
 
-
-https://github.com/user-attachments/assets/2b1a8c4e-eb2a-436d-9a5a-2a2f15e2b367
-
-<img width="902" height="1035" alt="python_x8ypz3SOkS" src="https://github.com/user-attachments/assets/1c6eef73-523a-46de-a636-8e97f4f5a12d" />
 # AI Generator
 
 AI Generator is a Windows desktop application for batch face replacement, image and video processing, face restoration, colorization, upscaling, prompt-guided image editing, cropping, batch file renaming, and exploratory 3D mesh scanning.
