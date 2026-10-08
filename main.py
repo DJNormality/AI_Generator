@@ -357,11 +357,15 @@ class FaceSwapApp:
         models3d_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
         texture_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
         files_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
+        music_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
+        videos_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
         section_notebook.add(home_tab, text='  HOME  ')
         section_notebook.add(image_section, text='  IMAGES  ')
         section_notebook.add(models3d_tab, text='  3D MODELS  ')
         section_notebook.add(texture_tab, text='  TEXTURES  ')
         section_notebook.add(files_tab, text='  FILES  ')
+        section_notebook.add(music_tab, text='  MUSIC  ')
+        section_notebook.add(videos_tab, text='  VIDEOS  ')
 
         notebook = ttk.Notebook(image_section, style='Modern.TNotebook')
         notebook.pack(fill=tk.BOTH, expand=True)
@@ -381,7 +385,7 @@ class FaceSwapApp:
         notebook.add(rename_shell, text='  Rename  ')
         self.create_modern_tabs(paths_tab, swap_tab, enhance_tab, prompt_tab, crop_tab,
                                 colorize_tab, rename_tab, models3d_tab, texture_tab,
-                                files_tab)
+                                files_tab, music_tab, videos_tab)
         section_notebook.select(home_tab)
 
         progress_frame = ttk.Frame(main_frame, style='App.TFrame')
@@ -458,6 +462,29 @@ class FaceSwapApp:
         style = ttk.Style(self.root)
         style.theme_use('clam')
         style.configure('.', font=('Segoe UI', 10))
+        # Global ttk defaults keep every embedded tool consistent with the main GUI.
+        style.configure('TFrame', background='#111827')
+        style.configure('TLabel', background='#111827', foreground='#e5e7eb')
+        style.configure('TButton', background='#374151', foreground='#f8fafc',
+                        padding=(10, 7), borderwidth=0)
+        style.map('TButton', background=[('active', '#4b5563'), ('pressed', '#2563eb'),
+                                         ('disabled', '#1f2937')],
+                  foreground=[('disabled', '#64748b')])
+        style.configure('TEntry', fieldbackground='#0f172a', foreground='#f8fafc',
+                        insertcolor='#ffffff', bordercolor='#475569')
+        style.configure('TCombobox', fieldbackground='#0f172a', foreground='#f8fafc',
+                        arrowcolor='#93c5fd', bordercolor='#475569')
+        style.map('TCombobox', fieldbackground=[('readonly', '#0f172a')],
+                  foreground=[('readonly', '#f8fafc')],
+                  selectbackground=[('readonly', '#0f172a')],
+                  selectforeground=[('readonly', '#f8fafc')])
+        style.configure('TNotebook', background='#111827', borderwidth=0)
+        style.configure('TNotebook.Tab', background='#374151', foreground='#cbd5e1',
+                        padding=(12, 7), borderwidth=0)
+        style.map('TNotebook.Tab', background=[('selected', '#2563eb')],
+                  foreground=[('selected', '#ffffff')])
+        style.configure('TPanedwindow', background='#111827')
+        style.configure('TCheckbutton', background='#111827', foreground='#e5e7eb')
         style.configure('App.TFrame', background='#111827')
         style.configure('Home.TFrame', background='#000000')
         style.configure('Panel.TFrame', background='#1f2937')
@@ -564,9 +591,9 @@ class FaceSwapApp:
         return widget
 
     def create_modern_tabs(self, paths, swap, enhance, prompt, crop, colorize, rename,
-                           models3d, texture, files):
+                           models3d, texture, files, music, videos):
         for tab in (paths, swap, enhance, prompt, crop, colorize, rename,
-                    models3d, texture, files):
+                    models3d, texture, files, music, videos):
             tab.grid_columnconfigure(1, weight=1)
 
         self.create_path_entry(paths, "Source images", self.source_dir, self.browse_source_dir, 0)
@@ -868,6 +895,17 @@ class FaceSwapApp:
                   'formats/tools, but passwords and keys are never cracked.'),
             style='Hint.TLabel', wraplength=780, justify='left').grid(
                 row=3, column=0, columnspan=2, sticky='w', pady=(12, 0))
+        ttk.Label(music, text='Music Editor & Vocal Tools', style='Panel.TLabel',
+                  font=('Segoe UI Semibold', 12)).grid(row=0,column=0,columnspan=2,sticky='w',pady=(0,8))
+        ttk.Label(music,text=('Trim songs, change speed and dB volume, select channels, add fades, '
+                              'remove or split vocals, and export WAV, MP3, or transcribed MIDI.'),
+                  style='Hint.TLabel',wraplength=780,justify='left').grid(row=1,column=0,columnspan=2,sticky='w',pady=(0,14))
+        RoundedButton(music,text='Open Music Editor',command=self.open_music_tool,
+                      bg='#16a34a',hover='#22c55e',width=250,canvas_bg='#1f2937').grid(row=2,column=0,columnspan=2,sticky='w')
+        ttk.Label(videos,text='Video Tools',style='Panel.TLabel',
+                  font=('Segoe UI Semibold',12)).grid(row=0,column=0,sticky='w',pady=(0,8))
+        ttk.Label(videos,text='Video workspace ready for editing and conversion tools.',
+                  style='Hint.TLabel').grid(row=1,column=0,sticky='w')
 
     def create_settings_widgets(self, parent):
         tk.Label(parent, text="GPU Provider:").grid(row=0, column=0, sticky='w', padx=5, pady=2)
@@ -1925,6 +1963,23 @@ class FaceSwapApp:
         self.file_scanner_window = None
         self.root.title('AI Generator')
         self.main_frame.pack(fill=tk.BOTH, expand=True)
+
+    def open_music_tool(self):
+        try:
+            from music_tool import open_music_tool
+            if getattr(self,'music_tool_window',None):return
+            self.main_frame.pack_forget();self.root.title('AI Generator — Music')
+            self.music_tool_window=open_music_tool(self.root,on_back=self.return_from_music_tool)
+        except Exception as error:
+            self.main_frame.pack(fill=tk.BOTH,expand=True);self.root.title('AI Generator')
+            messagebox.showerror('Music',f'Could not open Music. Make sure music_tool.py is beside main.py.\n\n{error}')
+
+    def return_from_music_tool(self,tool=None):
+        active=tool or getattr(self,'music_tool_window',None)
+        if active is not None:
+            try:active.window.destroy()
+            except tk.TclError:pass
+        self.music_tool_window=None;self.root.title('AI Generator');self.main_frame.pack(fill=tk.BOTH,expand=True)
 
     def _update_restoration_percent(self, *_):
         try:
