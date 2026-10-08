@@ -253,7 +253,11 @@ class BinaryMeshScanner:
 
         self.geometry_controls = ttk.Frame(controls)
         self.geometry_controls.grid(row=1, column=0, columnspan=3, sticky='ew')
-        self.geometry_controls.grid_columnconfigure(1, weight=1)
+        self.geometry_controls.grid_columnconfigure(0, weight=1)
+        self.settings_notebook = ttk.Notebook(self.geometry_controls)
+        self.settings_notebook.grid(row=0,column=0,columnspan=3,sticky='ew',pady=(5,0))
+        settings_tabs={name:ttk.Frame(self.settings_notebook,padding=7) for name in ('Mesh','UV','Animation','Texture')}
+        for name,frame in settings_tabs.items():self.settings_notebook.add(frame,text=f'  {name}  ');frame.columnconfigure(1,weight=1)
 
         self.vars = {
             'vertex_offset': tk.StringVar(value='0'), 'vertex_count': tk.StringVar(value='0'),
@@ -268,27 +272,32 @@ class BinaryMeshScanner:
             ('Vertex offset', 'vertex_offset'), ('Vertex count', 'vertex_count'),
             ('Vertex stride/padding', 'stride'), ('Position type', 'position_type'),
             ('Byte order', 'endian'), ('Position scale', 'position_scale'),
-            ('UV offset in stride', 'uv_offset'), ('UV type', 'uv_type'),
             ('Face/index offset', 'index_offset'), ('Index count', 'index_count'),
             ('Index type', 'index_type'), ('Topology', 'topology'),
         ]
-        for row, (label, key) in enumerate(rows, 1):
-            compact_row = row - 1
-            ttk.Label(self.geometry_controls, text=label).grid(
+        def add_fields(frame,fields):
+          for compact_row,(label,key) in enumerate(fields):
+            ttk.Label(frame, text=label).grid(
                 row=compact_row, column=0, sticky='w', pady=1)
             if key in ('position_type', 'uv_type', 'index_type', 'topology', 'endian'):
                 values = list(FORMATS) if key in ('position_type', 'uv_type') else (
                     ['UInt16', 'UInt32'] if key == 'index_type' else
                     ['Little', 'Big'] if key == 'endian' else
                     ['Triangle list', 'Triangle strip'])
-                ttk.Combobox(self.geometry_controls, textvariable=self.vars[key], values=values,
+                ttk.Combobox(frame, textvariable=self.vars[key], values=values,
                              state='readonly', width=22).grid(
-                                 row=compact_row, column=1, columnspan=2,
-                                 sticky='ew', pady=1)
+                                 row=compact_row, column=1, sticky='ew', pady=1)
             else:
-                ttk.Entry(self.geometry_controls, textvariable=self.vars[key], width=24).grid(
-                    row=compact_row, column=1, columnspan=2, sticky='ew', pady=1)
-        action_row = len(rows)
+                ttk.Entry(frame, textvariable=self.vars[key], width=24).grid(
+                    row=compact_row, column=1, sticky='ew', pady=1)
+        add_fields(settings_tabs['Mesh'],rows)
+        add_fields(settings_tabs['UV'],(('UV offset in stride','uv_offset'),('UV type','uv_type')))
+        ttk.Label(settings_tabs['UV'],text='UV values are read from each vertex stride and included in OBJ exports.',wraplength=330).grid(row=2,column=0,columnspan=2,sticky='w',pady=(7,0))
+        ttk.Label(settings_tabs['Animation'],text='Use Animation / Rigging search mode to scan a companion skeleton or animation file. Detected bones and XYZ axes appear in red in the viewport.',wraplength=330).grid(row=0,column=0,columnspan=2,sticky='w')
+        ttk.Button(settings_tabs['Animation'],text='Select Animation Search',command=lambda:(self.search_mode.set('Animation / Rigging'),self.update_search_mode_ui())).grid(row=1,column=0,columnspan=2,sticky='ew',pady=(7,0))
+        ttk.Label(settings_tabs['Texture'],text='Texture and material settings are used for viewport presentation. Use the Textures tool for decoding and bulk export.',wraplength=330).grid(row=0,column=0,columnspan=2,sticky='w')
+        ttk.Label(settings_tabs['Texture'],text='Surface color').grid(row=1,column=0,sticky='w',pady=(7,0));ttk.Button(settings_tabs['Texture'],text='Choose',command=lambda:self.choose_mesh_color('surface')).grid(row=1,column=1,sticky='ew',pady=(7,0))
+        action_row = 1
         ttk.Button(self.geometry_controls, text='Preview Values',
                    command=self.preview_manual).grid(
             row=action_row, column=0, columnspan=2, sticky='ew', pady=(5, 2))
@@ -351,11 +360,11 @@ class BinaryMeshScanner:
 
     def update_search_mode_ui(self, _event=None):
         if self.search_mode.get() == 'Animation / Rigging':
-            self.geometry_controls.grid_remove()
+            self.settings_notebook.select(2)
             self.status.set(
                 'Animation / Rigging mode: load any animation or skeleton file, then scan.')
         else:
-            self.geometry_controls.grid()
+            if self.settings_notebook.index(self.settings_notebook.select()) == 2:self.settings_notebook.select(0)
             self.status.set('Geometry mode: open any model file, then scan.')
 
     def open_file(self):

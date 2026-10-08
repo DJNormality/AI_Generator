@@ -342,7 +342,7 @@ class FaceSwapApp:
         self.main_frame = main_frame
         main_frame.pack(fill=tk.BOTH, expand=True)
         main_frame.grid_columnconfigure(0, weight=1)
-        main_frame.grid_rowconfigure(1, weight=1)
+        main_frame.grid_rowconfigure(2, weight=1)
 
         header = ttk.Frame(main_frame, style='App.TFrame')
         header.grid(row=0, column=0, sticky='ew', pady=(0, 8))
@@ -350,27 +350,41 @@ class FaceSwapApp:
         ttk.Label(header, text="Face replacement, restoration, prompt editing and upscaling",
                   style='Subtitle.TLabel').pack(anchor='w', pady=(2, 0))
 
-        section_notebook = ttk.Notebook(main_frame, style='Section.TNotebook')
-        section_notebook.grid(row=1, column=0, sticky='nsew', pady=(0, 8))
+        section_nav=tk.Frame(main_frame,bg='#111827')
+        section_nav.grid(row=1,column=0,sticky='ew',pady=(0,7))
+        section_notebook = ttk.Notebook(main_frame, style='Tabless.TNotebook')
+        section_notebook.grid(row=2, column=0, sticky='nsew', pady=(0, 8))
         home_tab = ttk.Frame(section_notebook, style='Home.TFrame')
         image_section = ttk.Frame(section_notebook, style='App.TFrame', padding=(0, 6, 0, 0))
         models3d_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
         texture_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
+        sound_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=5)
         files_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=8)
         music_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
         videos_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
         library_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=8)
         sort_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=8)
-        section_notebook.add(home_tab, text='  HOME  ')
-        section_notebook.add(image_section, text='  IMAGES  ')
-        section_notebook.add(models3d_tab, text='  3D MODELS  ')
-        section_notebook.add(texture_tab, text='  TEXTURES  ')
-        section_notebook.add(files_tab, text='  FILES  ')
-        section_notebook.add(music_tab, text='  MUSIC  ')
-        section_notebook.add(videos_tab, text='  VIDEOS  ')
-        section_notebook.add(library_tab, text='  LIBRARY  ')
-        section_notebook.add(sort_tab, text='  SORT  ')
+        design_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=5)
+        research_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=5)
+        section_notebook.add(home_tab, text='  Home  ')
+        section_notebook.add(models3d_tab, text='  3D Models  ')
+        section_notebook.add(texture_tab, text='  Textures  ')
+        section_notebook.add(sound_tab, text='  Sound  ')
+        section_notebook.add(files_tab, text='  Files  ')
+        section_notebook.add(music_tab, text='  Music  ')
+        section_notebook.add(videos_tab, text='  Videos  ')
+        section_notebook.add(design_tab, text='  Design  ')
+        section_notebook.add(sort_tab, text='  Sort  ')
+        section_notebook.add(research_tab, text='  Research  ')
+        self.section_nav_buttons={}
+        rounded_sections=(('Home',home_tab),('3D Models',models3d_tab),('Textures',texture_tab),('Sound',sound_tab),('Files',files_tab),('Music',music_tab),('Videos',videos_tab),('Design',design_tab),('Sort',sort_tab),('Research',research_tab))
+        for label,page in rounded_sections:
+            button=RoundedButton(section_nav,text=label,command=lambda target=page:section_notebook.select(target),bg='#172033',hover='#243244',width=106,height=38,radius=17)
+            button.pack(side='left',fill='x',expand=True,padx=2);self.section_nav_buttons[str(page)]=button
         self.build_home_visual(home_tab)
+        # Animated artwork is intentionally Home-only. Tool pages retain a
+        # clean solid background so labels, entries, and tables stay readable.
+        self.tab_background_canvases=[]
 
         notebook = ttk.Notebook(image_section, style='Modern.TNotebook')
         notebook.pack(fill=tk.BOTH, expand=True)
@@ -395,6 +409,24 @@ class FaceSwapApp:
         self.create_modern_tabs(paths_tab, swap_tab, enhance_tab, prompt_tab, crop_tab,
                                 colorize_tab, rename_tab, models3d_tab, texture_tab,
                                 files_overview, music_tab, videos_tab)
+        try:
+            from sound_scanner import build_sound_scanner
+            self.sound_scanner = build_sound_scanner(sound_tab)
+        except Exception as error:
+            ttk.Label(sound_tab, text=f'Sound scanner could not start: {error}',
+                      style='Hint.TLabel').pack(anchor='w', padx=8, pady=8)
+        try:
+            from research_tool import build_research_tool
+            self.research_tool = build_research_tool(research_tab)
+        except Exception as error:
+            ttk.Label(research_tab, text=f'Research could not start: {error}',
+                      style='Hint.TLabel').pack(anchor='w', padx=8, pady=8)
+        try:
+            from design_tool import build_design_tool
+            self.design_tool = build_design_tool(design_tab)
+        except Exception as error:
+            ttk.Label(design_tab, text=f'Design could not start: {error}',
+                      style='Hint.TLabel').pack(anchor='w', padx=8, pady=8)
         try:
             from library_tool import build_library_tool
             self.library_tool = build_library_tool(library_tab)
@@ -494,6 +526,9 @@ class FaceSwapApp:
                 widget.grid_remove()
         if is_home:
             self.render_home_visual()
+        selected=self.section_notebook.select()
+        for page_id,button in getattr(self,'section_nav_buttons',{}).items():
+            button._normal_bg='#16a34a' if page_id==selected else '#172033';button._hover_bg='#22c55e' if page_id==selected else '#243244';button._draw()
 
     def build_home_visual(self, parent):
         """Animated Home background with a translucent quarter-disc logo."""
@@ -504,6 +539,8 @@ class FaceSwapApp:
         self.home_frame_index = 0
         self.home_background_photo = None
         self.home_disc_photo = None
+        self.tab_background_photos = {}
+        self.visual_started_at = time.monotonic()
         asset_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources')
         try:
             from PIL import Image, ImageSequence
@@ -515,8 +552,77 @@ class FaceSwapApp:
         except Exception:
             self.home_background_source = None
             self.home_disc_sources = []
+        # Home-only support and community shortcuts. These stay above the
+        # animated Canvas and do not appear on tool pages.
+        self.home_support_bar=tk.Frame(parent,bg='#020617',highlightthickness=0)
+        self.home_support_bar.place(relx=.018,rely=.975,anchor='sw')
+        home_links=(
+            ('patreon','Patreon.png','https://www.patreon.com/c/3dmodelserver','#f96854','#ff7b6b'),
+            ('discord','Discord.png','https://discord.com/invite/sMZuNzhmxC','#5865f2','#7289da'),
+            ('paypal','PayPal.png','https://www.paypal.com/paypalme/GameModNation?country.x=US&locale.x=en_US','#0070ba','#169bd7'),
+            ('', 'Website.png','https://sites.google.com/view/3d-model-archives/home','#0891b2','#22d3ee'),
+        )
+        self.home_link_buttons=[]
+        for icon,filename,url,bg,hover in home_links:
+            button=RoundedButton(self.home_support_bar,text='',icon=icon,
+                                 image_path=os.path.join(asset_root,filename),
+                                 command=lambda target=url:self.open_external_link(target),
+                                 bg=bg,hover=hover,width=56,height=48,radius=17)
+            button.pack(side='left',padx=5,pady=4);self.home_link_buttons.append(button)
         self.home_canvas.bind('<Configure>', lambda _event: self.render_home_visual())
-        self.root.after(80, self.animate_home_disc)
+        self.root.after(35, self.animate_home_disc)
+
+    def add_animated_tab_background(self, parent):
+        """Place the shared cyber backdrop below a tool tab's controls."""
+        canvas=tk.Canvas(parent,bg='#020617',highlightthickness=0,takefocus=0)
+        canvas.place(x=0,y=0,relwidth=1,relheight=1);canvas.tk.call('lower',canvas._w)
+        canvas.bind('<Configure>',lambda _event,c=canvas:self.render_animated_tab_background(c))
+        self.tab_background_canvases.append(canvas)
+
+    def _animated_background_image(self,width,height):
+        """Animate the original Home artwork with slow rolling blue fog."""
+        if self.home_background_source is None:return None
+        from PIL import Image,ImageChops,ImageDraw,ImageEnhance,ImageFilter
+        resampling=getattr(Image,'Resampling',Image);source=self.home_background_source
+        # A slightly oversized cover crop leaves room for a smooth panoramic drift.
+        scale=max((width*1.18)/source.width,(height*1.18)/source.height)
+        resized=source.resize((max(width+2,int(source.width*scale)),max(height+2,int(source.height*scale))),resampling.LANCZOS)
+        left=max(0,(resized.width-width)//2);top=max(0,(resized.height-height)//2);frame=resized.crop((left,top,left+width,top+height))
+        elapsed=time.monotonic()-getattr(self,'visual_started_at',time.monotonic());phase=(elapsed%120.0)/120.0
+        # The embedded binary/rain artwork moves down while the panorama completes
+        # one seamless leftward revolution every two minutes.
+        frame=ImageChops.offset(frame,-int(phase*width),int((elapsed*7.0)%height))
+        frame=ImageEnhance.Color(frame).enhance(1.08).convert('RGBA')
+        # Soft translucent fog rolls horizontally. It is rasterized into the
+        # background, avoiding the opaque Canvas shapes from the prior build.
+        fog=Image.new('RGBA',(width,height),(0,0,0,0));draw=ImageDraw.Draw(fog)
+        fog_shift=int((elapsed*18)%(width+520))-260
+        for index,(y,radius,alpha) in enumerate(((height*.25,250,34),(height*.58,340,42),(height*.84,270,30))):
+            x=((fog_shift+index*width*.43)%(width+520))-260
+            draw.ellipse((x-radius,y-radius*.42,x+radius,y+radius*.42),fill=(36,148,220,alpha))
+        fog=fog.filter(ImageFilter.GaussianBlur(58));return Image.alpha_composite(frame,fog).convert('RGB')
+
+    def _draw_blue_matrix(self,canvas,width,height):
+        """Home-only blue Matrix rain; text is drawn without stipple boxes."""
+        elapsed=time.monotonic()-getattr(self,'visual_started_at',time.monotonic());spacing=26
+        for column in range(max(1,int(width/spacing)+1)):
+            seed=(column*2654435761)&0xffffffff;length=18+(column%17)
+            bits='\n'.join('1' if ((seed>>(n%31))^(column+n))&1 else '0' for n in range(length))
+            speed=34+(column%7)*5;y=((elapsed*speed+column*79)%(height+length*14))-length*14
+            color='#67e8f9' if column%9==0 else '#38bdf8' if column%3==0 else '#0369a1'
+            canvas.create_text(column*spacing,y,text=bits,anchor='nw',fill=color,font=('Consolas',9,'bold' if column%9==0 else 'normal'),tags='matrix-rain')
+
+    def render_animated_tab_background(self,canvas):
+        if not canvas.winfo_exists():return
+        width=max(2,canvas.winfo_width());height=max(2,canvas.winfo_height());canvas.delete('animated-background')
+        try:
+            from PIL import ImageTk
+            frame=self._animated_background_image(width,height)
+            if frame is not None:
+                photo=ImageTk.PhotoImage(frame);self.tab_background_photos[str(canvas)]=photo
+                canvas.create_image(0,0,image=photo,anchor='nw',tags='animated-background')
+                canvas.tag_lower('animated-background')
+        except Exception:pass
 
     def render_home_visual(self):
         if not getattr(self, 'home_canvas', None):
@@ -528,17 +634,11 @@ class FaceSwapApp:
             from PIL import Image, ImageTk
             resampling = getattr(Image, 'Resampling', Image)
             if self.home_background_source is not None:
-                source = self.home_background_source
-                scale = max(width / source.width, height / source.height)
-                resized = source.resize(
-                    (max(1, int(source.width * scale)),
-                     max(1, int(source.height * scale))), resampling.LANCZOS)
-                left = max(0, (resized.width - width) // 2)
-                top = max(0, (resized.height - height) // 2)
-                background = resized.crop((left, top, left + width, top + height))
+                background=self._animated_background_image(width,height)
                 self.home_background_photo = ImageTk.PhotoImage(background)
                 self.home_canvas.create_image(0, 0, image=self.home_background_photo,
-                                              anchor='nw')
+                                              anchor='nw',tags='home-base')
+            self._draw_blue_matrix(self.home_canvas,width,height)
             if self.home_disc_sources:
                 frame = self.home_disc_sources[
                     self.home_frame_index % len(self.home_disc_sources)].copy()
@@ -558,9 +658,10 @@ class FaceSwapApp:
 
     def animate_home_disc(self):
         if getattr(self, 'home_disc_sources', None):
-            self.home_frame_index = (self.home_frame_index + 1) % len(self.home_disc_sources)
+            # Advance several GIF frames per redraw for a deliberately fast spin.
+            self.home_frame_index = (self.home_frame_index + 4) % len(self.home_disc_sources)
             self.render_home_visual()
-        self.root.after(80, self.animate_home_disc)
+        self.root.after(28, self.animate_home_disc)
 
     def configure_modern_styles(self):
         style = ttk.Style(self.root)
@@ -587,6 +688,9 @@ class FaceSwapApp:
                         padding=(12, 7), borderwidth=0)
         style.map('TNotebook.Tab', background=[('selected', '#2563eb')],
                   foreground=[('selected', '#ffffff')])
+        style.configure('Tabless.TNotebook',background='#111827',borderwidth=0)
+        style.layout('Tabless.TNotebook.Tab',[])
+        style.layout('Tabless.TNotebook',[('Notebook.client',{'sticky':'nswe'})])
         style.configure('TPanedwindow', background='#111827')
         style.configure('TCheckbutton', background='#111827', foreground='#e5e7eb')
         style.configure('App.TFrame', background='#111827')
@@ -609,11 +713,12 @@ class FaceSwapApp:
         style.map('Modern.TNotebook.Tab', background=[('selected', '#2563eb')],
                   foreground=[('selected', '#ffffff')])
         style.configure('Section.TNotebook', background='#111827', borderwidth=0)
-        style.configure('Section.TNotebook.Tab', background='#0f172a', foreground='#94a3b8',
-                        padding=(24, 10), borderwidth=0,
+        style.configure('Section.TNotebook.Tab', background='#172033', foreground='#cbd5e1',
+                        padding=(17, 10), borderwidth=1, relief='flat',
+                        bordercolor='#334155', lightcolor='#334155', darkcolor='#0f172a',
                         font=('Segoe UI Semibold', 10))
         style.map('Section.TNotebook.Tab',
-                  background=[('selected', '#16a34a')],
+                  background=[('selected', '#16a34a'),('active','#243244')],
                   foreground=[('selected', '#ffffff')])
         style.configure('Modern.TLabelframe', background='#111827', foreground='#cbd5e1')
         style.configure('Modern.TLabelframe.Label', background='#111827', foreground='#cbd5e1',

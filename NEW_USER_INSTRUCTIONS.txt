@@ -1,0 +1,101 @@
+AI GENERATOR - NEW USER SETUP
+================================
+
+RECOMMENDED SYSTEM
+------------------
+- Windows 10 or Windows 11, 64-bit
+- 64-bit Python 3.13
+- NVIDIA GPU and current NVIDIA driver for CUDA processing
+- Internet access for initial package and model downloads
+- Adequate free disk space for ONNX and prompt-editing models
+
+FIRST-TIME INSTALLATION
+-----------------------
+1. Extract the complete AI Generator folder. Do not run it from inside a ZIP.
+2. Install 64-bit Python 3.13 if Python is not already installed.
+3. Double-click Setup.bat.
+4. Wait for "Setup completed successfully."
+5. Double-click Run.bat.
+
+NORMAL USE
+----------
+After setup, start the program with Run.bat. Setup.bat does not need to be run
+again unless the private Python environment is removed or requirements change.
+The environment is installed directly into the AI Generator folder. Setup
+creates Scripts, Lib, Include and pyvenv.cfg beside main.py; it does not create
+a .venv folder.
+
+OPTIONAL CLOUD PROMPT EDITING
+-----------------------------
+Cloud prompt editing requires an OpenAI API key and uses paid API credits.
+Run Configure_Cloud_API_Key.bat, close and reopen AI Generator, and then select
+Cloud on the Prompt Edit tab. Never place an API key in main.py, config.json,
+a screenshot or the GitHub repository.
+
+OPTIONAL LOCAL PROMPT EDITING
+-----------------------------
+1. Complete Setup.bat first.
+2. Confirm that a compatible NVIDIA GPU and driver are installed.
+3. Double-click Install_NVIDIA_Prompt.bat.
+4. The large prompt model downloads the first time Prompt Edit is enabled.
+
+QWEN IMAGE 2.1 LOCAL
+--------------------
+- Select "Qwen 2.1 Local" as the Prompt engine.
+- Leave the model/folder field as Qwen/Qwen-Image-2.1 to download the complete
+  model into the Hugging Face cache, or enter a complete local model folder.
+- A text_encoder folder alone is not sufficient. The complete model is about
+  33 GB and also needs transformer, VAE, processor, scheduler and model_index.
+- The Quadro P5000 configuration uses FP16, sequential CPU offload, VAE tiling
+  and a maximum 768-pixel working image. Expect several minutes per edit.
+- After the first complete download, cached model files can be used offline.
+
+OPTIONAL QWEN CLOUD EDITING
+---------------------------
+Qwen Cloud uses Qwen/Qwen-Image-Edit through Hugging Face Inference Providers.
+1. Create a Hugging Face token at https://huggingface.co/settings/tokens
+2. Run Configure_HuggingFace_Token.bat and paste the token.
+3. Completely close and reopen AI Generator.
+4. Select Qwen Cloud on the Prompt Edit tab.
+Provider usage may consume Hugging Face credits or incur provider charges.
+Never place the token in main.py, config.json, screenshots or GitHub.
+
+FOLDERS
+-------
+- source: source identity portraits
+- target: images and videos that will receive the swapped face
+- result: completed output files
+- models: downloaded ONNX models and persistent source-face indexes
+- resources: Discord.png, Patreon.png and PayPal.png interface icons
+- temp_processing: temporary video frames and interrupted-processing data
+
+MODELS
+------
+ONNX models download automatically only when their associated feature is
+enabled. Keep downloaded ONNX files in the models folder. Files named
+source_faces_*.pkl are reusable face-index caches and can also remain there.
+
+CLEAN DISTRIBUTION
+------------------
+Do not distribute personal source, target or result images, config.json,
+source_faces_*.pkl, temp_processing contents, .venv, Lib, Scripts, Include or
+pyvenv.cfg. Each user creates clean top-level Python environment folders by
+running Setup.bat.
+
+TROUBLESHOOTING
+---------------
+- If Run.bat says the program is not installed, run Setup.bat.
+- If Python is not found, install Python 3.13 and enable "Add Python to PATH."
+- If CUDA is unavailable, update the NVIDIA driver or select CPU execution.
+- If setup stops, read the displayed error and run Setup.bat again.
+- To completely rebuild the Python environment, rename Lib, Scripts, Include
+  and pyvenv.cfg, then run Setup.bat. Delete the renamed items only after the
+  new setup works.
+- If an old .venv folder exists, the current scripts ignore it. Remove it only
+  after Setup.bat succeeds and Run.bat launches AI Generator correctly.
+- If Scripts, Lib and Include exist but pyvenv.cfg is missing, run Setup.bat.
+  Setup detects the incomplete environment and repairs it automatically.
+- Setup pins setuptools 81.0.0 because current CUDA PyTorch builds require a
+  setuptools version below 82. This prevents the setuptools 84 conflict.
+- Setup installs the precompiled Python 3.13 wheels for NumPy 2.x and
+  ml_dtypes 0.6.0. It should not try to compile ml_dtypes from source.
