@@ -8,6 +8,9 @@ moviepy
 requests
 tqdm
 pillow
+pydub>=0.25.1
+audioop-lts; python_version >= "3.13"
+imageio-ffmpeg
 openai
 huggingface_hub
 scikit-image

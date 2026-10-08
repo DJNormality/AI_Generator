@@ -29,54 +29,62 @@ GUITAR_TUNINGS={'Standard E':(40,45,50,55,59,64),'Drop D':(38,45,50,55,59,64),
 class MusicTool:
     def __init__(self,parent,on_back=None):
         self.on_back=on_back;self.window=ttk.Frame(parent,style='App.TFrame');self.window.pack(fill='both',expand=True)
-        self.audio=None;self.path='';self.worker=None;self.process=None;self.stop_event=threading.Event();self.rolls={};self._build()
+        self.audio=None;self.path='';self.worker=None;self.process=None;self.stop_event=threading.Event();self.rolls={};self.mixer_channels=[None]*10;self.song_blocks=[];self._build()
     def _build(self):
         top=ttk.Frame(self.window,padding=10);top.pack(fill='x');ttk.Button(top,text='← Back to Home',command=self.back).pack(side='left',padx=(0,8))
         self.path_var=tk.StringVar();ttk.Entry(top,textvariable=self.path_var).pack(side='left',fill='x',expand=True);ttk.Button(top,text='Open Song',command=self.open_song).pack(side='left',padx=6)
         self.stop_button=ttk.Button(top,text='Stop',command=self.stop,state='disabled');self.stop_button.pack(side='left')
         pane=ttk.Panedwindow(self.window,orient='horizontal');pane.pack(fill='both',expand=True,padx=10,pady=(0,6));controls=ttk.Frame(pane,padding=8);preview=ttk.Frame(pane,padding=4);pane.add(controls,weight=0);pane.add(preview,weight=1)
-        self.v={k:tk.StringVar(value=v) for k,v in {'start':'0','end':'0','speed':'1.00','gain':'0','channels':'Keep original','fade_in':'0','fade_out':'0','vocals':'Keep vocals','bitrate':'320k','midi_engine':'Built-in melody detection'}.items()}
+        self.v={k:tk.StringVar(value=v) for k,v in {'start':'0','end':'0','speed':'1.00','gain':'0','channels':'Keep original','fade_in':'0','fade_out':'0','vocals':'Keep vocals','bitrate':'320k','midi_engine':'Built-in melody detection'}.items()};self.merge_stems=tk.BooleanVar(value=False)
         rows=[('Trim start (seconds)','start',None),('Trim end (0 = song end)','end',None),('Speed multiplier','speed',('0.25','0.50','0.75','1.00','1.25','1.50','2.00','3.00','4.00')),('Volume change (dB)','gain',None),('Channels','channels',('Keep original','Mono','Stereo','Left only','Right only')),('Fade in (seconds)','fade_in',None),('Fade out (seconds)','fade_out',None),('Vocal processing','vocals',('Keep vocals','Center-cancel vocals','Demucs instrumental')),('MP3 bitrate','bitrate',('128k','192k','256k','320k')),('MIDI engine','midi_engine',('Built-in melody detection','Basic Pitch AI'))]
         for r,(label,key,values) in enumerate(rows):
             ttk.Label(controls,text=label).grid(row=r,column=0,sticky='w',pady=4);w=ttk.Combobox(controls,textvariable=self.v[key],values=values,state='readonly',width=24) if values else ttk.Entry(controls,textvariable=self.v[key],width=26);w.grid(row=r,column=1,sticky='ew',padx=(8,0),pady=4)
         controls.columnconfigure(1,weight=1);r=len(rows)
         ttk.Button(controls,text='Export Edited MP3',command=lambda:self.export_audio('mp3')).grid(row=r,column=0,columnspan=2,sticky='ew',pady=(10,3));ttk.Button(controls,text='Export Edited WAV',command=lambda:self.export_audio('wav')).grid(row=r+1,column=0,columnspan=2,sticky='ew',pady=3)
-        ttk.Button(controls,text='Split Vocals + Instrumental',command=self.split_vocals).grid(row=r+2,column=0,columnspan=2,sticky='ew',pady=3);ttk.Button(controls,text='Transcribe to MIDI',command=self.export_midi).grid(row=r+3,column=0,columnspan=2,sticky='ew',pady=3)
-        ttk.Label(controls,text='Center-cancel is fast but approximate. Demucs gives cleaner AI stems.\nMIDI export transcribes notes; it does not contain the original audio.',wraplength=380,justify='left').grid(row=r+4,column=0,columnspan=2,sticky='w',pady=(8,0))
-        view_tabs=ttk.Notebook(preview);view_tabs.pack(fill='both',expand=True);wave=ttk.Frame(view_tabs);piano=ttk.Frame(view_tabs);guitar=ttk.Frame(view_tabs);view_tabs.add(wave,text='Waveform');view_tabs.add(piano,text='Piano & Scales');view_tabs.add(guitar,text='Guitar & Chords')
+        ttk.Button(controls,text='Split Vocals + Instrumental',command=self.split_vocals).grid(row=r+2,column=0,columnspan=2,sticky='ew',pady=3);ttk.Checkbutton(controls,text='Also merge stems for export',variable=self.merge_stems).grid(row=r+3,column=0,columnspan=2,sticky='w',pady=3);ttk.Button(controls,text='Transcribe to MIDI',command=self.export_midi).grid(row=r+4,column=0,columnspan=2,sticky='ew',pady=3)
+        ttk.Label(controls,text='Center-cancel is fast but approximate. Demucs gives cleaner AI stems.\nMIDI export transcribes notes; it does not contain the original audio.',wraplength=380,justify='left').grid(row=r+5,column=0,columnspan=2,sticky='w',pady=(8,0))
+        view_tabs=ttk.Notebook(preview);view_tabs.pack(fill='both',expand=True);wave=ttk.Frame(view_tabs);piano_shell=ttk.Frame(view_tabs);guitar_shell=ttk.Frame(view_tabs);song=ttk.Frame(view_tabs);view_tabs.add(wave,text='Waveform');view_tabs.add(piano_shell,text='Piano & Scales');view_tabs.add(guitar_shell,text='Guitar & Chords');view_tabs.add(song,text='Song')
         self.canvas=tk.Canvas(wave,bg='#020617',highlightthickness=0);self.canvas.pack(fill='both',expand=True);self.canvas.bind('<Configure>',lambda e:self.draw_waveform())
-        self.info=tk.StringVar(value='No song loaded');ttk.Label(wave,textvariable=self.info).pack(fill='x',pady=(5,0));self._build_piano(piano);self._build_guitar(guitar)
+        self.info=tk.StringVar(value='No song loaded');ttk.Label(wave,textvariable=self.info).pack(fill='x',pady=(5,0));guitar=self._scroll_workspace(guitar_shell);self._build_piano(piano_shell);self._build_guitar(guitar);self._build_song(song)
         prog=ttk.Frame(self.window,padding=(10,0,10,8));prog.pack(fill='x');self.progress=tk.DoubleVar();self.progress_text=tk.StringVar(value='Ready');ttk.Progressbar(prog,variable=self.progress,maximum=100,style='Accent.Horizontal.TProgressbar').pack(side='left',fill='x',expand=True);ttk.Label(prog,textvariable=self.progress_text,width=34).pack(side='left',padx=(8,0))
+    def _scroll_workspace(self,parent):
+        canvas=tk.Canvas(parent,bg='#111827',highlightthickness=0);scroll=ttk.Scrollbar(parent,orient='vertical',command=canvas.yview);canvas.configure(yscrollcommand=scroll.set);canvas.pack(side='left',fill='both',expand=True);scroll.pack(side='right',fill='y');inner=ttk.Frame(canvas);window=canvas.create_window((0,0),window=inner,anchor='nw');inner.bind('<Configure>',lambda e:canvas.configure(scrollregion=canvas.bbox('all')));canvas.bind('<Configure>',lambda e:canvas.itemconfigure(window,width=e.width));canvas.bind('<MouseWheel>',lambda e:canvas.yview_scroll(-3 if e.delta>0 else 3,'units'));return inner
     def _build_piano(self,parent):
         bar=ttk.Frame(parent,padding=(6,6,6,4));bar.pack(fill='x');self.root_note=tk.StringVar(value='C');self.scale_name=tk.StringVar(value='Major');self.chord_name=tk.StringVar(value='Major');self.piano_octave=tk.IntVar(value=3);self.pressed_note=None
         for label,var,values in [('Root',self.root_note,NOTES),('Scale',self.scale_name,tuple(SCALES)),('Chord',self.chord_name,tuple(CHORDS)),('Octave',self.piano_octave,tuple(range(1,7)))]:
             ttk.Label(bar,text=label).pack(side='left',padx=(7,3));box=ttk.Combobox(bar,textvariable=var,values=values,state='readonly',width=16 if label in ('Scale','Chord') else 5);box.pack(side='left');box.bind('<<ComboboxSelected>>',lambda e:self.draw_piano())
         self._build_roll(parent,'piano',12,self._piano_roll_notes)
         self.lesson=tk.StringVar();ttk.Label(parent,textvariable=self.lesson).pack(fill='x',padx=8,pady=(2,5))
-        self.piano=tk.Canvas(parent,bg='#0b1220',highlightthickness=0,height=210);self.piano.pack(fill='both',expand=True,padx=6,pady=(0,6));self.piano.bind('<Configure>',lambda e:self.draw_piano());self.piano.bind('<Button-1>',self.piano_click)
+        self.piano_visualizer=tk.Canvas(parent,bg='#17202b',highlightthickness=1,highlightbackground='#334155',height=150);self.piano_visualizer.pack(fill='x',padx=6,pady=(0,3));self.piano_visualizer.bind('<Configure>',lambda e:self.draw_piano_visualizer())
+        self.piano=tk.Canvas(parent,bg='#0b1220',highlightthickness=0,height=125);self.piano.pack(fill='x',padx=6,pady=(0,6));self.piano.bind('<Configure>',lambda e:self.draw_piano());self.piano.bind('<Button-1>',self.piano_click)
     def _piano_roll_notes(self):return tuple(12*(self.piano_octave.get()+1)+i for i in range(12))
     def _guitar_roll_notes(self):
         tuning=self.current_tuning();shape=self.guitar_shape();capo=self.guitar_capo.get();return tuple(note+capo+fret for note,fret in zip(tuning,shape))
     def _build_roll(self,parent,name,rows,note_provider):
-        box=ttk.Frame(parent,padding=(6,2,6,4));box.pack(fill='x');state={'cells':set(),'rows':rows,'provider':note_provider,'playing':False,'stop':threading.Event(),'step':-1,'note':'#22c55e','background':'#111827','measure':'#475569','bar':'#1e293b','volume':tk.IntVar(value=80),'pan':tk.IntVar(value=0),'bpm':tk.IntVar(value=120)};self.rolls[name]=state
+        box=ttk.Frame(parent,padding=(6,2,6,4));box.pack(fill='x');state={'cells':set(),'rows':rows,'provider':note_provider,'playing':False,'stop':threading.Event(),'step':-1,'note':'#22c55e','background':'#111827','measure':'#475569','bar':'#1e293b','volume':tk.IntVar(value=80),'pan':tk.IntVar(value=0),'bpm':tk.IntVar(value=120),'bars':tk.IntVar(value=1),'channel':tk.IntVar(value=1)};self.rolls[name]=state
         controls=ttk.Frame(box);controls.pack(fill='x');ttk.Button(controls,text='Play Loop',command=lambda:self.play_roll(name)).pack(side='left');ttk.Button(controls,text='Stop',command=lambda:self.stop_roll(name)).pack(side='left',padx=4)
-        ttk.Label(controls,text='BPM').pack(side='left',padx=(8,3));ttk.Spinbox(controls,from_=30,to=300,textvariable=state['bpm'],width=5).pack(side='left');ttk.Label(controls,text='Volume').pack(side='left',padx=(8,3));ttk.Scale(controls,from_=0,to=100,variable=state['volume'],orient='horizontal',length=90).pack(side='left');ttk.Label(controls,text='Pan').pack(side='left',padx=(8,3));ttk.Scale(controls,from_=-100,to=100,variable=state['pan'],orient='horizontal',length=90).pack(side='left')
+        ttk.Label(controls,text='BPM').pack(side='left',padx=(8,3));ttk.Spinbox(controls,from_=30,to=300,textvariable=state['bpm'],width=5).pack(side='left');ttk.Label(controls,text='Bars').pack(side='left',padx=(7,3));bars=ttk.Spinbox(controls,from_=1,to=9999,textvariable=state['bars'],width=5,command=lambda n=name:self.draw_roll(n));bars.pack(side='left');bars.bind('<KeyRelease>',lambda e,n=name:self.draw_roll(n));ttk.Label(controls,text='Volume').pack(side='left',padx=(8,3));ttk.Scale(controls,from_=0,to=100,variable=state['volume'],orient='horizontal',length=70).pack(side='left');ttk.Label(controls,text='Pan').pack(side='left',padx=(8,3));ttk.Scale(controls,from_=-100,to=100,variable=state['pan'],orient='horizontal',length=70).pack(side='left')
         for label,key in [('Notes','note'),('Background','background'),('Measure','measure'),('Bars','bar')]:ttk.Button(controls,text=label,command=lambda n=name,k=key:self.roll_color(n,k)).pack(side='left',padx=(5,0))
-        canvas=tk.Canvas(box,bg=state['background'],height=150,highlightthickness=1,highlightbackground='#334155');canvas.pack(fill='x');state['canvas']=canvas;canvas.bind('<Configure>',lambda e,n=name:self.draw_roll(n));canvas.bind('<Button-1>',lambda e,n=name:self.roll_click(n,e))
+        holder=ttk.Frame(box);holder.pack(fill='x');canvas=tk.Canvas(holder,bg=state['background'],height=118,highlightthickness=1,highlightbackground='#334155');canvas.pack(fill='x');state['canvas']=canvas;canvas.bind('<Configure>',lambda e,n=name:self.draw_roll(n));canvas.bind('<Button-1>',lambda e,n=name:self.roll_click(n,e))
         exports=ttk.Frame(box);exports.pack(fill='x',pady=(3,2));ttk.Label(exports,text='Save sequence:').pack(side='left')
         for label,ext in [('Export WAV','.wav'),('Export MP3','.mp3'),('Export MIDI','.midi')]:ttk.Button(exports,text=label,command=lambda n=name,e=ext:self.export_roll(n,e)).pack(side='left',padx=(5,0))
+        ttk.Label(exports,text='Mixer channel').pack(side='left',padx=(12,3));ttk.Spinbox(exports,from_=1,to=10,textvariable=state['channel'],width=4).pack(side='left');ttk.Button(exports,text='Save to Mixer',command=lambda n=name:self.save_mixer_channel(n)).pack(side='left',padx=5)
     def roll_color(self,name,key):
         state=self.rolls[name];color=colorchooser.askcolor(color=state[key],title=f'Choose {key} color')[1]
         if color:state[key]=color;self.draw_roll(name)
     def draw_roll(self,name):
-        state=self.rolls[name];c=state['canvas'];c.delete('all');w=max(320,c.winfo_width());h=max(100,c.winfo_height());rows=state['rows'];cw=w/16;rh=h/rows;c.configure(bg=state['background']);notes=state['provider']()
-        for row in range(rows):
-            y=row*rh;c.create_text(3,y+rh/2,text=NOTES[notes[rows-1-row]%12],fill='#cbd5e1',anchor='w',font=('Segoe UI',7))
-            for step in range(16):
-                x=step*cw;outline=state['measure'] if step%4==0 else state['bar'];fill=state['note'] if (step,row) in state['cells'] else state['background'];c.create_rectangle(x,y,x+cw,y+rh,fill=fill,stipple='gray25' if (step,row) in state['cells'] else '',outline=outline)
-        if state['step']>=0:c.create_rectangle(state['step']*cw,0,(state['step']+1)*cw,h,outline='#f97316',width=3)
+        state=self.rolls[name];c=state['canvas'];c.delete('all');steps=max(16,state['bars'].get()*16);rows=state['rows'];w=max(420,c.winfo_width());h=max(100,c.winfo_height());label_w=38;cw=(w-label_w)/steps;rh=h/rows;notes=state['provider']();c.configure(bg=state['background'],scrollregion=(0,0,w,h))
+        for display_row in range(rows):
+            row=rows-1-display_row;y=display_row*rh;note=notes[row];c.create_rectangle(0,y,label_w,y+rh,fill='#0f172a',outline='#334155');c.create_text(label_w-3,y+rh/2,text=NOTES[note%12],fill='#cbd5e1',anchor='e',font=('Segoe UI',7))
+            for step in range(steps):
+                x=label_w+step*cw;outline=state['measure'] if step%16==0 else state['bar'] if step%4==0 else '#243044';fill=state['note'] if (step,row) in state['cells'] else state['background'];c.create_rectangle(x,y,x+cw,y+rh,fill=fill,stipple='gray25' if (step,row) in state['cells'] else '',outline=outline)
+        if state['step']>=0:
+            x=label_w+state['step']*cw;c.create_rectangle(x,0,x+cw,h,outline='#f97316',width=2)
+        if name=='piano':self.draw_piano_visualizer()
     def roll_click(self,name,event):
-        state=self.rolls[name];c=state['canvas'];step=max(0,min(15,int(event.x/(max(1,c.winfo_width())/16))));display_row=max(0,min(state['rows']-1,int(event.y/(max(1,c.winfo_height())/state['rows']))));row=state['rows']-1-display_row;cell=(step,row)
+        state=self.rolls[name];c=state['canvas'];steps=max(16,state['bars'].get()*16);rows=state['rows'];label_w=38;w=max(420,c.winfo_width());h=max(100,c.winfo_height());cw=(w-label_w)/steps;rh=h/rows
+        if event.x<label_w:return
+        step=max(0,min(steps-1,int((event.x-label_w)/cw)));display_row=max(0,min(rows-1,int(event.y/rh)));row=rows-1-display_row;cell=(step,row)
         if cell in state['cells']:state['cells'].remove(cell)
         else:state['cells'].add(cell)
         self.draw_roll(name)
@@ -87,7 +95,7 @@ class MusicTool:
         def loop():
             while not state['stop'].is_set():
                 notes=state['provider']();step_seconds=60/max(30,state['bpm'].get())/4
-                for step in range(16):
+                for step in range(max(16,state['bars'].get()*16)):
                     if state['stop'].is_set():break
                     state['step']=step;self.window.after(0,lambda n=name:self.draw_roll(n));playing=[notes[row] for s,row in state['cells'] if s==step]
                     if playing:self._play_notes(tuple(playing),max(60,int(step_seconds*900)),state['volume'].get(),state['pan'].get())
@@ -96,7 +104,7 @@ class MusicTool:
         threading.Thread(target=loop,daemon=True).start()
     def stop_roll(self,name):self.rolls[name]['stop'].set()
     def render_roll(self,name):
-        state=self.rolls[name];notes=state['provider']();step_seconds=60/max(30,state['bpm'].get())/4;rate=44100;total=int(rate*step_seconds*16);left=[0.0]*total;right=[0.0]*total;volume=state['volume'].get()/100;pan=state['pan'].get()/100;lg=(1-pan)*.5;rg=(1+pan)*.5
+        state=self.rolls[name];notes=state['provider']();steps=max(16,state['bars'].get()*16);step_seconds=60/max(30,state['bpm'].get())/4;rate=44100;total=int(rate*step_seconds*steps);left=[0.0]*total;right=[0.0]*total;volume=state['volume'].get()/100;pan=state['pan'].get()/100;lg=(1-pan)*.5;rg=(1+pan)*.5
         for step,row in state['cells']:
             note=notes[row];start=int(step*step_seconds*rate);length=min(int(step_seconds*.9*rate),total-start);freq=440*2**((note-69)/12)
             for i in range(length):
@@ -124,19 +132,111 @@ class MusicTool:
                     except ImportError as e:raise RuntimeError('MP3 export requires: Scripts\\python.exe -m pip install pydub audioop-lts') from e
             self.progress_text.set(f'Exported {name} sequence: {os.path.basename(path)}')
         except Exception as e:messagebox.showerror('Sequence export',str(e))
+    def save_mixer_channel(self,name):
+        state=self.rolls[name];channel=max(1,min(10,state['channel'].get()))-1
+        if not state['cells']:messagebox.showwarning('Mixer','Add notes before saving the pattern.');return
+        self.mixer_channels[channel]={'name':f'{name.title()} Pattern','source':name,'cells':set(state['cells']),'notes':tuple(state['provider']()),'bars':state['bars'].get(),'bpm':state['bpm'].get(),'volume':state['volume'].get(),'pan':state['pan'].get()};self.progress_text.set(f'Saved {name} notes to mixer channel {channel+1}');self.draw_song()
+    def _build_song(self,parent):
+        top=ttk.Frame(parent,padding=7);top.pack(fill='x');self.song_channel=tk.IntVar(value=1);self.song_snap=tk.StringVar(value='1 bar');self.song_bars=tk.IntVar(value=16);self.song_stop=threading.Event();self.song_step=-1
+        ttk.Label(top,text='Pattern channel').pack(side='left');ttk.Spinbox(top,from_=1,to=10,textvariable=self.song_channel,width=4).pack(side='left',padx=4);ttk.Label(top,text='Snap').pack(side='left',padx=(8,3));ttk.Combobox(top,textvariable=self.song_snap,values=('1/16','1/4','1 bar','Off'),state='readonly',width=8).pack(side='left');ttk.Label(top,text='Song bars').pack(side='left',padx=(8,3));bars=ttk.Spinbox(top,from_=1,to=9999,textvariable=self.song_bars,width=6,command=self.draw_song);bars.pack(side='left');ttk.Button(top,text='Play Song',command=self.play_song).pack(side='left',padx=(10,3));ttk.Button(top,text='Stop',command=lambda:self.song_stop.set()).pack(side='left')
+        ttk.Label(parent,text='Select a saved mixer channel, then click the timeline to place its pattern. Drag a block to move it; right-click removes it.',padding=(7,0,7,4)).pack(fill='x')
+        holder=ttk.Frame(parent);holder.pack(fill='both',expand=True,padx=7,pady=(0,6));self.song_canvas=tk.Canvas(holder,bg='#0b1220',highlightthickness=0);sx=ttk.Scrollbar(holder,orient='horizontal',command=self.song_canvas.xview);sy=ttk.Scrollbar(holder,orient='vertical',command=self.song_canvas.yview);self.song_canvas.configure(xscrollcommand=sx.set,yscrollcommand=sy.set);self.song_canvas.grid(row=0,column=0,sticky='nsew');sy.grid(row=0,column=1,sticky='ns');sx.grid(row=1,column=0,sticky='ew');holder.rowconfigure(0,weight=1);holder.columnconfigure(0,weight=1);self.song_canvas.bind('<Configure>',lambda e:self.draw_song());self.song_canvas.bind('<Button-1>',self.song_click);self.song_canvas.bind('<B1-Motion>',self.song_drag);self.song_canvas.bind('<ButtonRelease-1>',lambda e:setattr(self,'song_drag_index',None));self.song_canvas.bind('<Button-3>',self.song_remove)
+        bottom=ttk.Frame(parent,padding=7);bottom.pack(fill='x');ttk.Button(bottom,text='Clear Song',command=self.clear_song).pack(side='left')
+        for label,ext in [('Export Song WAV','.wav'),('Export Song MP3','.mp3')]:ttk.Button(bottom,text=label,command=lambda e=ext:self.export_song(e)).pack(side='left',padx=(5,0))
+    def song_snap_steps(self):return {'1/16':1,'1/4':4,'1 bar':16,'Off':1}[self.song_snap.get()]
+    def draw_song(self):
+        if not hasattr(self,'song_canvas'):return
+        c=self.song_canvas;c.delete('all');steps=max(16,self.song_bars.get()*16);cw=24;rh=42;w=steps*cw;h=10*rh;c.configure(scrollregion=(0,0,w,h))
+        for channel in range(10):
+            y=channel*rh;c.create_text(4,y+rh/2,text=f'CH {channel+1}',fill='#cbd5e1',anchor='w');c.create_line(0,y,w,y,fill='#334155')
+        for step in range(steps+1):c.create_line(step*cw,0,step*cw,h,fill='#475569' if step%16==0 else '#1e293b')
+        colors=('#2563eb','#7c3aed','#db2777','#dc2626','#ea580c','#ca8a04','#16a34a','#0891b2','#4f46e5','#9333ea')
+        for i,block in enumerate(self.song_blocks):
+            ch=block['channel'];x=block['start']*cw;y=ch*rh+4;width=block['length']*cw;c.create_rectangle(x,y,x+width,y+rh-8,fill=colors[ch],outline='#f8fafc',tags=(f'block:{i}',));c.create_text(x+6,y+rh/2-4,text=block['pattern']['name'],fill='white',anchor='w',tags=(f'block:{i}',))
+        if self.song_step>=0:c.create_line(self.song_step*cw,0,self.song_step*cw,h,fill='#f97316',width=3)
+    def song_click(self,event):
+        c=self.song_canvas;x=c.canvasx(event.x);y=c.canvasy(event.y);items=c.find_overlapping(x,y,x,y)
+        for item in reversed(items):
+            for tag in c.gettags(item):
+                if tag.startswith('block:'):self.song_drag_index=int(tag.split(':')[1]);self.song_drag_offset=x-self.song_blocks[self.song_drag_index]['start']*24;return
+        channel=max(0,min(9,self.song_channel.get()-1));pattern=self.mixer_channels[channel]
+        if not pattern:messagebox.showwarning('Song',f'Mixer channel {channel+1} is empty. Save a piano or guitar pattern to it first.');return
+        snap=self.song_snap_steps();step=max(0,round((x/24)/snap)*snap);self.song_blocks.append({'channel':channel,'start':step,'length':max(16,pattern['bars']*16),'pattern':pattern});self.draw_song()
+    def song_drag(self,event):
+        index=getattr(self,'song_drag_index',None)
+        if index is None:return
+        c=self.song_canvas;x=c.canvasx(event.x)-getattr(self,'song_drag_offset',0);y=c.canvasy(event.y);snap=self.song_snap_steps();self.song_blocks[index]['start']=max(0,round((x/24)/snap)*snap);self.song_blocks[index]['channel']=max(0,min(9,int(y/42)));self.draw_song()
+    def song_remove(self,event):
+        c=self.song_canvas;x=c.canvasx(event.x);y=c.canvasy(event.y)
+        for item in reversed(c.find_overlapping(x,y,x,y)):
+            for tag in c.gettags(item):
+                if tag.startswith('block:'):self.song_blocks.pop(int(tag.split(':')[1]));self.draw_song();return
+    def clear_song(self):self.song_blocks.clear();self.draw_song()
+    def play_song(self):
+        if not self.song_blocks:return
+        self.song_stop.clear()
+        def run():
+            bpm=self.song_blocks[0]['pattern']['bpm'];duration=max(b['start']+b['length'] for b in self.song_blocks);seconds=60/max(30,bpm)/4
+            for step in range(duration):
+                if self.song_stop.is_set():break
+                self.song_step=step;self.window.after(0,self.draw_song)
+                for block in self.song_blocks:
+                    local=step-block['start'];p=block['pattern']
+                    if 0<=local<block['length']:
+                        notes=[p['notes'][row] for s,row in p['cells'] if s==local]
+                        if notes:self._play_notes(tuple(notes),max(60,int(seconds*900)),p['volume'],p['pan'])
+                self.song_stop.wait(seconds)
+            self.song_step=-1;self.window.after(0,self.draw_song)
+        threading.Thread(target=run,daemon=True).start()
+    def export_song(self,ext):
+        if not self.song_blocks:messagebox.showwarning('Song','Place patterns in the Song timeline first.');return
+        path=filedialog.asksaveasfilename(defaultextension=ext,filetypes=[(ext[1:].upper(),'*'+ext)])
+        if not path:return
+        try:
+            bpm=self.song_blocks[0]['pattern']['bpm'];seconds=60/max(30,bpm)/4;rate=44100;steps=max(b['start']+b['length'] for b in self.song_blocks);total=int(rate*seconds*steps);left=[0.0]*total;right=[0.0]*total
+            for block in self.song_blocks:
+                p=block['pattern'];lg=(1-p['pan']/100)*.5;rg=(1+p['pan']/100)*.5;level=p['volume']/100
+                for step,row in p['cells']:
+                    absolute=block['start']+step
+                    if absolute>=block['start']+block['length']:continue
+                    note=p['notes'][row];start=int(absolute*seconds*rate);length=min(int(seconds*.9*rate),total-start);freq=440*2**((note-69)/12)
+                    for i in range(length):
+                        env=max(0,1-i/max(1,length));sample=math.sin(2*math.pi*freq*i/rate)*level*env;left[start+i]+=sample*lg;right[start+i]+=sample*rg
+            pcm=bytearray()
+            for l,r in zip(left,right):pcm.extend(struct.pack('<hh',int(max(-1,min(1,l))*30000),int(max(-1,min(1,r))*30000)))
+            data=io.BytesIO()
+            with wave.open(data,'wb') as wav:wav.setnchannels(2);wav.setsampwidth(2);wav.setframerate(rate);wav.writeframes(bytes(pcm))
+            if ext=='.wav':open(path,'wb').write(data.getvalue())
+            else:
+                from pydub import AudioSegment;AudioSegment.from_file(io.BytesIO(data.getvalue()),format='wav').export(path,format='mp3',bitrate=self.v['bitrate'].get())
+            self.progress_text.set(f'Exported mixed song: {os.path.basename(path)}')
+        except Exception as e:messagebox.showerror('Song export',str(e))
     def draw_piano(self):
         if not hasattr(self,'piano'):return
-        c=self.piano;c.delete('all');w=max(300,c.winfo_width());h=max(220,c.winfo_height());root=NOTES.index(self.root_note.get());scale={(root+i)%12 for i in SCALES[self.scale_name.get()]};chord={(root+i)%12 for i in CHORDS[self.chord_name.get()]};base=12*(self.piano_octave.get()+1);white_notes=[n for n in range(base,base+24) if n%12 in (0,2,4,5,7,9,11)];white_w=w/len(white_notes);key_top=h*.53
-        # Piano-roll guide area.
-        for row,n in enumerate(range(base+23,base-1,-1)):
-            y=row*key_top/24;pc=n%12;color='#312e81' if pc in chord else '#14324a' if pc in scale else '#111827';c.create_rectangle(0,y,w,y+key_top/24,fill=color,outline='#243244');c.create_text(5,y+key_top/48,text=f'{NOTES[pc]}{n//12-1}',fill='#cbd5e1',anchor='w',font=('Segoe UI',8))
+        c=self.piano;c.delete('all');w=max(300,c.winfo_width());h=max(105,c.winfo_height());root=NOTES.index(self.root_note.get());scale={(root+i)%12 for i in SCALES[self.scale_name.get()]};chord={(root+i)%12 for i in CHORDS[self.chord_name.get()]};base=12*(self.piano_octave.get()+1);white_notes=[n for n in range(base,base+36) if n%12 in (0,2,4,5,7,9,11)];white_w=w/len(white_notes)
         for i,n in enumerate(white_notes):
-            x=i*white_w;pc=n%12;fill='#f97316' if n==self.pressed_note else '#ddd6fe' if pc in chord else '#dbeafe' if pc in scale else '#f8fafc';c.create_rectangle(x,key_top,x+white_w,h,fill=fill,outline='#111827',tags=(f'note:{n}','key'));c.create_text(x+white_w/2,h-15,text=NOTES[pc],fill='#111827',font=('Segoe UI Semibold',9))
+            x=i*white_w;pc=n%12;fill='#f97316' if n==self.pressed_note else '#ddd6fe' if pc in chord else '#dbeafe' if pc in scale else '#f8fafc';c.create_rectangle(x,0,x+white_w,h,fill=fill,outline='#111827',tags=(f'note:{n}','key'));c.create_text(x+white_w/2,h-11,text=NOTES[pc],fill='#111827',font=('Segoe UI Semibold',7))
         white_index={n:i for i,n in enumerate(white_notes)}
-        for n in range(base,base+24):
+        for n in range(base,base+36):
             if n%12 not in (1,3,6,8,10):continue
-            previous=max(x for x in white_notes if x<n);x=(white_index[previous]+1)*white_w-white_w*.31;pc=n%12;fill='#f97316' if n==self.pressed_note else '#7c3aed' if pc in chord else '#2563eb' if pc in scale else '#111827';c.create_rectangle(x,key_top,x+white_w*.62,key_top+(h-key_top)*.62,fill=fill,outline='#020617',tags=(f'note:{n}','key'))
+            previous=max(x for x in white_notes if x<n);x=(white_index[previous]+1)*white_w-white_w*.31;pc=n%12;fill='#f97316' if n==self.pressed_note else '#7c3aed' if pc in chord else '#2563eb' if pc in scale else '#111827';c.create_rectangle(x,0,x+white_w*.62,h*.62,fill=fill,outline='#020617',tags=(f'note:{n}','key'))
         scale_notes=' '.join(NOTES[(root+i)%12] for i in SCALES[self.scale_name.get()]);chord_notes=' '.join(NOTES[(root+i)%12] for i in CHORDS[self.chord_name.get()]);self.lesson.set(f'{self.root_note.get()} {self.scale_name.get()} scale: {scale_notes}     |     {self.root_note.get()} {self.chord_name.get()} chord: {chord_notes}')
+        self.draw_piano_visualizer()
+    def draw_piano_visualizer(self):
+        if not hasattr(self,'piano_visualizer') or 'piano' not in self.rolls:return
+        c=self.piano_visualizer;c.delete('all');w=max(300,c.winfo_width());h=max(120,c.winfo_height());state=self.rolls['piano'];base=12*(self.piano_octave.get()+1);key_w=w/36;steps=max(16,state['bars'].get()*16);current=max(0,state['step'])
+        for octave_line in range(4):c.create_line(octave_line*w/3,0,octave_line*w/3,h,fill='#475569',width=2)
+        for n in range(37):c.create_line(n*key_w,0,n*key_w,h,fill='#243244')
+        for beat in range(1,5):c.create_line(0,beat*h/5,w,beat*h/5,fill='#334155')
+        for step,row in state['cells']:
+            distance=(step-current)%steps
+            if distance>15:continue
+            note=state['provider']()[row];x=(note-base)*key_w
+            if x<0 or x>=w:continue
+            y=h-(distance+1)*(h/16);length=max(9,h/12);c.create_rectangle(x+2,max(1,y-length),x+key_w-2,min(h-1,y+4),fill='#a7f3b0',outline='#d1fae5')
+        if self.pressed_note is not None and base<=self.pressed_note<base+36:
+            x=(self.pressed_note-base)*key_w;c.create_rectangle(x+2,h*.58,x+key_w-2,h-3,fill='#f97316',outline='#fed7aa')
+        c.create_line(0,h-2,w,h-2,fill='#f97316',width=3)
     def piano_click(self,event):
         items=self.piano.find_overlapping(event.x,event.y,event.x,event.y);note=None
         for item in reversed(items):
@@ -237,7 +337,7 @@ class MusicTool:
         try:
             from pydub import AudioSegment
             self.audio=AudioSegment.from_file(p);self.path=p;self.path_var.set(p);self.v['end'].set(f'{len(self.audio)/1000:.3f}');self.info.set(f'{len(self.audio)/1000:.2f} sec | {self.audio.frame_rate:,} Hz | {self.audio.channels} channel(s) | {self.audio.sample_width*8}-bit');self.draw_waveform()
-        except ImportError:messagebox.showerror('Music','Install audio support with: Scripts\\python.exe -m pip install pydub')
+        except ImportError as e:messagebox.showerror('Music',f'Audio support could not load.\n\nRun Install_Music_Tools.bat from the main AI_Generator folder, then restart the app.\n\nPython: {sys.executable}\nDetails: {e}')
         except Exception as e:messagebox.showerror('Open song',f'{e}\n\nFFmpeg is required for MP3/M4A/AAC and many other formats.')
     def draw_waveform(self):
         self.canvas.delete('all')
@@ -307,6 +407,9 @@ class MusicTool:
                 with tempfile.TemporaryDirectory() as d:
                     instrumental,vocals=self._run_demucs(d);shutil.copy2(instrumental,os.path.join(folder,'instrumental.wav'))
                     if vocals:shutil.copy2(vocals,os.path.join(folder,'vocals.wav'))
+                    if vocals and self.merge_stems.get():
+                        from pydub import AudioSegment
+                        music=AudioSegment.from_file(instrumental);voice=AudioSegment.from_file(vocals);music.overlay(voice).export(os.path.join(folder,'merged_stems.wav'),format='wav')
                 self.window.after(0,lambda:self.finish('Vocal split complete'))
             except Exception as e:self.window.after(0,lambda e=e:self.finish('',e))
         self.begin('AI vocal separation…',work)

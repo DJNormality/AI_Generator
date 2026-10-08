@@ -366,6 +366,7 @@ class FaceSwapApp:
         section_notebook.add(files_tab, text='  FILES  ')
         section_notebook.add(music_tab, text='  MUSIC  ')
         section_notebook.add(videos_tab, text='  VIDEOS  ')
+        self.build_home_visual(home_tab)
 
         notebook = ttk.Notebook(image_section, style='Modern.TNotebook')
         notebook.pack(fill=tk.BOTH, expand=True)
@@ -457,6 +458,73 @@ class FaceSwapApp:
         x = max(0, (screen_w - width) // 2)
         y = max(0, (screen_h - height) // 2 - 10)
         self.root.geometry(f'{width}x{height}+{x}+{y}')
+
+    def build_home_visual(self, parent):
+        """Animated Home background with a translucent quarter-disc logo."""
+        self.home_canvas = tk.Canvas(parent, bg='#000000', highlightthickness=0)
+        self.home_canvas.pack(fill=tk.BOTH, expand=True)
+        self.home_background_source = None
+        self.home_disc_sources = []
+        self.home_frame_index = 0
+        self.home_background_photo = None
+        self.home_disc_photo = None
+        asset_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources')
+        try:
+            from PIL import Image, ImageSequence
+            self.home_background_source = Image.open(
+                os.path.join(asset_root, 'HomeBackground.jpg')).convert('RGB')
+            gif = Image.open(os.path.join(asset_root, 'HomeDisc.gif'))
+            self.home_disc_sources = [frame.convert('RGBA').copy()
+                                      for frame in ImageSequence.Iterator(gif)]
+        except Exception:
+            self.home_background_source = None
+            self.home_disc_sources = []
+        self.home_canvas.bind('<Configure>', lambda _event: self.render_home_visual())
+        self.root.after(80, self.animate_home_disc)
+
+    def render_home_visual(self):
+        if not getattr(self, 'home_canvas', None):
+            return
+        width = max(2, self.home_canvas.winfo_width())
+        height = max(2, self.home_canvas.winfo_height())
+        self.home_canvas.delete('all')
+        try:
+            from PIL import Image, ImageTk
+            resampling = getattr(Image, 'Resampling', Image)
+            if self.home_background_source is not None:
+                source = self.home_background_source
+                scale = max(width / source.width, height / source.height)
+                resized = source.resize(
+                    (max(1, int(source.width * scale)),
+                     max(1, int(source.height * scale))), resampling.LANCZOS)
+                left = max(0, (resized.width - width) // 2)
+                top = max(0, (resized.height - height) // 2)
+                background = resized.crop((left, top, left + width, top + height))
+                self.home_background_photo = ImageTk.PhotoImage(background)
+                self.home_canvas.create_image(0, 0, image=self.home_background_photo,
+                                              anchor='nw')
+            if self.home_disc_sources:
+                frame = self.home_disc_sources[
+                    self.home_frame_index % len(self.home_disc_sources)].copy()
+                # The disc is centered on the lower-right corner. A diameter of
+                # twice the canvas height makes its visible upper-left quarter
+                # span the full Home background vertically.
+                size = max(320, int(height * 2.0))
+                frame = frame.resize((size, size), resampling.LANCZOS)
+                alpha = frame.getchannel('A').point(lambda value: int(value * 0.70))
+                frame.putalpha(alpha)
+                self.home_disc_photo = ImageTk.PhotoImage(frame)
+                # Centering at the bottom-right leaves exactly the upper-left quarter visible.
+                self.home_canvas.create_image(width, height, image=self.home_disc_photo,
+                                              anchor='center')
+        except Exception:
+            pass
+
+    def animate_home_disc(self):
+        if getattr(self, 'home_disc_sources', None):
+            self.home_frame_index = (self.home_frame_index + 1) % len(self.home_disc_sources)
+            self.render_home_visual()
+        self.root.after(80, self.animate_home_disc)
 
     def configure_modern_styles(self):
         style = ttk.Style(self.root)
@@ -904,8 +972,9 @@ class FaceSwapApp:
                       bg='#16a34a',hover='#22c55e',width=250,canvas_bg='#1f2937').grid(row=2,column=0,columnspan=2,sticky='w')
         ttk.Label(videos,text='Video Tools',style='Panel.TLabel',
                   font=('Segoe UI Semibold',12)).grid(row=0,column=0,sticky='w',pady=(0,8))
-        ttk.Label(videos,text='Video workspace ready for editing and conversion tools.',
-                  style='Hint.TLabel').grid(row=1,column=0,sticky='w')
+        ttk.Label(videos,text='Crop, scale, rotate, zoom, trim, cut, move, snap, recolor, filter, fade, change speed, and export an MP4 timeline.',
+                  style='Hint.TLabel',wraplength=780).grid(row=1,column=0,sticky='w',pady=(0,14))
+        RoundedButton(videos,text='Open Video Editor',command=self.open_video_tool,bg='#16a34a',hover='#22c55e',width=250,canvas_bg='#1f2937').grid(row=2,column=0,sticky='w')
 
     def create_settings_widgets(self, parent):
         tk.Label(parent, text="GPU Provider:").grid(row=0, column=0, sticky='w', padx=5, pady=2)
@@ -1980,6 +2049,20 @@ class FaceSwapApp:
             try:active.window.destroy()
             except tk.TclError:pass
         self.music_tool_window=None;self.root.title('AI Generator');self.main_frame.pack(fill=tk.BOTH,expand=True)
+
+    def open_video_tool(self):
+        try:
+            from video_tool import open_video_tool
+            if getattr(self,'video_tool_window',None):return
+            self.main_frame.pack_forget();self.root.title('AI Generator — Videos');self.video_tool_window=open_video_tool(self.root,on_back=self.return_from_video_tool)
+        except Exception as error:
+            self.main_frame.pack(fill=tk.BOTH,expand=True);self.root.title('AI Generator');messagebox.showerror('Videos',f'Could not open Videos. Make sure video_tool.py is beside main.py.\n\n{error}')
+    def return_from_video_tool(self,tool=None):
+        active=tool or getattr(self,'video_tool_window',None)
+        if active is not None:
+            try:active.window.destroy()
+            except tk.TclError:pass
+        self.video_tool_window=None;self.root.title('AI Generator');self.main_frame.pack(fill=tk.BOTH,expand=True)
 
     def _update_restoration_percent(self, *_):
         try:
