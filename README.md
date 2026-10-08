@@ -1,3 +1,7 @@
+
+
+https://github.com/user-attachments/assets/0b8bb22a-f1e1-4575-be1c-c471b656f63a
+
 # AI Generator
 
 AI Generator is a Windows desktop application for batch face replacement, image and video processing, face restoration, colorization, upscaling, prompt-guided image editing, cropping, batch file renaming, and exploratory 3D mesh scanning.
