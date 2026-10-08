@@ -101,8 +101,9 @@ class FileDataScanner:
     def _build_ui(self):
         bar = ttk.Frame(self.window, padding=(10, 8, 10, 6))
         bar.pack(fill=tk.X)
-        ttk.Button(bar, text='← Back to Home', command=self.request_back).pack(
-            side=tk.LEFT, padx=(0, 8))
+        if self.on_back:
+            ttk.Button(bar, text='← Back to Home', command=self.request_back).pack(
+                side=tk.LEFT, padx=(0, 8))
         self.path_var = tk.StringVar()
         ttk.Entry(bar, textvariable=self.path_var).pack(side=tk.LEFT, fill=tk.X, expand=True)
         ttk.Button(bar, text='Open Any File', command=self.open_file).pack(side=tk.LEFT, padx=6)
@@ -132,6 +133,33 @@ class FileDataScanner:
                             side=tk.LEFT, fill=tk.X, expand=True, padx=(18, 0))
         ttk.Label(tools, textvariable=self.progress_text, width=6).pack(side=tk.LEFT, padx=(6, 0))
         ttk.Label(tools, textvariable=self.count_text, width=16).pack(side=tk.LEFT)
+
+        cutter = ttk.LabelFrame(self.window, text='Cutter', padding=(8, 5))
+        cutter.pack(fill=tk.X, padx=10, pady=(0, 6))
+        self.cutter_mode = tk.StringVar(value='Auto')
+        self.cutter_offset = tk.StringVar(value='0')
+        self.cutter_end = tk.StringVar(value='')
+        self.cutter_name = tk.StringVar(value='')
+        self.cutter_extension = tk.StringVar(value='.bin')
+        self.cutter_info = tk.StringVar(value='Offset 0x00000000 · End 0x00000000 · Size 0 B · Type Unknown')
+        ttk.Label(cutter, text='Offset').grid(row=0, column=0, sticky='w')
+        ttk.Entry(cutter, textvariable=self.cutter_offset, width=15).grid(row=0, column=1, padx=(4, 6))
+        ttk.Combobox(cutter, textvariable=self.cutter_mode,
+                     values=('Auto', 'Hex', 'Decimal'), state='readonly', width=9).grid(row=0, column=2)
+        ttk.Label(cutter, text='End (blank = EOF)').grid(row=0, column=3, padx=(10, 3))
+        ttk.Entry(cutter, textvariable=self.cutter_end, width=15).grid(row=0, column=4)
+        ttk.Button(cutter, text='Read Offset', command=self.preview_cut).grid(row=0, column=5, padx=6)
+        ttk.Label(cutter, text='Custom name').grid(row=0, column=6, padx=(8, 3))
+        ttk.Entry(cutter, textvariable=self.cutter_name, width=16).grid(row=0, column=7)
+        ttk.Combobox(cutter, textvariable=self.cutter_extension,
+                     values=('.bin', '.dat', '.file', '.ext', '.png', '.jpg', '.dds', '.bmp',
+                             '.gif', '.wav', '.ogg', '.zip', '.gz', '.bz2', '.xz', '.7z',
+                             '.rar', '.pdf', '.exe', '.elf', '.ktx', '.ktx2', '.pvr'),
+                     width=8).grid(row=0, column=8, padx=6)
+        ttk.Button(cutter, text='Export Cut', command=self.export_cut).grid(row=0, column=9)
+        ttk.Label(cutter, textvariable=self.cutter_info).grid(
+            row=1, column=0, columnspan=10, sticky='w', pady=(4, 0))
+        cutter.columnconfigure(7, weight=1)
 
         tree_frame = ttk.Frame(self.window, padding=(10, 0, 10, 6))
         tree_frame.pack(fill=tk.BOTH, expand=True)
@@ -173,8 +201,88 @@ class FileDataScanner:
             self.path = path
             self.path_var.set(path)
             self.status.set(f'Loaded {_size_text(len(self.data))}. Choose Scan Data.')
+            self.cutter_offset.set('0');self.cutter_end.set('');self.preview_cut(show_errors=False)
         except Exception as error:
             messagebox.showerror('Open file', str(error))
+
+    def _parse_cutter_offset(self, value):
+        text = str(value).strip().replace('_', '')
+        if not text:
+            return None
+        mode = self.cutter_mode.get()
+        if mode == 'Hex':
+            return int(text[2:] if text.lower().startswith('0x') else text, 16)
+        if mode == 'Decimal':
+            return int(text, 10)
+        return int(text, 16) if text.lower().startswith('0x') else int(text, 10)
+
+    @staticmethod
+    def _detect_cut_type(payload):
+        for kind, signature in sorted(HEADERS.items(), key=lambda item: len(item[1]), reverse=True):
+            if payload.startswith(signature):
+                if kind in ('RIFF', 'WAV/AVI') and len(payload) >= 12:
+                    form = payload[8:12]
+                    if form == b'WAVE': return 'WAV', '.wav'
+                    if form == b'AVI ': return 'AVI', '.avi'
+                return kind, EXTENSIONS.get(kind, '.bin')
+        return 'Unknown', '.bin'
+
+    def _cut_range(self):
+        if not self.data:
+            raise ValueError('Open an input file first.')
+        start = self._parse_cutter_offset(self.cutter_offset.get())
+        if start is None:
+            raise ValueError('Enter a hexadecimal or decimal starting offset.')
+        end_value = self._parse_cutter_offset(self.cutter_end.get())
+        end = len(self.data) if end_value is None else end_value
+        if start < 0 or start >= len(self.data):
+            raise ValueError(f'Start offset must be between 0 and {len(self.data)-1:,}.')
+        if end <= start or end > len(self.data):
+            raise ValueError(f'End offset must be greater than start and no more than {len(self.data):,}.')
+        payload = self.data[start:end]
+        kind, detected_ext = self._detect_cut_type(payload)
+        return start, end, payload, kind, detected_ext
+
+    def preview_cut(self, show_errors=True):
+        try:
+            start, end, payload, kind, detected_ext = self._cut_range()
+            self.cutter_extension.set(detected_ext)
+            self.cutter_info.set(
+                f'Offset 0x{start:08X} ({start:,}) · End 0x{end:08X} ({end:,}) · '
+                f'Size {_size_text(len(payload))} ({len(payload):,} bytes) · Type {kind}')
+            self.status.set(f'Cutter range ready: {kind}, {_size_text(len(payload))}.')
+            return start, end, payload, kind, detected_ext
+        except Exception as error:
+            if show_errors: messagebox.showerror('Cutter', str(error))
+            return None
+
+    @staticmethod
+    def _unique_export_path(path):
+        if not os.path.exists(path): return path
+        stem, extension = os.path.splitext(path);number = 1
+        while os.path.exists(f'{stem}_{number}{extension}'): number += 1
+        return f'{stem}_{number}{extension}'
+
+    def export_cut(self):
+        result = self.preview_cut()
+        if not result: return
+        start, _end, payload, kind, detected_ext = result
+        extension = self.cutter_extension.get().strip() or detected_ext
+        if not extension.startswith('.'): extension = '.' + extension
+        custom = self.cutter_name.get().strip()
+        source = os.path.splitext(os.path.basename(self.path))[0] or 'cut'
+        base = _safe_name(custom or f'{source}_{start:08X}').replace('/', '_')
+        path = filedialog.asksaveasfilename(
+            title='Export cut data', initialfile=base + extension,
+            defaultextension=extension, filetypes=[(extension.upper().lstrip('.') + ' file', '*' + extension), ('All files', '*.*')])
+        if not path: return
+        root, chosen = os.path.splitext(path)
+        if not chosen: path = path + extension
+        path = self._unique_export_path(path)
+        try:
+            with open(path, 'wb') as stream: stream.write(payload)
+            self.status.set(f'Exported {kind} cut: {path}')
+        except Exception as error: messagebox.showerror('Cutter export', str(error))
 
 
     def start_scan(self):

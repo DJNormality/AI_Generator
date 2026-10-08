@@ -140,7 +140,7 @@ class BinaryMeshScanner:
             self.window.pack(fill=tk.BOTH, expand=True)
         else:
             self.window = tk.Toplevel(parent)
-            self.window.title('AI Generator — 3D Model Scanner')
+            self.window.title('AI Generator — Models')
             self.window.geometry('1220x800')
             self.window.minsize(960, 650)
             self.window.configure(bg='#111827')
@@ -168,7 +168,7 @@ class BinaryMeshScanner:
     def _build_ui(self):
         top = ttk.Frame(self.window, padding=10)
         top.pack(fill=tk.X)
-        if self.embedded:
+        if self.embedded and self.on_back:
             ttk.Button(top, text='← Back to Home', command=self.request_back).pack(
                 side=tk.LEFT, padx=(0, 10))
         ttk.Label(top, text='Search').pack(side=tk.LEFT, padx=(0, 5))
@@ -869,25 +869,55 @@ class BinaryMeshScanner:
 
     def draw(self):
         self.canvas.delete('mesh')
+        self.canvas.delete('viewport-grid')
         self.canvas.configure(bg=self.mesh_colors['background'])
         bone_points = [position for _parent, position in self.bones]
         all_points = list(self.vertices) + bone_points
-        if not all_points:
-            return
         width, height = max(1, self.canvas.winfo_width()), max(1, self.canvas.winfo_height())
         sample = all_points[:min(len(all_points), 100000)]
-        center = tuple((min(axis) + max(axis)) / 2 for axis in zip(*sample))
-        radius = max(math.sqrt(sum((value - center[i]) ** 2 for i, value in enumerate(point)))
-                     for point in sample) or 1.0
+        if sample:
+            center = tuple((min(axis) + max(axis)) / 2 for axis in zip(*sample))
+            radius = max(math.sqrt(sum((value - center[i]) ** 2 for i, value in enumerate(point)))
+                         for point in sample) or 1.0
+        else:
+            center, radius = (0.0, 0.0, 0.0), 10.0
         cy, sy = math.cos(self.yaw), math.sin(self.yaw)
         cp, sp = math.cos(self.pitch), math.sin(self.pitch)
         scale = min(width, height) * 0.42 * self.zoom / radius
         def project(point):
             x, y, z = point
             x, y, z = x-center[0], y-center[1], z-center[2]
-            rx, rz = x*cy + z*sy, -x*sy + z*cy
-            ry, rz = y*cp - rz*sp, y*sp + rz*cp
-            return width/2 + rx*scale, height/2 - ry*scale, rz
+            # Z-up view: yaw rotates around Z; pitch tilts the horizontal XY
+            # ground plane into a landscape perspective.
+            rx, ry = x*cy - y*sy, x*sy + y*cy
+            depth, rz = ry*cp - z*sp, ry*sp + z*cp
+            return width/2 + rx*scale, height/2 - rz*scale, depth
+
+        # White landscape grid on the XY plane with Z as the vertical axis.
+        extent = radius * 1.35
+        divisions = 10
+        step = extent / divisions
+        for index in range(-divisions, divisions + 1):
+            value = index * step
+            a = project((center[0] - extent, center[1] + value, center[2]))
+            b = project((center[0] + extent, center[1] + value, center[2]))
+            c = project((center[0] + value, center[1] - extent, center[2]))
+            d = project((center[0] + value, center[1] + extent, center[2]))
+            color = '#ffffff' if index == 0 else '#d1d5db'
+            line_width = 2 if index == 0 else 1
+            self.canvas.create_line(a[0], a[1], b[0], b[1], fill=color,
+                                    width=line_width, tags='viewport-grid')
+            self.canvas.create_line(c[0], c[1], d[0], d[1], fill=color,
+                                    width=line_width, tags='viewport-grid')
+        origin = project((center[0], center[1], center[2]))
+        z_tip = project((center[0], center[1], center[2] + extent * 0.42))
+        self.canvas.create_line(origin[0], origin[1], z_tip[0], z_tip[1],
+                                fill='#ffffff', width=3, arrow='last', tags='viewport-grid')
+        self.canvas.create_text(z_tip[0] + 7, z_tip[1], text='Z UP', fill='#ffffff',
+                                font=('Segoe UI Semibold', 9), anchor='w', tags='viewport-grid')
+        self.canvas.tag_lower('viewport-grid')
+        if not all_points:
+            return
 
         projected = [project(vertex) for vertex in self.vertices]
         faces = self.faces[:20000]

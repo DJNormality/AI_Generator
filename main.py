@@ -360,6 +360,7 @@ class FaceSwapApp:
         texture_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
         sound_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=5)
         files_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=8)
+        extract_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=5)
         music_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
         videos_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=14)
         library_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=8)
@@ -367,19 +368,20 @@ class FaceSwapApp:
         design_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=5)
         research_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=5)
         section_notebook.add(home_tab, text='  Home  ')
-        section_notebook.add(models3d_tab, text='  3D Models  ')
+        section_notebook.add(models3d_tab, text='  Models  ')
         section_notebook.add(texture_tab, text='  Textures  ')
         section_notebook.add(sound_tab, text='  Sound  ')
         section_notebook.add(files_tab, text='  Files  ')
+        section_notebook.add(extract_tab, text='  Extract  ')
         section_notebook.add(music_tab, text='  Music  ')
         section_notebook.add(videos_tab, text='  Videos  ')
         section_notebook.add(design_tab, text='  Design  ')
         section_notebook.add(sort_tab, text='  Sort  ')
         section_notebook.add(research_tab, text='  Research  ')
         self.section_nav_buttons={}
-        rounded_sections=(('Home',home_tab),('3D Models',models3d_tab),('Textures',texture_tab),('Sound',sound_tab),('Files',files_tab),('Music',music_tab),('Videos',videos_tab),('Design',design_tab),('Sort',sort_tab),('Research',research_tab))
+        rounded_sections=(('Home',home_tab),('Models',models3d_tab),('Textures',texture_tab),('Sound',sound_tab),('Files',files_tab),('Extract',extract_tab),('Music',music_tab),('Videos',videos_tab),('Design',design_tab),('Sort',sort_tab),('Research',research_tab))
         for label,page in rounded_sections:
-            button=RoundedButton(section_nav,text=label,command=lambda target=page:section_notebook.select(target),bg='#172033',hover='#243244',width=106,height=38,radius=17)
+            button=RoundedButton(section_nav,text=label,command=lambda target=page:section_notebook.select(target),bg='#172033',hover='#243244',width=92,height=38,radius=17)
             button.pack(side='left',fill='x',expand=True,padx=2);self.section_nav_buttons[str(page)]=button
         self.build_home_visual(home_tab)
         # Animated artwork is intentionally Home-only. Tool pages retain a
@@ -409,11 +411,51 @@ class FaceSwapApp:
         self.create_modern_tabs(paths_tab, swap_tab, enhance_tab, prompt_tab, crop_tab,
                                 colorize_tab, rename_tab, models3d_tab, texture_tab,
                                 files_overview, music_tab, videos_tab)
+        # Mount full tools directly in their tabs—no launcher pages or extra windows.
+        try:
+            from model_scanner import open_model_scanner
+            self.embedded_model_scanner=open_model_scanner(models3d_tab,embedded=True)
+        except Exception as error:
+            ttk.Label(models3d_tab,text=f'Models could not start: {error}',style='Hint.TLabel').pack(anchor='w',padx=8,pady=8)
+        try:
+            from texture_scanner import open_texture_scanner
+            self.embedded_texture_scanner=open_texture_scanner(texture_tab)
+        except Exception as error:
+            ttk.Label(texture_tab,text=f'Textures could not start: {error}',style='Hint.TLabel').pack(anchor='w',padx=8,pady=8)
+        try:
+            from file_scanner import open_file_scanner
+            self.embedded_file_scanner=open_file_scanner(files_overview)
+        except Exception as error:
+            ttk.Label(files_overview,text=f'Files could not start: {error}',style='Hint.TLabel').pack(anchor='w',padx=8,pady=8)
+        music_notebook=ttk.Notebook(music_tab,style='Modern.TNotebook');music_notebook.pack(fill='both',expand=True)
+        song_studio_tab=ttk.Frame(music_notebook,style='Panel.TFrame');audio_split_tab=ttk.Frame(music_notebook,style='Panel.TFrame')
+        music_notebook.add(song_studio_tab,text='  Studio  ');music_notebook.add(audio_split_tab,text='  Audio Split  ')
+        try:
+            from music_tool import open_music_tool
+            self.embedded_music_tool=open_music_tool(song_studio_tab)
+        except Exception as error:
+            ttk.Label(song_studio_tab,text=f'Music Studio could not start: {error}',style='Hint.TLabel').pack(anchor='w',padx=8,pady=8)
+        try:
+            from audio_splitter import open_audio_splitter
+            self.embedded_audio_splitter=open_audio_splitter(audio_split_tab)
+        except Exception as error:
+            ttk.Label(audio_split_tab,text=f'Audio Split could not start: {error}',style='Hint.TLabel').pack(anchor='w',padx=8,pady=8)
+        try:
+            from video_tool import open_video_tool
+            self.embedded_video_tool=open_video_tool(videos_tab)
+        except Exception as error:
+            ttk.Label(videos_tab,text=f'Videos could not start: {error}',style='Hint.TLabel').pack(anchor='w',padx=8,pady=8)
         try:
             from sound_scanner import build_sound_scanner
             self.sound_scanner = build_sound_scanner(sound_tab)
         except Exception as error:
             ttk.Label(sound_tab, text=f'Sound scanner could not start: {error}',
+                      style='Hint.TLabel').pack(anchor='w', padx=8, pady=8)
+        try:
+            from extract_tool import build_extract_tool
+            self.extract_tool = build_extract_tool(extract_tab)
+        except Exception as error:
+            ttk.Label(extract_tab, text=f'Extract could not start: {error}',
                       style='Hint.TLabel').pack(anchor='w', padx=8, pady=8)
         try:
             from research_tool import build_research_tool
@@ -531,7 +573,7 @@ class FaceSwapApp:
             button._normal_bg='#16a34a' if page_id==selected else '#172033';button._hover_bg='#22c55e' if page_id==selected else '#243244';button._draw()
 
     def build_home_visual(self, parent):
-        """Animated Home background with a translucent quarter-disc logo."""
+        """Animated Home background with a Lighten-blended quarter-disc logo."""
         self.home_canvas = tk.Canvas(parent, bg='#000000', highlightthickness=0)
         self.home_canvas.pack(fill=tk.BOTH, expand=True)
         self.home_background_source = None
@@ -631,37 +673,52 @@ class FaceSwapApp:
         height = max(2, self.home_canvas.winfo_height())
         self.home_canvas.delete('all')
         try:
-            from PIL import Image, ImageTk
+            from PIL import Image, ImageChops, ImageTk
             resampling = getattr(Image, 'Resampling', Image)
-            if self.home_background_source is not None:
-                background=self._animated_background_image(width,height)
+            background = self._animated_background_image(width, height)
+            if background is None:
+                background = Image.new('RGB', (width, height), '#000000')
+            if self.home_disc_sources:
+                frame = self.home_disc_sources[
+                    self.home_frame_index % len(self.home_disc_sources)].copy()
+                # Center the disc on the lower-right corner. The visible disc
+                # stays at full opacity, while an exact-black shape mask removes
+                # the GIF's rectangular background before Overlay compositing.
+                size = max(320, int(height * 2.0))
+                frame = frame.resize((size, size), resampling.LANCZOS)
+                source_alpha = frame.getchannel('A')
+                rgb_frame = frame.convert('RGB')
+                corners = (rgb_frame.getpixel((0, 0)), rgb_frame.getpixel((size-1, 0)),
+                           rgb_frame.getpixel((0, size-1)), rgb_frame.getpixel((size-1, size-1)))
+                key_color = tuple(sum(pixel[channel] for pixel in corners)//4 for channel in range(3))
+                difference = ImageChops.difference(rgb_frame, Image.new('RGB', frame.size, key_color))
+                red, green, blue = difference.split()
+                distance = ImageChops.lighter(ImageChops.lighter(red, green), blue)
+                shape_mask = distance.point(lambda value: 255 if value > 14 else 0)
+                alpha = ImageChops.multiply(source_alpha, shape_mask)
+                disc_rgb = Image.new('RGB', (width, height), '#000000')
+                disc_mask = Image.new('L', (width, height), 0)
+                position = (width - size // 2, height - size // 2)
+                disc_rgb.paste(rgb_frame, position)
+                disc_mask.paste(alpha, position)
+                overlaid = ImageChops.overlay(background, disc_rgb)
+                background = Image.composite(overlaid, background, disc_mask)
+            if self.home_background_source is not None or self.home_disc_sources:
                 self.home_background_photo = ImageTk.PhotoImage(background)
                 self.home_canvas.create_image(0, 0, image=self.home_background_photo,
                                               anchor='nw',tags='home-base')
             self._draw_blue_matrix(self.home_canvas,width,height)
-            if self.home_disc_sources:
-                frame = self.home_disc_sources[
-                    self.home_frame_index % len(self.home_disc_sources)].copy()
-                # The disc is centered on the lower-right corner. A diameter of
-                # twice the canvas height makes its visible upper-left quarter
-                # span the full Home background vertically.
-                size = max(320, int(height * 2.0))
-                frame = frame.resize((size, size), resampling.LANCZOS)
-                alpha = frame.getchannel('A').point(lambda value: int(value * 0.70))
-                frame.putalpha(alpha)
-                self.home_disc_photo = ImageTk.PhotoImage(frame)
-                # Centering at the bottom-right leaves exactly the upper-left quarter visible.
-                self.home_canvas.create_image(width, height, image=self.home_disc_photo,
-                                              anchor='center')
         except Exception:
             pass
 
     def animate_home_disc(self):
         if getattr(self, 'home_disc_sources', None):
-            # Advance several GIF frames per redraw for a deliberately fast spin.
-            self.home_frame_index = (self.home_frame_index + 4) % len(self.home_disc_sources)
+            # Sixteen frames per redraw is exactly twice the previous spin rate.
+            self.home_frame_index = (self.home_frame_index + 16) % len(self.home_disc_sources)
             self.render_home_visual()
-        self.root.after(28, self.animate_home_disc)
+        # Halving the refresh interval produces a real 100% speed increase;
+        # the six-frame GIF cannot be accelerated reliably with larger skips.
+        self.root.after(14, self.animate_home_disc)
 
     def configure_modern_styles(self):
         style = ttk.Style(self.root)
@@ -1035,89 +1092,8 @@ class FaceSwapApp:
                       bg='#16a34a', hover='#22c55e', width=160,
                       canvas_bg='#1f2937').pack(side=tk.LEFT, padx=(8, 0))
 
-        ttk.Label(models3d, text='Raw 3D Model Scanner', style='Panel.TLabel',
-                  font=('Segoe UI Semibold', 12)).grid(
-                      row=0, column=0, columnspan=2, sticky='w', pady=(0, 8))
-        ttk.Label(
-            models3d,
-            text=('Open any file type and scan its raw bytes for possible vertex, UV, and '
-                  'face/index buffers. Ranked candidates can be adjusted manually and '
-                  'previewed before OBJ export.'),
-            style='Hint.TLabel', wraplength=760, justify='left').grid(
-                row=1, column=0, columnspan=2, sticky='w', pady=(0, 14))
-        ttk.Label(
-            models3d,
-            text=('Position/UV types: Float32, Float16, signed/unsigned 32-bit, 16-bit, '
-                  '8-bit, and normalized integer formats. Face indices: UInt16/UInt32; '
-                  'triangle lists and strips.'),
-            style='Hint.TLabel', wraplength=760, justify='left').grid(
-                row=2, column=0, columnspan=2, sticky='w', pady=(0, 14))
-        RoundedButton(models3d, text='Open 3D Model Scanner',
-                      command=self.open_3d_model_scanner,
-                      bg='#16a34a', hover='#22c55e', width=250,
-                      canvas_bg='#1f2937').grid(
-                          row=3, column=0, columnspan=2, sticky='w')
-        ttk.Label(models3d,
-                  text='Viewer controls: Ctrl + mouse wheel zooms; Alt + left drag rotates.',
-                  style='Hint.TLabel').grid(
-                      row=4, column=0, columnspan=2, sticky='w', pady=(12, 0))
-
-        ttk.Label(texture, text='Raw Texture Search', style='Panel.TLabel',
-                  font=('Segoe UI Semibold', 12)).grid(
-                      row=0, column=0, columnspan=2, sticky='w', pady=(0, 8))
-        ttk.Label(
-            texture,
-            text=('Search any file type for embedded PNG, JPEG, DDS, BMP, KTX, KTX2, '
-                  'and PVR texture data. Preview detected images and extract individual '
-                  'textures or every result.'),
-            style='Hint.TLabel', wraplength=760, justify='left').grid(
-                row=1, column=0, columnspan=2, sticky='w', pady=(0, 14))
-        RoundedButton(texture, text='Open Texture Search',
-                      command=self.open_texture_scanner,
-                      bg='#16a34a', hover='#22c55e', width=250,
-                      canvas_bg='#1f2937').grid(
-                          row=2, column=0, columnspan=2, sticky='w')
-        ttk.Label(texture,
-                  text='The scanner accepts every extension and reads the file as raw bytes.',
-                  style='Hint.TLabel').grid(
-                      row=3, column=0, columnspan=2, sticky='w', pady=(12, 0))
-
-        ttk.Label(files, text='Decompressor & File Extractor', style='Panel.TLabel',
-                  font=('Segoe UI Semibold', 12)).grid(
-                      row=0, column=0, columnspan=2, sticky='w', pady=(0, 8))
-        ttk.Label(
-            files,
-            text=('Index embedded headers, offsets, buffer sizes, archives, and compressed '
-                  'streams in any file type. Browse the reconstructed hierarchy, decompress '
-                  'supported data, and extract it as folders.'),
-            style='Hint.TLabel', wraplength=780, justify='left').grid(
-                row=1, column=0, columnspan=2, sticky='w', pady=(0, 14))
-        RoundedButton(files, text='Open File Extractor',
-                      command=self.open_file_data_scanner,
-                      bg='#16a34a', hover='#22c55e', width=260,
-                      canvas_bg='#1f2937').grid(
-                          row=2, column=0, columnspan=2, sticky='w')
-        ttk.Label(
-            files,
-            text=('Supports ZIP, TAR, GZIP, BZIP2, XZ/LZMA, ZLIB/DEFLATE, and embedded '
-                  'file signatures. Encrypted entries are identified with suggested '
-                  'formats/tools, but passwords and keys are never cracked.'),
-            style='Hint.TLabel', wraplength=780, justify='left').grid(
-                row=3, column=0, columnspan=2, sticky='w', pady=(12, 0))
-        ttk.Label(music, text='Music Tools', style='Panel.TLabel',
-                  font=('Segoe UI Semibold', 12)).grid(row=0,column=0,columnspan=2,sticky='w',pady=(0,8))
-        ttk.Label(music,text=('Trim songs, change speed and dB volume, select channels, add fades, '
-                              'remove or split vocals, and export WAV, MP3, or transcribed MIDI.'),
-                  style='Hint.TLabel',wraplength=780,justify='left').grid(row=1,column=0,columnspan=2,sticky='w',pady=(0,14))
-        RoundedButton(music,text='Open Song Studio',command=self.open_music_tool,
-                      bg='#16a34a',hover='#22c55e',width=250,canvas_bg='#1f2937').grid(row=2,column=0,columnspan=2,sticky='w')
-        RoundedButton(music,text='Open Audio Split',command=self.open_audio_splitter,
-                      bg='#2563eb',hover='#3b82f6',width=250,canvas_bg='#1f2937').grid(row=3,column=0,columnspan=2,sticky='w',pady=(8,0))
-        ttk.Label(videos,text='Video Tools',style='Panel.TLabel',
-                  font=('Segoe UI Semibold',12)).grid(row=0,column=0,sticky='w',pady=(0,8))
-        ttk.Label(videos,text='Crop, scale, rotate, zoom, trim, cut, move, snap, recolor, filter, fade, change speed, and export an MP4 timeline.',
-                  style='Hint.TLabel',wraplength=780).grid(row=1,column=0,sticky='w',pady=(0,14))
-        RoundedButton(videos,text='Open Video Editor',command=self.open_video_tool,bg='#16a34a',hover='#22c55e',width=250,canvas_bg='#1f2937').grid(row=2,column=0,sticky='w')
+        # Model, texture, file, music, and video workspaces are mounted directly
+        # into their main tabs after these shared image/rename controls are built.
 
     def create_settings_widgets(self, parent):
         tk.Label(parent, text="GPU Provider:").grid(row=0, column=0, sticky='w', padx=5, pady=2)

@@ -43,7 +43,7 @@ class TextureScanner:
         self._build_ui()
     def _build_ui(self):
         bar=ttk.Frame(self.window,padding=(10,8,10,6));bar.pack(fill='x')
-        ttk.Button(bar,text='← Back to Home',command=self.request_back).pack(side='left',padx=(0,8))
+        if self.on_back:ttk.Button(bar,text='← Back to Home',command=self.request_back).pack(side='left',padx=(0,8))
         self.path_var=tk.StringVar();ttk.Entry(bar,textvariable=self.path_var).pack(side='left',fill='x',expand=True)
         ttk.Button(bar,text='Open Any File',command=self.open_file).pack(side='left',padx=6)
         self.scan_button=ttk.Button(bar,text='Search Textures',command=self.start_scan);self.scan_button.pack(side='left')

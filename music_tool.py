@@ -42,7 +42,8 @@ class MusicTool:
         self.on_back=on_back;self.window=ttk.Frame(parent,style='App.TFrame');self.window.pack(fill='both',expand=True)
         self.audio=None;self.path='';self.worker=None;self.process=None;self.stop_event=threading.Event();self.rolls={};self.mixer_channels=[None]*10;self.song_blocks=[];self._build()
     def _build(self):
-        top=ttk.Frame(self.window,padding=10);top.pack(fill='x');ttk.Button(top,text='← Back to Home',command=self.back).pack(side='left',padx=(0,8))
+        top=ttk.Frame(self.window,padding=10);top.pack(fill='x')
+        if self.on_back:ttk.Button(top,text='← Back to Home',command=self.back).pack(side='left',padx=(0,8))
         self.path_var=tk.StringVar();ttk.Entry(top,textvariable=self.path_var).pack(side='left',fill='x',expand=True);ttk.Button(top,text='Open Song',command=self.open_song).pack(side='left',padx=6)
         self.stop_button=ttk.Button(top,text='Stop',command=self.stop,state='disabled');self.stop_button.pack(side='left')
         pane=ttk.Panedwindow(self.window,orient='horizontal');pane.pack(fill='both',expand=True,padx=10,pady=(0,6));controls=ttk.Frame(pane,padding=8);preview=ttk.Frame(pane,padding=4);pane.add(controls,weight=0);pane.add(preview,weight=1)
@@ -53,9 +54,9 @@ class MusicTool:
         controls.columnconfigure(1,weight=1);r=len(rows)
         ttk.Button(controls,text='Export Edited MP3',command=lambda:self.export_audio('mp3')).grid(row=r,column=0,columnspan=2,sticky='ew',pady=(10,3));ttk.Button(controls,text='Export Edited WAV',command=lambda:self.export_audio('wav')).grid(row=r+1,column=0,columnspan=2,sticky='ew',pady=3)
         ttk.Label(controls,text='Vocal and instrumental separation is available in the separate Audio Split tool.',wraplength=380,justify='left').grid(row=r+2,column=0,columnspan=2,sticky='w',pady=(8,0))
-        view_tabs=ttk.Notebook(preview,style='Modern.TNotebook');view_tabs.pack(fill='both',expand=True);wave=ttk.Frame(view_tabs);piano_shell=ttk.Frame(view_tabs);guitar_shell=ttk.Frame(view_tabs);song=ttk.Frame(view_tabs);midi=ttk.Frame(view_tabs);view_tabs.add(wave,text='  Waveform  ');view_tabs.add(piano_shell,text='  Piano  ');view_tabs.add(guitar_shell,text='  Guitar  ');view_tabs.add(song,text='  Song  ');view_tabs.add(midi,text='  Midi  ')
+        view_tabs=ttk.Notebook(preview,style='Modern.TNotebook');view_tabs.pack(fill='both',expand=True);wave=ttk.Frame(view_tabs);piano_shell=ttk.Frame(view_tabs);guitar_shell=ttk.Frame(view_tabs);drums=ttk.Frame(view_tabs);bass=ttk.Frame(view_tabs);turntable=ttk.Frame(view_tabs);vocals=ttk.Frame(view_tabs);song=ttk.Frame(view_tabs);midi=ttk.Frame(view_tabs);view_tabs.add(wave,text='  Waveform  ');view_tabs.add(piano_shell,text='  Piano  ');view_tabs.add(guitar_shell,text='  Guitar  ');view_tabs.add(drums,text='  Drums  ');view_tabs.add(bass,text='  Bass  ');view_tabs.add(turntable,text='  Turntable  ');view_tabs.add(vocals,text='  Vocals  ');view_tabs.add(song,text='  Song  ');view_tabs.add(midi,text='  Midi  ')
         self.canvas=tk.Canvas(wave,bg='#020617',highlightthickness=0);self.canvas.pack(fill='both',expand=True);self.canvas.bind('<Configure>',lambda e:self.draw_waveform())
-        self.info=tk.StringVar(value='No song loaded');ttk.Label(wave,textvariable=self.info).pack(fill='x',pady=(5,0));guitar=self._scroll_workspace(guitar_shell);self._build_piano(piano_shell);self._build_guitar(guitar);self._build_song(song);self._build_midi(midi)
+        self.info=tk.StringVar(value='No song loaded');ttk.Label(wave,textvariable=self.info).pack(fill='x',pady=(5,0));guitar=self._scroll_workspace(guitar_shell);self._build_piano(piano_shell);self._build_guitar(guitar);self._build_drums(drums);self._build_bass(bass);self._build_turntable(turntable);self._build_vocals(vocals);self._build_song(song);self._build_midi(midi)
         prog=ttk.Frame(self.window,padding=(10,0,10,8));prog.pack(fill='x');self.progress=tk.DoubleVar();self.progress_text=tk.StringVar(value='Ready');ttk.Progressbar(prog,variable=self.progress,maximum=100,style='Accent.Horizontal.TProgressbar').pack(side='left',fill='x',expand=True);ttk.Label(prog,textvariable=self.progress_text,width=34).pack(side='left',padx=(8,0))
     def _scroll_workspace(self,parent):
         canvas=tk.Canvas(parent,bg='#111827',highlightthickness=0);scroll=ttk.Scrollbar(parent,orient='vertical',command=canvas.yview);canvas.configure(yscrollcommand=scroll.set);canvas.pack(side='left',fill='both',expand=True);scroll.pack(side='right',fill='y');inner=ttk.Frame(canvas);window=canvas.create_window((0,0),window=inner,anchor='nw');inner.bind('<Configure>',lambda e:canvas.configure(scrollregion=canvas.bbox('all')));canvas.bind('<Configure>',lambda e:canvas.itemconfigure(window,width=e.width));canvas.bind('<MouseWheel>',lambda e:canvas.yview_scroll(-3 if e.delta>0 else 3,'units'));return inner
@@ -65,6 +66,28 @@ class MusicTool:
         ttk.Label(panel,text='Engine').grid(row=1,column=0,sticky='w');ttk.Combobox(panel,textvariable=self.v['midi_engine'],values=('Built-in melody detection','Basic Pitch AI'),state='readonly').grid(row=1,column=1,sticky='ew',padx=(10,0))
         ttk.Label(panel,text='Convert the loaded song into a note sequence. The Midi file contains detected notes, timing, and velocity—not the original audio.',wraplength=650,justify='left').grid(row=2,column=0,columnspan=2,sticky='w',pady=14)
         ttk.Button(panel,text='Transcribe loaded song to Midi',command=self.export_midi).grid(row=3,column=0,columnspan=2,sticky='ew')
+    def _build_drums(self,parent):
+        ttk.Label(parent,text='Drum step sequencer',font=('Segoe UI Semibold',14),padding=(8,8,8,2)).pack(fill='x')
+        ttk.Label(parent,text='Program an eight-lane rhythm, loop it, export it, or save it into one of the ten Song mixer channels.',padding=(8,0,8,4)).pack(fill='x')
+        self._build_roll(parent,'drums',8,lambda:(36,38,42,46,45,47,49,51))
+    def _build_bass(self,parent):
+        ttk.Label(parent,text='Bass sequencer',font=('Segoe UI Semibold',14),padding=(8,8,8,2)).pack(fill='x')
+        ttk.Label(parent,text='Create low-register bass patterns and send them directly to the Song mixer.',padding=(8,0,8,4)).pack(fill='x')
+        self._build_roll(parent,'bass',12,lambda:tuple(24+i for i in range(12)))
+    def _build_turntable(self,parent):
+        panel=ttk.Frame(parent,padding=18);panel.pack(fill='both',expand=True);panel.columnconfigure(1,weight=1)
+        ttk.Label(panel,text='Turntable',font=('Segoe UI Semibold',14)).grid(row=0,column=0,columnspan=2,sticky='w',pady=(0,12))
+        ttk.Label(panel,text='Speed').grid(row=1,column=0,sticky='w');ttk.Combobox(panel,textvariable=self.v['speed'],values=('0.25','0.50','0.75','1.00','1.25','1.50','2.00','3.00','4.00'),state='readonly').grid(row=1,column=1,sticky='ew',padx=(10,0))
+        ttk.Label(panel,text='Gain (dB)').grid(row=2,column=0,sticky='w',pady=8);ttk.Entry(panel,textvariable=self.v['gain']).grid(row=2,column=1,sticky='ew',padx=(10,0),pady=8)
+        ttk.Label(panel,text='Uses the loaded song with the trim, channel, and fade settings shown at left.',wraplength=650).grid(row=3,column=0,columnspan=2,sticky='w',pady=(4,12))
+        ttk.Button(panel,text='Export Turntable Mix WAV',command=lambda:self.export_audio('wav')).grid(row=4,column=0,sticky='ew',padx=(0,4))
+        ttk.Button(panel,text='Export Turntable Mix MP3',command=lambda:self.export_audio('mp3')).grid(row=4,column=1,sticky='ew',padx=(4,0))
+    def _build_vocals(self,parent):
+        panel=ttk.Frame(parent,padding=18);panel.pack(fill='both',expand=True);panel.columnconfigure(0,weight=1)
+        ttk.Label(panel,text='Vocals',font=('Segoe UI Semibold',14)).grid(row=0,column=0,sticky='w',pady=(0,12))
+        ttk.Label(panel,text='Split the loaded song into vocals and instrumental stems. Each stem is saved separately; enable merge to also create a combined export.',wraplength=650,justify='left').grid(row=1,column=0,sticky='w')
+        ttk.Checkbutton(panel,text='Merge stems after separation',variable=self.merge_stems).grid(row=2,column=0,sticky='w',pady=12)
+        ttk.Button(panel,text='Split Vocals / Instrumental',command=self.split_vocals).grid(row=3,column=0,sticky='ew')
     def _build_piano(self,parent):
         bar=ttk.Frame(parent,padding=(6,6,6,4));bar.pack(fill='x');self.root_note=tk.StringVar(value='C');self.scale_name=tk.StringVar(value='Major');self.chord_name=tk.StringVar(value='Major');self.piano_octave=tk.IntVar(value=3);self.pressed_note=None
         for label,var,values in [('Root',self.root_note,NOTES),('Scale',self.scale_name,tuple(SCALES)),('Chord',self.chord_name,tuple(CHORDS)),('Octave',self.piano_octave,tuple(range(1,7)))]:

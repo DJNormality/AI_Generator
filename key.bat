@@ -1,0 +1,1 @@
+powershell -NoProfile -Command "$t=(Get-Clipboard).Trim(); [Environment]::SetEnvironmentVariable('A2E_API_TOKEN',$t,'User'); Write-Host ('Saved token length: ' + $t.Length)"

@@ -9,7 +9,9 @@ class AudioSplitter:
     def __init__(self,parent,on_back=None):
         self.on_back=on_back;self.window=ttk.Frame(parent,style='App.TFrame');self.window.pack(fill='both',expand=True);self.process=None;self.stop_event=threading.Event();self._build()
     def _build(self):
-        top=ttk.Frame(self.window,padding=12);top.pack(fill='x');ttk.Button(top,text='← Back to Home',command=self.back).pack(side='left',padx=(0,8));ttk.Label(top,text='Audio Split',font=('Segoe UI Semibold',16)).pack(side='left')
+        top=ttk.Frame(self.window,padding=12);top.pack(fill='x')
+        if self.on_back:ttk.Button(top,text='← Back to Home',command=self.back).pack(side='left',padx=(0,8))
+        ttk.Label(top,text='Audio Split',font=('Segoe UI Semibold',16)).pack(side='left')
         panel=ttk.Frame(self.window,padding=18);panel.pack(fill='both',expand=True,padx=14,pady=(0,10));panel.columnconfigure(1,weight=1)
         self.input=tk.StringVar();self.output=tk.StringVar();self.model=tk.StringVar(value='htdemucs');self.merge=tk.BooleanVar(value=False);self.status=tk.StringVar(value='Choose a song and output folder.')
         ttk.Label(panel,text='Song file').grid(row=0,column=0,sticky='w',pady=7);ttk.Entry(panel,textvariable=self.input).grid(row=0,column=1,sticky='ew',padx=8);ttk.Button(panel,text='Browse',command=self.pick_input).grid(row=0,column=2)

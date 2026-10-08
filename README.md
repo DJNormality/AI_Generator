@@ -1,7 +1,3 @@
-
-
-https://github.com/user-attachments/assets/0b8bb22a-f1e1-4575-be1c-c471b656f63a
-
 # AI Generator
 
 AI Generator is a Windows desktop application for batch face replacement, image and video processing, face restoration, colorization, upscaling, prompt-guided image editing, cropping, batch file renaming, and exploratory 3D mesh scanning.
@@ -203,12 +199,16 @@ The Quadro P5000 configuration is expected to be slow. A single edit may take se
 - Preview every old and new filename before applying changes.
 - Uses temporary names internally to avoid collisions.
 
-## 3D Model Scanner
+## Models
 
-The **3D Models** section switches the main AI Generator window into the raw
-binary Model Tool. It no longer creates a separate always-on-top window. Use
-**Back to Home** to return to the normal image and video interface. Its file
-picker uses **All files**, so a file does not need a recognized model extension.
+The **Models** section contains the raw binary Model Tool directly in its
+main tab. It does not create a separate always-on-top window. Its file picker
+uses **All files**, so a file does not need a recognized model extension.
+
+The current interface embeds the complete 3D scanner directly inside the
+**Models** tab. Texture Search, File Extractor, Music Studio, Audio Split,
+and Video Editor are likewise mounted directly in their tabs; launcher pages,
+extra tool windows, and embedded Back to Home buttons are no longer required.
 
 - Scan raw bytes for ranked position-buffer candidates.
 - Choose console-aware presets for PS1, PS2, PS3, PS4, PS5, Wii,
@@ -218,10 +218,9 @@ picker uses **All files**, so a file does not need a recognized model extension.
   `NiPS2GeometryStreamer` blocks in Gamebryo NIF files.
 - Switch the independent search option between **Geometry** and
   **Animation / Rigging**.
-- The compact interface limits the height of the results list. Geometry-only
-  offset, UV, and index controls automatically hide in Animation / Rigging
-  mode and return when Geometry mode is selected, keeping bottom controls
-  visible on shorter displays.
+- A cleaner settings notebook separates **Mesh**, **UV**, **Animation**, and
+  **Texture** controls while keeping the compact results list and viewport
+  visible. Selecting Animation / Rigging automatically opens its settings tab.
 - Load an optional second **Animation / Skeleton File** using the unrestricted
   **All files (`*.*`)** picker. DAT, BIN, ANM, ANIM, SKEL, console-specific,
   extensionless, and other file types are accepted and scanned as raw bytes.
@@ -244,6 +243,8 @@ picker uses **All files**, so a file does not need a recognized model extension.
 - Test common vertex strides and padding values.
 - Enter or correct vertex offset, count, stride, position type, UV offset, and
   UV type manually.
+- Displays a white landscape grid on the XY ground plane with **Z Up**, including
+  a white vertical Z-axis marker. The grid remains visible before a model loads.
 - Read UInt16 or UInt32 face/index buffers as triangle lists or triangle strips.
 - Preview candidate geometry in the built-in software 3D viewer.
 - Scroll the ranked-candidate list with either the mouse wheel or its vertical
@@ -338,6 +339,16 @@ cracking or encryption bypass.
   type, status, and suggested algorithm/tool. File contents are not uploaded,
   and the online search does not alter the local scan results.
 - Extracts one buffer or reconstructs all detected folders and files.
+- Includes an embedded **Cutter** that accepts automatic, hexadecimal, or
+  decimal start offsets. Its optional end offset defaults to the end of the
+  input file, and the interface displays start, end, exact byte size, and the
+  detected file type before export.
+- Cutter exports accept a custom filename and selectable extension. When the
+  name is blank, a source-name plus hexadecimal-offset filename is generated;
+  existing files receive numbered suffixes instead of being overwritten.
+- Cutter type detection checks the bytes at the requested offset and
+  automatically selects known PNG, JPEG, DDS, BMP, GIF, WAV, AVI, OGG, ZIP,
+  compressed-stream, archive, executable, and related extensions.
 - Labels positively identified encrypted entries as **ENCRYPTED** and skips
   decryption. Unknown high-entropy data is described as compressed or
   encrypted rather than being guessed or cracked.
@@ -353,6 +364,14 @@ cracking or encryption bypass.
 ## Interface Improvements
 
 ## Music Editor
+
+- Adds dedicated **Drums**, **Bass**, **Turntable**, and **Vocals** subtabs.
+- Drums provides an eight-lane step sequencer; Bass provides a low-register
+  twelve-note sequencer. Both can loop, export WAV/MP3/MIDI, and save patterns
+  into any of the ten Song mixer channels.
+- Turntable exposes the loaded track's speed and gain controls with WAV/MP3
+  mix export. Vocals embeds vocal/instrumental stem separation and optional
+  merged-stem output directly inside Music.
 
 The top-level **Music** section opens an embedded audio editor.
 
@@ -422,8 +441,8 @@ The top-level **Videos** section opens a dark embedded non-destructive editor.
 ## Home Visuals
 
 - Uses the supplied blue binary artwork as a responsive cover background.
-- Animates the supplied neon disc at 70% opacity in the bottom-right corner.
-  Its visible quarter now spans the full Home background height.
+- Keeps the visible neon disc at 100% opacity, removes its exact-black rectangle
+  with a shape mask, and Overlay-blends it into the Home wallpaper.
 - Home is now background-only below the primary tabs. Image progress bars,
   status controls, and processing buttons are hidden there.
 - Run `Install_Music_Tools.bat` from the main folder for complete audio setup.
@@ -460,6 +479,123 @@ The top-level **Videos** section opens a dark embedded non-destructive editor.
 - Never overwrites a file. Every existing or planned collision receives a
   numbered filename, including an existing `Extracted.zip` archive.
 - Builds `Extracted.zip` containing only the four organized category folders.
+
+## Design Studio
+
+- Adds a layered **Design** tab for blueprint drawing and UV-layout templates.
+- Includes Select, Paint, Erase, Clone Stamp, Smudge, Blur, and Sharpen tools;
+  raster filters operate on imported image layers.
+- Blueprint shapes include square, triangle, circle, and oval tools with
+  explicit width, height, scale, stroke, grid, and snapping controls.
+- Information shows X/Y position, width, height, and calculated path distance.
+- Electrical, plumbing, and water tools connect point-to-point; press Escape
+  to finish the active run. Each finished run becomes a separate layer.
+- Provides Blank, Room, House Grid, Cube UV Cross, Cylinder UV, and Sphere UV
+  templates plus an expanded modern item catalog: doors and framing, garage
+  doors, fireplaces, bathtubs, showers, steps, railings, windows, plumbing
+  fixtures, appliances, furniture, lighting, bedding, and cabinetry.
+- Adds a blueprint-style drawing information block with editable project
+  title, drawing number, revision, sheet, scale, and author fields. Each block
+  is an independent layer and is included in PNG exports.
+- Adds a **UV Mapping** tool inside Design. Open an OBJ, ASCII FBX/model file,
+  raw binary model, or image and choose **Scan & Generate** to create a flat UV
+  layer. OBJ texture coordinates and face indices are reconstructed directly;
+  ASCII FBX and generic aligned Float32 UV buffers have fallback scanners.
+- UV layouts support **Wireframe**, **Solid**, and **Vertices** viewing modes
+  and remain normal Design layers for visibility, ordering, coloring, project
+  saving, and PNG export.
+- Every inserted or drawn item is an independent layer with visibility,
+  ordering, deletion, selection, movement, and individual color controls.
+- The top Design header is collapsible. Projects save as `.aidesign` and the
+  visible document can export to PNG.
+
+## Research Workspace
+
+- Adds a **Research** tab with a collapsible input-file header and paged hex/
+  ASCII viewer.
+- Finds hexadecimal byte sequences or ASCII, UTF-8, and UTF-16LE strings,
+  clearing old results before every search and listing match counts and offsets.
+- Double-clicking a match jumps the hex viewer to that exact offset.
+- Detects common embedded PNG, JPEG, DDS, ZIP, WAV, OGG, PDF, GIF, BMP, KTX,
+  GZIP, and 7-Zip signatures with candidate offsets and sizes.
+- Includes Stop scan, Extract file, and Extract all controls. Output naming is
+  collision-safe. Detected results automatically use their real extension:
+  `.png`, `.jpg`, `.dds`, `.zip`, `.wav`, `.ogg`, `.pdf`, `.gif`, `.bmp`,
+  `.ktx`, `.gz`, or `.7z`. For example, BMP results become `TEST.bmp`,
+  `TEST_1.bmp`, and so on. The manual extension field is used only as a
+  fallback for an unknown type.
+
+## Sound Scanner
+
+- Adds a dedicated **Sound** tab immediately after Textures.
+- Scans arbitrary binary files and banks for documented WAV/WEM, AIFF, Ogg,
+  Opus, FLAC, MP3, AAC, MIDI, FSB4/FSB5, Wwise BNK, Sony VAG/PSF, CRI ADX,
+  Nintendo BRSTM/BFSTM/BCSTM, Xbox XMA, XM, S3M, and IT signatures.
+- Shows assumed format, offset, size, and the output structure for every match.
+- Opens ZIP-compatible packages and retains their internal folder and filename
+  structure when extracting sound assets.
+- Includes Stop scan, Extract selected, and Extract all controls. Existing
+  files are never overwritten; numbered suffixes are added automatically.
+
+## PS2 Extract Workspace
+
+- Adds an embedded **Extract** main tab with Archives, Models, Textures,
+  Animations, and Batch Processing sections.
+- Includes PS2 Generic, Wild Arms 3, Wild Arms Alter Code: F, and Auto Detect
+  profiles so game-specific rules can be refined without changing the GUI.
+- Archives can scan BIN files for embedded headers and plausible little-endian
+  offset tables. The LZSS action implements the common PS2/Okumura 4 KB ring
+  buffer variant with LSB-first flags, 12-bit distance, and 4-bit length.
+- LZSS output is bounded and validated to prevent a wrong profile from causing
+  runaway memory use or writing an implausible expansion.
+- Detects PS2-oriented TIM2 textures, VAG/Sony sound banks, Gamebryo NIF and
+  RenderWare model markers, MOT/ANM animation markers, plus common embedded
+  image/audio/archive signatures.
+- Model, Texture, and Animation sections filter results for their asset type.
+  Extract Selected and Extract All never overwrite existing output files.
+- Batch Processing accepts a directory, preserves its relative structure,
+  optionally tries LZSS decompression, shows per-file progress, and can be
+  stopped safely. Source game files are always read-only.
+- Wild Arms-specific archive tables, mesh conversion, texture decoding, and
+  skeletal animation conversion are framework hooks until verified against
+  representative game files and the known Wild Arms utilities.
+
+## Animated interface
+
+- Main navigation uses precision-rounded buttons in this order: Home, 3D
+  Models, Textures, Sound, Files, Music, Videos, Design, Sort, and Research.
+- The animated cyber background is restricted to **Home** so tool tables and
+  text fields stay readable. Blue Matrix-style data flows downward while a
+  soft blue fog layer rolls across the original cyber artwork.
+- The Multiply-blended disc appears only on Home. Its redraw interval is halved
+  to 14 ms for a true 100% increase over the prior speed. Home also contains
+  icon-only Patreon, Discord, PayPal, and Website
+  shortcuts. The Website globe opens the 3D Model Archives site.
+- **Midi** is a dedicated subtab inside the Music studio.
+
+## Building the Windows EXE
+
+1. Install AI Generator normally with `Setup.bat` and confirm `Run.bat` works.
+2. Place `Build_EXE.bat`, `AI_Generator.spec`, and `main.py` together in the
+   main AI Generator directory.
+3. Double-click `Build_EXE.bat`. It uses `Scripts\python.exe` first, then a
+   `.venv` or installed Python 3.13 only when necessary.
+4. The builder verifies NumPy, SciPy, scikit-learn, scikit-image, and
+   InsightFace before PyInstaller starts. If SciPy has broken or mismatched
+   extension modules, compatible precompiled Python 3.13 wheels are
+   automatically reinstalled. The build stops instead of creating an
+   incomplete EXE if InsightFace still cannot import.
+5. The builder installs PyInstaller without upgrading Torch, then creates a
+   no-console one-folder application.
+6. Launch `dist\AI_Generator\AI Generator.exe`. A distributable
+   `AI_Generator_Windows_EXE.zip` is also created beside the build script.
+
+The one-folder format is intentional: ONNX Runtime, InsightFace, Torch,
+Diffusers, CUDA providers, FFmpeg, models, and dynamically loaded plugins are
+more reliable this way than in a single compressed executable. Existing
+`models` and `tools` folders are copied into the finished application, while
+personal `config.json`, API keys, indexed faces, and temporary files are not
+added automatically.
 - Requires `pydub` and FFmpeg for general audio. Optional features use `demucs` and
   `basic-pitch`; missing packages produce an exact installation message in the GUI.
 
@@ -477,12 +613,12 @@ The top-level **Videos** section opens a dark embedded non-destructive editor.
   Prompt Edit, Crop, and Rename controls remain reachable in short windows.
 - Image processing progress bars and Run/Review/Clear/Stop controls are now
   visible only inside the **Images** section and no longer appear beneath the
-  Home, 3D Models, Textures, Files, Music, Videos, or Library sections.
+  Home, Models, Textures, Files, Music, Videos, or Library sections.
 - Reduced minimum window size and compact bottom-button widths support smaller
   desktop layouts without clipping the GUI.
 - Startup is centered at approximately 1120×700 with a 900×620 minimum.
 - The Rename utility now lives under **Files → Rename**, not Images.
-- The 3D viewport adds Solid, Wireframe, Solid + outline, and Points modes,
+- The Models viewport adds Solid, Wireframe, Solid + outline, and Points modes,
   customizable background/surface/outline/vertex colors, line width, and point size.
 - Texture scan results are validated by decoding them first. False detections
   are hidden and verified images appear in a thumbnail filmstrip/gallery.

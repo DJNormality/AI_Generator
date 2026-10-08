@@ -4,6 +4,15 @@ from dataclasses import dataclass
 from tkinter import filedialog, messagebox, ttk
 
 SIGNATURES=(('PNG',b'\x89PNG\r\n\x1a\n'),('JPEG',b'\xff\xd8\xff'),('DDS',b'DDS '),('ZIP',b'PK\x03\x04'),('WAV',b'RIFF'),('OGG',b'OggS'),('PDF',b'%PDF-'),('GIF87',b'GIF87a'),('GIF89',b'GIF89a'),('BMP',b'BM'),('KTX',b'\xabKTX'),('GZIP',b'\x1f\x8b'),('7Z',b"7z\xbc\xaf\x27\x1c"))
+DETECTED_EXTENSIONS={'PNG':'.png','JPEG':'.jpg','DDS':'.dds','ZIP':'.zip','WAV':'.wav','OGG':'.ogg','PDF':'.pdf','GIF87':'.gif','GIF89':'.gif','BMP':'.bmp','KTX':'.ktx','GZIP':'.gz','7Z':'.7z'}
+
+def detected_extension(kind, payload, fallback='.file'):
+    """Return a suffix verified from extracted bytes, then the scan result."""
+    for signature_kind, magic in SIGNATURES:
+        if payload.startswith(magic):
+            return DETECTED_EXTENSIONS.get(signature_kind, fallback)
+    normalized = str(kind or '').strip().upper()
+    return DETECTED_EXTENSIONS.get(normalized, fallback)
 
 @dataclass
 class Embedded:
@@ -25,7 +34,7 @@ class ResearchTool:
         self.file_tree=ttk.Treeview(files_tab,columns=('number','type','offset','size'),show='headings');
         for key,title,width in (('number','#',45),('type','Type',80),('offset','Offset',110),('size','Size',100)):self.file_tree.heading(key,text=title);self.file_tree.column(key,width=width,anchor='w')
         fbar=ttk.Scrollbar(files_tab,orient='vertical',command=self.file_tree.yview);self.file_tree.configure(yscrollcommand=fbar.set);self.file_tree.pack(side='left',fill='both',expand=True);fbar.pack(side='right',fill='y')
-        extract=ttk.LabelFrame(right,text='Extraction',padding=6);extract.pack(fill='x');ttk.Label(extract,text='Base').grid(row=0,column=0);ttk.Entry(extract,textvariable=self.base_name,width=12).grid(row=0,column=1,padx=3);ttk.Label(extract,text='Extension').grid(row=0,column=2);ttk.Entry(extract,textvariable=self.output_ext,width=8).grid(row=0,column=3,padx=3);ttk.Button(extract,text='Extract file',command=self.extract_one).grid(row=1,column=0,columnspan=2,sticky='ew',pady=4);ttk.Button(extract,text='Extract all',command=self.extract_all).grid(row=1,column=2,columnspan=2,sticky='ew',pady=4)
+        extract=ttk.LabelFrame(right,text='Extraction',padding=6);extract.pack(fill='x');ttk.Label(extract,text='Base').grid(row=0,column=0);ttk.Entry(extract,textvariable=self.base_name,width=12).grid(row=0,column=1,padx=3);ttk.Label(extract,text='Unknown fallback').grid(row=0,column=2);ttk.Entry(extract,textvariable=self.output_ext,width=8).grid(row=0,column=3,padx=3);ttk.Label(extract,text='Detected results automatically use their real file extension.',wraplength=330).grid(row=1,column=0,columnspan=4,sticky='w',pady=(4,0));ttk.Button(extract,text='Extract file',command=self.extract_one).grid(row=2,column=0,columnspan=2,sticky='ew',pady=4);ttk.Button(extract,text='Extract all',command=self.extract_all).grid(row=2,column=2,columnspan=2,sticky='ew',pady=4)
         bottom=ttk.Frame(self.parent,padding=(7,0,7,6));bottom.grid(row=2,column=0,sticky='ew');bottom.columnconfigure(0,weight=1);self.progress=tk.DoubleVar();ttk.Progressbar(bottom,variable=self.progress,maximum=100,style='Accent.Horizontal.TProgressbar').grid(row=0,column=0,sticky='ew');ttk.Label(bottom,textvariable=self.status).grid(row=1,column=0,sticky='w',pady=(3,0))
     def toggle_header(self):
         self.header_open=not self.header_open
@@ -113,17 +122,20 @@ class ResearchTool:
         if not item:messagebox.showwarning('Extract','Select an embedded file first.');return
         folder=filedialog.askdirectory(title='Extract selected file');
         if not folder:return
-        path=self.unique_name(folder,self.base_name.get().strip() or 'TEST',self.output_ext.get().strip() or '.file')
-        with open(path,'wb') as output:output.write(self.data[item.offset:item.end])
-        self.status.set(f'Extracted {path}')
+        payload=self.data[item.offset:item.end]
+        extension=detected_extension(item.kind,payload,self.output_ext.get().strip() or '.file')
+        path=self.unique_name(folder,self.base_name.get().strip() or 'TEST',extension)
+        with open(path,'wb') as output:output.write(payload)
+        self.status.set(f'Extracted {os.path.basename(path)} as {extension}')
     def extract_all(self):
         if not self.embedded:messagebox.showwarning('Extract all','Detect embedded files first.');return
         folder=filedialog.askdirectory(title='Extract all files');
         if not folder:return
-        reserved=set();base=self.base_name.get().strip() or 'TEST';ext=self.output_ext.get().strip() or '.file'
+        reserved=set();base=self.base_name.get().strip() or 'TEST';fallback=self.output_ext.get().strip() or '.file'
         for item in self.embedded:
-            path=self.unique_name(folder,base,ext,reserved);reserved.add(os.path.normcase(path))
-            with open(path,'wb') as output:output.write(self.data[item.offset:item.end])
-        self.status.set(f'Extracted {len(self.embedded):,} files without overwriting.')
+            payload=self.data[item.offset:item.end];extension=detected_extension(item.kind,payload,fallback)
+            path=self.unique_name(folder,base,extension,reserved);reserved.add(os.path.normcase(path))
+            with open(path,'wb') as output:output.write(payload)
+        self.status.set(f'Extracted {len(self.embedded):,} files with verified detected extensions.')
 
 def build_research_tool(parent):return ResearchTool(parent)
