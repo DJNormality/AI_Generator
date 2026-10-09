@@ -11,11 +11,15 @@ class UVLayoutTool:
         self.parent=parent;self.path='';self.vertices=[];self.faces=[];self.uvs=[];self.uv_faces=[]
         self.selected_faces=set();self.selected_edges=set();self.selected_vertices=set();self.edge_faces=defaultdict(list)
         self.uv_zoom=1.;self.uv_pan=[0.,0.];self.uv_drag=None;self.model_zoom=1.;self.model_pan=[0.,0.];self.model_drag=None;self.yaw=.55;self.pitch=-.35
+        self.uv_load_mode='All'
         self.method=tk.StringVar(value='Auto UV');self.mesh_mode=tk.StringVar(value='Polygons');self.uv_mode=tk.StringVar(value='Wireframe');self.symmetry=tk.StringVar(value='X')
         self.status=tk.StringVar(value='Open an OBJ model, then select faces or edge loops in the model viewport.');self._build()
     def _build(self):
         top=ttk.Frame(self.parent,padding=(8,6));top.pack(fill='x');self.path_var=tk.StringVar();ttk.Entry(top,textvariable=self.path_var).pack(side='left',fill='x',expand=True);ttk.Button(top,text='Open Model',command=self.open_model).pack(side='left',padx=5);ttk.Combobox(top,textvariable=self.method,values=METHODS,state='readonly',width=22).pack(side='left');ttk.Button(top,text='Generate All',command=lambda:self.generate(False)).pack(side='left',padx=4);ttk.Button(top,text='Generate From Selection',command=lambda:self.generate(True)).pack(side='left');ttk.Button(top,text='Auto UV Selected',command=self.auto_uv_selected).pack(side='left',padx=4)
         tools=ttk.Frame(self.parent,padding=(8,0,8,5));tools.pack(fill='x');ttk.Label(tools,text='Mesh').pack(side='left');ttk.Combobox(tools,textvariable=self.mesh_mode,values=MESH_MODES,state='readonly',width=11).pack(side='left',padx=(4,10));ttk.Label(tools,text='UV').pack(side='left');ttk.Combobox(tools,textvariable=self.uv_mode,values=UV_MODES,state='readonly',width=11).pack(side='left',padx=(4,10));ttk.Button(tools,text='Select Loop',command=self.select_loop).pack(side='left');ttk.Button(tools,text='Apply Loops to UV',command=self.apply_loops).pack(side='left',padx=4);ttk.Button(tools,text='Clear Selection',command=self.clear_selection).pack(side='left');ttk.Label(tools,text='Symmetry').pack(side='left',padx=(12,3));ttk.Combobox(tools,textvariable=self.symmetry,values=('X','Y','Z'),state='readonly',width=4).pack(side='left');ttk.Button(tools,text='Fit Both',command=self.fit).pack(side='right')
+        loading=ttk.Frame(self.parent,padding=(8,0,8,5));loading.pack(fill='x');ttk.Label(loading,text='UV loading').pack(side='left')
+        for label,mode in (('Load All','All'),('Load Half','Half'),('Load Lowest','Lowest'),('Clear','Clear')):ttk.Button(loading,text=label,command=lambda value=mode:self.set_uv_load(value)).pack(side='left',padx=(5,0))
+        ttk.Label(loading,text='Controls UV canvas memory only; the 3D viewport always remains complete.').pack(side='left',padx=10)
         split=ttk.Panedwindow(self.parent,orient='horizontal');split.pack(fill='both',expand=True,padx=8);model=ttk.Frame(split);uv=ttk.Frame(split);split.add(model,weight=1);split.add(uv,weight=1)
         ttk.Label(model,text='Model — wheel zoom • drag rotate • middle-drag move • Alt+click select • Ctrl+click deselect').pack(anchor='w');self.model_canvas=tk.Canvas(model,bg='#020617',highlightthickness=1,highlightbackground='#334155');self.model_canvas.pack(fill='both',expand=True)
         ttk.Label(uv,text='UV — wheel zoom • drag move • selected loops are orange').pack(anchor='w');self.uv_canvas=tk.Canvas(uv,bg='#020617',highlightthickness=1,highlightbackground='#334155');self.uv_canvas.pack(fill='both',expand=True)
@@ -114,6 +118,16 @@ class UVLayoutTool:
         if not self.selected_edges:messagebox.showwarning('UV Layout','Select an edge loop first.');return
         self.selected_faces={face for edge in self.selected_edges for face in self.edge_faces.get(edge,())};self.draw_model();self.draw_uv();self.status.set(f'Applied loop boundary to {len(self.selected_faces):,} UV polygons.')
     def fit(self):self.uv_zoom=self.model_zoom=1.;self.uv_pan=[0.,0.];self.model_pan=[0.,0.];self.draw_model();self.draw_uv()
+    def set_uv_load(self,mode):
+        self.uv_load_mode=mode;self.draw_uv();total=len(self.uv_faces)
+        shown=0 if mode=='Clear' else total if mode=='All' else (total+1)//2 if mode=='Half' else min(total,1500)
+        self.status.set(f'UV loading: {mode} — {shown:,} of {total:,} polygons displayed. Model viewport unchanged.')
+    def _visible_uv_face_ids(self):
+        total=len(self.uv_faces)
+        if self.uv_load_mode=='Clear':return []
+        if self.uv_load_mode=='All':return range(total)
+        if self.uv_load_mode=='Half':return range(0,total,2)
+        step=max(1,math.ceil(total/1500));base=set(range(0,total,step));base.update(self.selected_faces);return sorted(index for index in base if index<total)
     def uv_wheel(self,event):self.uv_zoom=max(.08,min(40,self.uv_zoom*(1.2 if event.delta>0 else 1/1.2)));self.draw_uv();return 'break'
     def model_wheel(self,event):self.model_zoom=max(.08,min(40,self.model_zoom*(1.2 if event.delta>0 else 1/1.2)));self.draw_model();return 'break'
     def uv_pan_start(self,event):self.uv_drag=(event.x,event.y,*self.uv_pan)
@@ -178,8 +192,10 @@ class UVLayoutTool:
     def draw_uv(self):
         c=self.uv_canvas;c.delete('all');c.create_rectangle(12,12,max(13,c.winfo_width()-12),max(13,c.winfo_height()-12),outline='#334155')
         if not self.uvs:return
+        if self.uv_load_mode=='Clear':return
         points=self._uv_points();mode=self.uv_mode.get()
-        for face_id,face in enumerate(self.uv_faces):
+        for face_id in self._visible_uv_face_ids():
+            face=self.uv_faces[face_id]
             try:coords=[value for index in face for value in points[index]]
             except Exception:continue
             selected=face_id in self.selected_faces

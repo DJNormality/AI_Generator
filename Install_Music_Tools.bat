@@ -26,7 +26,7 @@ if errorlevel 1 goto :failed
 
 echo.
 echo [2/5] Installing required audio plugins...
-"%PYTHON_EXE%" -m pip install --upgrade "pydub>=0.25.1" "audioop-lts" "imageio-ffmpeg"
+"%PYTHON_EXE%" -m pip install --upgrade "pydub>=0.25.1" "audioop-lts" "imageio-ffmpeg" pygame sounddevice send2trash
 if errorlevel 1 goto :failed
 
 echo.
@@ -97,7 +97,7 @@ if not errorlevel 1 (
 echo.
 echo [5/5] Verifying all required components...
 set "PATH=%FFMPEG_BIN%;%PATH%"
-"%PYTHON_EXE%" -c "import sys, shutil, audioop; from pydub import AudioSegment; assert shutil.which('ffmpeg'); assert shutil.which('ffprobe'); print('Music support is ready.'); print('Python:', sys.executable); print('FFmpeg:', shutil.which('ffmpeg')); print('FFprobe:', shutil.which('ffprobe'))"
+"%PYTHON_EXE%" -c "import sys, shutil, audioop, pygame, sounddevice, send2trash; from pydub import AudioSegment; assert shutil.which('ffmpeg'); assert shutil.which('ffprobe'); print('Music, playback, recording, and Recycle Bin support are ready.'); print('Python:', sys.executable); print('FFmpeg:', shutil.which('ffmpeg')); print('FFprobe:', shutil.which('ffprobe'))"
 if errorlevel 1 goto :failed
 
 for /f %%V in ('"%PYTHON_EXE%" -c "import sys; print(sys.version_info.minor)"') do set "PY_MINOR=%%V"

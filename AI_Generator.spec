@@ -8,8 +8,8 @@ project_root = os.path.abspath(SPECPATH)
 datas=[]
 binaries=[]
 hiddenimports=[
-    'model_scanner','texture_scanner','file_scanner','sound_scanner','extract_tool','music_tool',
-    'audio_splitter','video_tool','design_tool','research_tool','library_tool','sort_tool','converter_tool','uv_layout_tool',
+    'model_scanner','texture_scanner','texture_rgb_tool','blender_texture_nodes','file_scanner','sound_scanner','extract_tool','music_tool',
+    'audio_splitter','local_music_create','ace_step_client','video_tool','design_tool','research_tool','library_tool','sort_tool','remove_tool','converter_tool','uv_layout_tool','blender_script_tool','extract_preview3d','model_creator','panorama_mesh',
     'tkinter','tkinter.ttk','PIL.ImageTk','imageio_ffmpeg','moviepy','onnx','onnxruntime',
 ]
 
@@ -19,7 +19,7 @@ for folder in ('resources','tools','Python'):
 
 # These packages load providers/pipelines dynamically, so their normal import
 # graph is not enough for a frozen build. Missing optional packages are skipped.
-for package in ('insightface','onnxruntime','cv2','skimage','sklearn','scipy','moviepy','imageio_ffmpeg','pydub','openai','huggingface_hub','torch','torchvision','diffusers','transformers','accelerate','safetensors','demucs','basic_pitch'):
+for package in ('insightface','onnxruntime','cv2','skimage','sklearn','scipy','moviepy','imageio_ffmpeg','pydub','pygame','sounddevice','send2trash','openai','huggingface_hub','torch','torchvision','diffusers','transformers','accelerate','safetensors','trimesh','demucs','basic_pitch'):
     try:
         package_datas,package_binaries,package_hidden=collect_all(package)
         datas+=package_datas;binaries+=package_binaries;hiddenimports+=package_hidden

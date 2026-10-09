@@ -5,14 +5,21 @@ onnxruntime-gpu
 onnx
 insightface
 moviepy
-requests
 tqdm
 pillow
 pydub>=0.25.1
 audioop-lts; python_version >= "3.13"
 imageio-ffmpeg
+pygame
+sounddevice
+send2trash
 openai
 huggingface_hub
 scikit-image
 scikit-learn
 scipy
+transformers
+accelerate
+safetensors
+trimesh
+requests

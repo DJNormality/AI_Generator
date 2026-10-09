@@ -17,6 +17,8 @@ import shutil
 import hashlib
 import webbrowser
 import base64
+import random
+import math
 from io import BytesIO
 from types import SimpleNamespace
 from insightface.utils import face_align
@@ -366,6 +368,7 @@ class FaceSwapApp:
         sort_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=8)
         design_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=5)
         research_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=5)
+        remove_tab = ttk.Frame(section_notebook, style='Panel.TFrame', padding=8)
         section_notebook.add(home_tab, text='  Home  ')
         section_notebook.add(models3d_tab, text='  Models  ')
         section_notebook.add(texture_tab, text='  Textures  ')
@@ -376,11 +379,21 @@ class FaceSwapApp:
         section_notebook.add(design_tab, text='  Design  ')
         section_notebook.add(sort_tab, text='  Sort  ')
         section_notebook.add(research_tab, text='  Research  ')
+        section_notebook.add(remove_tab, text='  Remove  ')
+        section_notebook.add(library_tab, text='  Library  ')
         self.section_nav_buttons={}
-        rounded_sections=(('Home',home_tab),('Models',models3d_tab),('Textures',texture_tab),('Files',files_tab),('Extract',extract_tab),('Music',music_tab),('Videos',videos_tab),('Design',design_tab),('Sort',sort_tab),('Research',research_tab))
+        rounded_sections=(('Home',home_tab),('Models',models3d_tab),('Textures',texture_tab),('Files',files_tab),('Extract',extract_tab),('Music',music_tab),('Videos',videos_tab),('Design',design_tab),('Sort',sort_tab),('Research',research_tab),('Remove',remove_tab),('Library',library_tab))
+        nav_previous=RoundedButton(section_nav,text='‹',command=lambda:self.show_navigation_page(self.navigation_page-1),bg='#172033',hover='#243244',width=38,height=38,radius=17)
+        nav_previous.pack(side='left',padx=(0,3))
+        navigation_track=tk.Frame(section_nav,bg='#111827');navigation_track.pack(side='left',fill='x',expand=True)
+        self.navigation_sections=list(rounded_sections);self.navigation_track=navigation_track;self.navigation_page=0;self.navigation_page_size=8
         for label,page in rounded_sections:
             button=RoundedButton(section_nav,text=label,command=lambda target=page:section_notebook.select(target),bg='#172033',hover='#243244',width=92,height=38,radius=17)
-            button.pack(side='left',fill='x',expand=True,padx=2);self.section_nav_buttons[str(page)]=button
+            self.section_nav_buttons[str(page)]=button
+        self.navigation_previous=nav_previous
+        self.navigation_next=RoundedButton(section_nav,text='›',command=lambda:self.show_navigation_page(self.navigation_page+1),bg='#172033',hover='#243244',width=38,height=38,radius=17)
+        self.navigation_next.pack(side='right',padx=(3,0))
+        self.show_navigation_page(0)
         self.build_home_visual(home_tab)
         # Animated artwork is intentionally Home-only. Tool pages retain a
         # clean solid background so labels, entries, and tables stay readable.
@@ -412,14 +425,22 @@ class FaceSwapApp:
                                 colorize_tab, rename_tab, models3d_tab, texture_tab,
                                 files_overview, music_tab, videos_tab)
         # Mount full tools directly in their tabs—no launcher pages or extra windows.
+        models_notebook=ttk.Notebook(models3d_tab,style='Modern.TNotebook');models_notebook.pack(fill='both',expand=True)
+        models_scan_tab=ttk.Frame(models_notebook,style='Panel.TFrame');models_create_tab=ttk.Frame(models_notebook,style='Panel.TFrame')
+        models_notebook.add(models_scan_tab,text='  Scan  ');models_notebook.add(models_create_tab,text='  Create  ')
         try:
             from model_scanner import open_model_scanner
-            self.embedded_model_scanner=open_model_scanner(models3d_tab,embedded=True)
+            self.embedded_model_scanner=open_model_scanner(models_scan_tab,embedded=True)
         except Exception as error:
-            ttk.Label(models3d_tab,text=f'Models could not start: {error}',style='Hint.TLabel').pack(anchor='w',padx=8,pady=8)
+            ttk.Label(models_scan_tab,text=f'Models could not start: {error}',style='Hint.TLabel').pack(anchor='w',padx=8,pady=8)
+        try:
+            from model_creator import build_model_creator
+            self.model_creator=build_model_creator(models_create_tab)
+        except Exception as error:
+            ttk.Label(models_create_tab,text=f'Model Creator could not start: {error}',style='Hint.TLabel').pack(anchor='w',padx=8,pady=8)
         texture_notebook=ttk.Notebook(texture_tab,style='Modern.TNotebook');texture_notebook.pack(fill='both',expand=True)
-        texture_scan_tab=ttk.Frame(texture_notebook,style='Panel.TFrame');uv_layout_tab=ttk.Frame(texture_notebook,style='Panel.TFrame')
-        texture_notebook.add(texture_scan_tab,text='  Scan  ');texture_notebook.add(uv_layout_tab,text='  UV Layout  ')
+        texture_scan_tab=ttk.Frame(texture_notebook,style='Panel.TFrame');uv_layout_tab=ttk.Frame(texture_notebook,style='Panel.TFrame');texture_rgb_tab=ttk.Frame(texture_notebook,style='Panel.TFrame')
+        texture_notebook.add(texture_scan_tab,text='  Scan  ');texture_notebook.add(uv_layout_tab,text='  UV Layout  ');texture_notebook.add(texture_rgb_tab,text='  RGB  ')
         try:
             from texture_scanner import open_texture_scanner
             self.embedded_texture_scanner=open_texture_scanner(texture_scan_tab)
@@ -429,6 +450,10 @@ class FaceSwapApp:
             from uv_layout_tool import build_uv_layout_tool
             self.uv_layout_tool=build_uv_layout_tool(uv_layout_tab)
         except Exception as error:ttk.Label(uv_layout_tab,text=f'UV Layout could not start: {error}',style='Hint.TLabel').pack(anchor='w',padx=8,pady=8)
+        try:
+            from texture_rgb_tool import build_rgb_mixer
+            self.texture_rgb_tool=build_rgb_mixer(texture_rgb_tab)
+        except Exception as error:ttk.Label(texture_rgb_tab,text=f'RGB Mixer could not start: {error}',style='Hint.TLabel').pack(anchor='w',padx=8,pady=8)
         try:
             from file_scanner import open_file_scanner
             self.embedded_file_scanner=open_file_scanner(files_overview)
@@ -440,13 +465,18 @@ class FaceSwapApp:
         except Exception as error:
             ttk.Label(convert_tab,text=f'Convert could not start: {error}',style='Hint.TLabel').pack(anchor='w',padx=8,pady=8)
         music_notebook=ttk.Notebook(music_tab,style='Modern.TNotebook');music_notebook.pack(fill='both',expand=True)
-        song_studio_tab=ttk.Frame(music_notebook,style='Panel.TFrame');audio_split_tab=ttk.Frame(music_notebook,style='Panel.TFrame')
-        music_notebook.add(song_studio_tab,text='  Studio  ');music_notebook.add(audio_split_tab,text='  Audio Split  ')
+        song_studio_tab=ttk.Frame(music_notebook,style='Panel.TFrame');create_music_tab=ttk.Frame(music_notebook,style='Panel.TFrame');audio_split_tab=ttk.Frame(music_notebook,style='Panel.TFrame')
+        music_notebook.add(song_studio_tab,text='  Studio  ');music_notebook.add(create_music_tab,text='  Create  ');music_notebook.add(audio_split_tab,text='  Audio Split  ')
         try:
             from music_tool import open_music_tool
             self.embedded_music_tool=open_music_tool(song_studio_tab)
         except Exception as error:
             ttk.Label(song_studio_tab,text=f'Music Studio could not start: {error}',style='Hint.TLabel').pack(anchor='w',padx=8,pady=8)
+        try:
+            from local_music_create import build_local_music_create
+            self.local_music_create_tool=build_local_music_create(create_music_tab)
+        except Exception as error:
+            ttk.Label(create_music_tab,text=f'Local Music Create could not start: {error}',style='Hint.TLabel').pack(anchor='w',padx=8,pady=8)
         try:
             from audio_splitter import open_audio_splitter
             self.embedded_audio_splitter=open_audio_splitter(audio_split_tab)
@@ -480,6 +510,12 @@ class FaceSwapApp:
             self.library_tool = build_library_tool(library_tab)
         except Exception as error:
             ttk.Label(library_tab, text=f'Library could not start: {error}',
+                      style='Hint.TLabel').pack(anchor='w', padx=8, pady=8)
+        try:
+            from remove_tool import build_remove_tool
+            self.remove_tool = build_remove_tool(remove_tab)
+        except Exception as error:
+            ttk.Label(remove_tab, text=f'Remove could not start: {error}',
                       style='Hint.TLabel').pack(anchor='w', padx=8, pady=8)
         try:
             from sort_tool import build_sort_tool
@@ -575,15 +611,47 @@ class FaceSwapApp:
         if is_home:
             self.render_home_visual()
         selected=self.section_notebook.select()
+        for index,(_label,page) in enumerate(getattr(self,'navigation_sections',())):
+            if str(page)==selected:
+                requested=index//max(1,getattr(self,'navigation_page_size',8))
+                if requested!=getattr(self,'navigation_page',0):self.show_navigation_page(requested)
+                break
         for page_id,button in getattr(self,'section_nav_buttons',{}).items():
             button._normal_bg='#16a34a' if page_id==selected else '#172033';button._hover_bg='#22c55e' if page_id==selected else '#243244';button._draw()
 
+    def show_navigation_page(self,page):
+        """Show one compact page of main-tool buttons between arrow controls."""
+        sections=getattr(self,'navigation_sections',())
+        if not sections:return
+        page_size=max(1,getattr(self,'navigation_page_size',8));last=max(0,(len(sections)-1)//page_size);page=max(0,min(last,int(page)))
+        self.navigation_page=page
+        for button in getattr(self,'section_nav_buttons',{}).values():button.pack_forget()
+        start=page*page_size
+        for _label,target in sections[start:start+page_size]:
+            self.section_nav_buttons[str(target)].pack(in_=self.navigation_track,side='left',fill='x',expand=True,padx=2)
+        previous=getattr(self,'navigation_previous',None);following=getattr(self,'navigation_next',None)
+        if previous:
+            previous._normal_bg='#172033' if page>0 else '#0f172a';previous._hover_bg='#243244' if page>0 else '#0f172a';previous._draw()
+        if following:
+            following._normal_bg='#172033' if page<last else '#0f172a';following._hover_bg='#243244' if page<last else '#0f172a';following._draw()
+
     def build_home_visual(self, parent):
-        """Animated Home background with Matrix rain and rolling blue fog."""
+        """Synthwave Home background with a slow seamless fog layer."""
         self.home_canvas = tk.Canvas(parent, bg='#000000', highlightthickness=0)
         self.home_canvas.pack(fill=tk.BOTH, expand=True)
         self.home_background_source = None
         self.home_background_photo = None
+        self.home_fog_source = None
+        self.home_fog_photo = None
+        self.home_fog_tile_width = 0
+        self.home_fog_offset = 0.0
+        self.home_fog_last_tick = time.monotonic()
+        self.home_fog_job = None
+        self.home_star_job = None
+        self.home_twinkles = []
+        self.home_lasers = []
+        self.home_laser_job = None
+        self.home_next_twinkle = time.monotonic() + random.uniform(1.0, 3.5)
         self.tab_background_photos = {}
         self.visual_started_at = time.monotonic()
         asset_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'resources')
@@ -593,6 +661,11 @@ class FaceSwapApp:
                 os.path.join(asset_root, 'HomeBackground.jpg')).convert('RGB')
         except Exception:
             self.home_background_source = None
+        try:
+            self.home_fog_source = Image.open(
+                os.path.join(asset_root, 'HomeFog.png')).convert('RGBA')
+        except Exception:
+            self.home_fog_source = None
         # Home-only support and community shortcuts. These stay above the
         # animated Canvas and do not appear on tool pages.
         self.home_support_bar=tk.Frame(parent,bg='#020617',highlightthickness=0)
@@ -611,59 +684,20 @@ class FaceSwapApp:
                                  bg=bg,hover=hover,width=56,height=48,radius=17)
             button.pack(side='left',padx=5,pady=4);self.home_link_buttons.append(button)
         self.home_canvas.bind('<Configure>', lambda _event: self.render_home_visual())
-        self.root.after(35, self.animate_home_visual)
+        self.home_canvas.bind('<Button-1>', self.fire_home_laser, add='+')
+        self.home_fog_job = self.root.after(80, self.animate_home_fog)
+        self.home_star_job = self.root.after(120, self.animate_home_stars)
+        self.home_laser_job = self.root.after(16, self.animate_home_lasers)
 
-    def add_animated_tab_background(self, parent):
-        """Place the shared cyber backdrop below a tool tab's controls."""
-        canvas=tk.Canvas(parent,bg='#020617',highlightthickness=0,takefocus=0)
-        canvas.place(x=0,y=0,relwidth=1,relheight=1);canvas.tk.call('lower',canvas._w)
-        canvas.bind('<Configure>',lambda _event,c=canvas:self.render_animated_tab_background(c))
-        self.tab_background_canvases.append(canvas)
-
-    def _animated_background_image(self,width,height):
-        """Animate the original Home artwork with slow rolling blue fog."""
+    def _static_background_image(self,width,height):
+        """Scale the supplied synthwave artwork to cover Home without animation."""
         if self.home_background_source is None:return None
-        from PIL import Image,ImageChops,ImageDraw,ImageEnhance,ImageFilter
+        from PIL import Image
         resampling=getattr(Image,'Resampling',Image);source=self.home_background_source
-        # A slightly oversized cover crop leaves room for a smooth panoramic drift.
-        scale=max((width*1.18)/source.width,(height*1.18)/source.height)
-        resized=source.resize((max(width+2,int(source.width*scale)),max(height+2,int(source.height*scale))),resampling.LANCZOS)
-        left=max(0,(resized.width-width)//2);top=max(0,(resized.height-height)//2);frame=resized.crop((left,top,left+width,top+height))
-        elapsed=time.monotonic()-getattr(self,'visual_started_at',time.monotonic());phase=(elapsed%120.0)/120.0
-        # The embedded binary/rain artwork moves down while the panorama completes
-        # one seamless leftward revolution every two minutes.
-        frame=ImageChops.offset(frame,-int(phase*width),int((elapsed*7.0)%height))
-        frame=ImageEnhance.Color(frame).enhance(1.08).convert('RGBA')
-        # Soft translucent fog rolls horizontally. It is rasterized into the
-        # background, avoiding the opaque Canvas shapes from the prior build.
-        fog=Image.new('RGBA',(width,height),(0,0,0,0));draw=ImageDraw.Draw(fog)
-        fog_shift=int((elapsed*18)%(width+520))-260
-        for index,(y,radius,alpha) in enumerate(((height*.25,250,34),(height*.58,340,42),(height*.84,270,30))):
-            x=((fog_shift+index*width*.43)%(width+520))-260
-            draw.ellipse((x-radius,y-radius*.42,x+radius,y+radius*.42),fill=(36,148,220,alpha))
-        fog=fog.filter(ImageFilter.GaussianBlur(58));return Image.alpha_composite(frame,fog).convert('RGB')
-
-    def _draw_blue_matrix(self,canvas,width,height):
-        """Home-only blue Matrix rain; text is drawn without stipple boxes."""
-        elapsed=time.monotonic()-getattr(self,'visual_started_at',time.monotonic());spacing=26
-        for column in range(max(1,int(width/spacing)+1)):
-            seed=(column*2654435761)&0xffffffff;length=18+(column%17)
-            bits='\n'.join('1' if ((seed>>(n%31))^(column+n))&1 else '0' for n in range(length))
-            speed=34+(column%7)*5;y=((elapsed*speed+column*79)%(height+length*14))-length*14
-            color='#67e8f9' if column%9==0 else '#38bdf8' if column%3==0 else '#0369a1'
-            canvas.create_text(column*spacing,y,text=bits,anchor='nw',fill=color,font=('Consolas',9,'bold' if column%9==0 else 'normal'),tags='matrix-rain')
-
-    def render_animated_tab_background(self,canvas):
-        if not canvas.winfo_exists():return
-        width=max(2,canvas.winfo_width());height=max(2,canvas.winfo_height());canvas.delete('animated-background')
-        try:
-            from PIL import ImageTk
-            frame=self._animated_background_image(width,height)
-            if frame is not None:
-                photo=ImageTk.PhotoImage(frame);self.tab_background_photos[str(canvas)]=photo
-                canvas.create_image(0,0,image=photo,anchor='nw',tags='animated-background')
-                canvas.tag_lower('animated-background')
-        except Exception:pass
+        scale=max(width/source.width,height/source.height)
+        resized=source.resize((max(width,int(source.width*scale)),max(height,int(source.height*scale))),resampling.LANCZOS)
+        left=max(0,(resized.width-width)//2);top=max(0,(resized.height-height)//2)
+        return resized.crop((left,top,left+width,top+height))
 
     def render_home_visual(self):
         if not getattr(self, 'home_canvas', None):
@@ -673,20 +707,143 @@ class FaceSwapApp:
         self.home_canvas.delete('all')
         try:
             from PIL import Image, ImageTk
-            background = self._animated_background_image(width, height)
+            background = self._static_background_image(width, height)
             if background is None:
                 background = Image.new('RGB', (width, height), '#000000')
             if self.home_background_source is not None:
                 self.home_background_photo = ImageTk.PhotoImage(background)
                 self.home_canvas.create_image(0, 0, image=self.home_background_photo,
                                               anchor='nw',tags='home-base')
-            self._draw_blue_matrix(self.home_canvas,width,height)
+            self._prepare_home_fog(width, height)
+            self._draw_home_stars()
+            self._draw_home_fog(width)
         except Exception:
             pass
 
-    def animate_home_visual(self):
-        self.render_home_visual()
-        self.root.after(35, self.animate_home_visual)
+    def _prepare_home_fog(self, width, height):
+        """Prepare the supplied RGBA fog as a soft Lighten-style tiled overlay."""
+        if self.home_fog_source is None:return
+        from PIL import Image, ImageTk
+        source=self.home_fog_source
+        scale=max(.1,height/source.height)
+        tile_width=max(2,int(source.width*scale))
+        resampling=getattr(Image,'Resampling',Image)
+        overlay=source.resize((tile_width,height),resampling.LANCZOS)
+        # HomeFog.png is authored as a seamless tile. Preserve its edge pixels
+        # exactly—no offset, crossfade, duplicated boundary, or cropped column.
+        # White RGBA fog over an image is equivalent to a soft Lighten/Screen pass.
+        # Preserve the authored mask but reduce it enough to keep the Home art vivid.
+        alpha=overlay.getchannel('A').point(lambda value:max(0,min(105,int(value*.42))))
+        overlay.putalpha(alpha)
+        self.home_fog_photo=ImageTk.PhotoImage(overlay)
+        self.home_fog_tile_width=tile_width
+        self.home_fog_offset%=tile_width
+
+    def _draw_home_fog(self, width=None):
+        if not self.home_fog_photo or self.home_fog_tile_width<2:return
+        width=width or max(2,self.home_canvas.winfo_width())
+        self.home_canvas.delete('home-fog')
+        start=-self.home_fog_offset-self.home_fog_tile_width
+        x=start
+        while x<width+self.home_fog_tile_width:
+            self.home_canvas.create_image(int(x),0,image=self.home_fog_photo,
+                                          anchor='nw',tags='home-fog')
+            x+=self.home_fog_tile_width
+        self.home_canvas.tag_raise('home-fog')
+
+    def animate_home_fog(self):
+        """Move the seamless fog left at roughly eight pixels per second."""
+        now=time.monotonic();elapsed=min(.25,max(0,now-self.home_fog_last_tick));self.home_fog_last_tick=now
+        if getattr(self,'home_fog_tile_width',0)>1:
+            self.home_fog_offset=(self.home_fog_offset+elapsed*8.0)%self.home_fog_tile_width
+            self._draw_home_fog()
+        self.home_fog_job=self.root.after(80,self.animate_home_fog)
+
+    def _draw_home_stars(self):
+        """Draw only the currently active, softly pulsing twinkles."""
+        if not getattr(self,'home_canvas',None):return
+        now=time.monotonic();self.home_canvas.delete('home-stars')
+        active=[]
+        for star in self.home_twinkles:
+            age=now-star['born'];duration=star['duration']
+            if age<0:active.append(star);continue
+            if age>=duration:continue
+            active.append(star);phase=age/duration
+            strength=max(0.0,1.0-abs(phase-.5)*2.0)
+            shade=max(130,min(255,int(150+105*strength)))
+            color=f'#{shade:02x}{shade:02x}{min(255,shade+8):02x}'
+            radius=star['radius']*(.55+.45*strength);x,y=star['x'],star['y']
+            self.home_canvas.create_oval(x-radius,y-radius,x+radius,y+radius,
+                                         fill=color,outline='',tags='home-stars')
+            arm=radius*(2.2+strength)
+            self.home_canvas.create_line(x-arm,y,x+arm,y,fill=color,width=1,tags='home-stars')
+            self.home_canvas.create_line(x,y-arm,x,y+arm,fill=color,width=1,tags='home-stars')
+        self.home_twinkles=active
+        if self.home_canvas.find_withtag('home-fog'):
+            self.home_canvas.tag_lower('home-stars','home-fog')
+
+    def animate_home_stars(self):
+        """Create small random twinkles every few seconds instead of constant flashing."""
+        now=time.monotonic()
+        if now>=self.home_next_twinkle and getattr(self,'home_canvas',None):
+            width=max(2,self.home_canvas.winfo_width());height=max(2,self.home_canvas.winfo_height())
+            for _ in range(random.randint(1,3)):
+                self.home_twinkles.append({'x':random.uniform(0,width),
+                    'y':random.uniform(15,max(20,height*.58)),'radius':random.uniform(1.1,2.5),
+                    'born':now+random.uniform(0,.35),'duration':random.uniform(.7,1.5)})
+            self.home_next_twinkle=now+random.uniform(1.5,4.8)
+        self._draw_home_stars()
+        self.home_star_job=self.root.after(120,self.animate_home_stars)
+
+    def fire_home_laser(self,event):
+        """Fire a fast torus-shaped green laser from a Home-canvas click."""
+        now=time.monotonic();width=max(2,self.home_canvas.winfo_width())
+        spread=random.uniform(-.16,.16)
+        distance=max(260.0,float(width)*.72)
+        self.home_lasers.append({'x':float(event.x),'y':float(event.y),
+            'dx':math.sin(spread)*distance,'dy':-math.cos(spread)*distance,
+            'born':now,'duration':random.uniform(.34,.48)})
+
+    def animate_home_lasers(self):
+        """Render short-lived neon torus shots and tracer tails at about 60 FPS."""
+        canvas=getattr(self,'home_canvas',None)
+        if canvas is None:return
+        now=time.monotonic();canvas.delete('home-lasers');active=[]
+        colors=('#052e16','#166534','#16a34a','#22c55e','#4ade80','#86efac','#ecfdf5')
+        for shot in self.home_lasers:
+            age=now-shot['born'];duration=shot['duration']
+            if age>=duration:continue
+            active.append(shot);progress=max(0.0,min(1.0,age/duration))
+            ease=1.0-(1.0-progress)**2
+            x=shot['x']+shot['dx']*ease;y=shot['y']+shot['dy']*ease
+            tail=max(18.0,115.0*(1.0-progress));length=max(1.0,math.hypot(shot['dx'],shot['dy']))
+            ux=shot['dx']/length;uy=shot['dy']/length
+            fade_index=max(0,min(len(colors)-1,int((1.0-progress)*(len(colors)-1))))
+            color=colors[fade_index]
+            # Bright plasma bolt with a fast tracer tail.
+            canvas.create_line(x-ux*tail,y-uy*tail,x,y,fill=color,
+                               width=max(1,int(7*(1.0-progress))),tags='home-lasers')
+            canvas.create_line(x-ux*tail*.72,y-uy*tail*.72,x,y,fill='#bbf7d0',
+                               width=max(1,int(3*(1.0-progress))),tags='home-lasers')
+            # Concentric green energy rings like the supplied plasma-shot reference.
+            radius=5.0+20.0*progress
+            for ring,ring_color in ((1.0,color),(.68,'#4ade80'),(.38,'#d1fae5')):
+                rw=radius*ring*1.85;rh=radius*ring*.72
+                canvas.create_oval(x-rw,y-rh,x+rw,y+rh,outline=ring_color,
+                    width=max(1,int((5-ring*2)*(1.0-progress))),tags='home-lasers')
+            canvas.create_oval(x-3,y-3,x+3,y+3,fill='#ecfdf5',outline='#22c55e',
+                               width=1,tags='home-lasers')
+            # Small corkscrew tracer sparks follow the core and fade with it.
+            for step in range(1,5):
+                back=step*(tail/5.0);phase=progress*28.0+step*1.7
+                side=math.sin(phase)*(8.0-step)
+                px=x-ux*back-uy*side;py=y-uy*back+ux*side
+                spark=max(1.0,3.2-step*.45)
+                canvas.create_oval(px-spark,py-spark,px+spark,py+spark,
+                                   fill=color,outline='',tags='home-lasers')
+        self.home_lasers=active
+        if canvas.find_withtag('home-lasers'):canvas.tag_raise('home-lasers')
+        self.home_laser_job=self.root.after(16,self.animate_home_lasers)
 
     def configure_modern_styles(self):
         style = ttk.Style(self.root)

@@ -1,5 +1,5 @@
 """Embedded automatic and configurable raw-texture tool for AI Generator."""
-import bz2, gzip, io, lzma, os, struct, threading, tkinter as tk, zipfile, zlib
+import bz2, gzip, io, lzma, os, struct, subprocess, sys, tempfile, threading, tkinter as tk, zipfile, zlib
 from dataclasses import dataclass
 from tkinter import filedialog, messagebox, ttk
 
@@ -46,6 +46,8 @@ class TextureScanner:
         if self.on_back:ttk.Button(bar,text='← Back to Home',command=self.request_back).pack(side='left',padx=(0,8))
         self.path_var=tk.StringVar();ttk.Entry(bar,textvariable=self.path_var).pack(side='left',fill='x',expand=True)
         ttk.Button(bar,text='Open Any File',command=self.open_file).pack(side='left',padx=6)
+        ttk.Button(bar,text='Open DDS / PVR',command=self.open_container).pack(side='left',padx=(0,6))
+        ttk.Button(bar,text='Convert DDS / PVR',command=self.convert_container).pack(side='left',padx=(0,6))
         self.scan_button=ttk.Button(bar,text='Search Textures',command=self.start_scan);self.scan_button.pack(side='left')
         self.stop_button=ttk.Button(bar,text='Stop Scan',command=self.stop_scan,state='disabled');self.stop_button.pack(side='left',padx=(6,0))
         row=ttk.Frame(self.window,padding=(10,0,10,6));row.pack(fill='x');self.progress=tk.DoubleVar();self.progress_text=tk.StringVar(value='0%');self.results_text=tk.StringVar(value='Results: 0')
@@ -75,6 +77,53 @@ class TextureScanner:
             with open(path,'rb') as f:self.data=f.read()
             self.path=path;self.path_var.set(path);self.status.set(f'Loaded {size_text(len(self.data))}.')
         except Exception as e:messagebox.showerror('Open texture source',str(e))
+    def _pvr_cli(self):
+        roots=[os.path.dirname(os.path.abspath(__file__))]
+        if getattr(sys,'frozen',False):roots.insert(0,os.path.dirname(sys.executable))
+        for root in roots:
+            for relative in (('tools','PVRTexTool','PVRTexToolCLI.exe'),('tools','PVR','PVRTexToolCLI.exe')):
+                path=os.path.join(root,*relative)
+                if os.path.isfile(path):return path
+        return ''
+    def _container_to_png(self,path):
+        from PIL import Image
+        try:
+            with Image.open(path) as image:image.load();return image.convert('RGBA')
+        except Exception as pillow_error:
+            cli=self._pvr_cli()
+            if not cli:raise RuntimeError('This DDS/PVR codec is not supported by Pillow and PVRTexToolCLI.exe was not found in tools\\PVRTexTool.') from pillow_error
+            temp=tempfile.NamedTemporaryFile(suffix='.png',delete=False);temp.close()
+            try:
+                run=subprocess.run([cli,'-i',path,'-d',temp.name,'-noout'],capture_output=True,text=True,timeout=180,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
+                if run.returncode or not os.path.isfile(temp.name) or os.path.getsize(temp.name)==0:raise RuntimeError((run.stderr or run.stdout or 'PVRTexTool could not decode this container.').strip())
+                with Image.open(temp.name) as image:image.load();return image.convert('RGBA')
+            finally:
+                try:os.unlink(temp.name)
+                except OSError:pass
+    def open_container(self):
+        path=filedialog.askopenfilename(title='Open DDS or PVR texture',filetypes=[('DDS / PVR','*.dds *.pvr'),('All files','*.*')])
+        if not path:return
+        try:self.set_image(self._container_to_png(path));self.status.set(f'Previewing {os.path.basename(path)} through the DDS/PVR decoder.')
+        except Exception as error:messagebox.showerror('Open DDS / PVR',str(error))
+    def convert_container(self):
+        source=filedialog.askopenfilename(title='Convert DDS or PVR texture',filetypes=[('Texture containers','*.dds *.pvr *.ktx *.ktx2 *.png *.tga *.jpg'),('All files','*.*')])
+        if not source:return
+        output=filedialog.asksaveasfilename(title='Save converted texture',defaultextension='.png',filetypes=[('PNG','*.png'),('TGA','*.tga'),('DDS','*.dds'),('PVR','*.pvr')])
+        if not output:return
+        try:
+            extension=os.path.splitext(output)[1].lower()
+            cli=self._pvr_cli()
+            if cli:
+                option='-d' if extension in ('.png','.tga','.jpg','.bmp','.hdr') else '-o'
+                command=[cli,'-i',source,option,output]
+                if option=='-d':command.append('-noout')
+                run=subprocess.run(command,capture_output=True,text=True,timeout=300,creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))
+                if run.returncode or not os.path.isfile(output):raise RuntimeError((run.stderr or run.stdout or 'PVRTexTool conversion failed.').strip())
+            elif extension in ('.png','.tga'):
+                self._container_to_png(source).save(output)
+            else:raise RuntimeError('DDS/PVR output requires tools\\PVRTexTool\\PVRTexToolCLI.exe.')
+            self.status.set(f'Converted {os.path.basename(source)} to {output}.')
+        except Exception as error:messagebox.showerror('Convert DDS / PVR',str(error))
     def start_scan(self):
         if not self.data:self.open_file()
         if not self.data or self.scanning:return
@@ -117,7 +166,8 @@ class TextureScanner:
                     with Image.open(io.BytesIO(self.data[item.offset:item.offset+item.size])) as im:
                         im.load()
                         if im.width>1 and im.height>1:valid.append(item)
-                except Exception:pass
+                except Exception:
+                    if item.kind in ('DDS','PVR') and item.width>1 and item.height>1:valid.append(item)
         except ImportError:valid=results
         self.results=valid;self.build_gallery();self.set_progress(100 if not stopped else self.progress.get(),len(valid));self.status.set(f'{"Stopped; kept" if stopped else "Search complete:"} {len(valid)} verified images shown; invalid detections hidden.')
         if valid:self.select_gallery(0)
@@ -138,7 +188,16 @@ class TextureScanner:
         try:
             from PIL import Image
             with Image.open(io.BytesIO(self.data[x.offset:x.offset+x.size])) as im:self.set_image(im.convert('RGBA'))
-        except Exception:self.preview_image=None;self.canvas.delete('all');self.canvas.create_text(self.canvas.winfo_width()/2,self.canvas.winfo_height()/2,text=f'{x.kind} {x.width}×{x.height}\nSelect Use as Raw to decode manually.',fill='white',justify='center')
+        except Exception:
+            if x.kind in ('DDS','PVR'):
+                suffix=EXTENSIONS[x.kind];temporary=tempfile.NamedTemporaryFile(suffix=suffix,delete=False)
+                try:
+                    temporary.write(self.data[x.offset:x.offset+x.size]);temporary.close();self.set_image(self._container_to_png(temporary.name));return
+                except Exception:pass
+                finally:
+                    try:temporary.close();os.unlink(temporary.name)
+                    except OSError:pass
+            self.preview_image=None;self.canvas.delete('all');self.canvas.create_text(self.canvas.winfo_width()/2,self.canvas.winfo_height()/2,text=f'{x.kind} {x.width}×{x.height}\nSelect Use as Raw to decode manually.',fill='white',justify='center')
     def use_as_raw(self):
         if not (0<=self.selected_index<len(self.results)):return
         x=self.results[self.selected_index];self.v['offset'].set(hex(x.offset));self.v['width'].set(str(x.width or 256));self.v['height'].set(str(x.height or 256));self.status.set('Detected values copied. Choose Raw Settings and set the pixel format.')

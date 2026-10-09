@@ -1,5 +1,5 @@
 """Embedded music editor and stem/transcription helper for AI Generator."""
-import glob, io, math, os, shutil, struct, subprocess, sys, tempfile, threading, tkinter as tk, wave
+import glob, io, math, os, shutil, struct, subprocess, sys, tempfile, threading, tkinter as tk, wave, webbrowser
 from tkinter import colorchooser, filedialog, messagebox, ttk
 
 NOTES=('C','C#','D','D#','E','F','F#','G','G#','A','A#','B')
@@ -40,7 +40,7 @@ def configure_local_ffmpeg():
 class MusicTool:
     def __init__(self,parent,on_back=None):
         self.on_back=on_back;self.window=ttk.Frame(parent,style='App.TFrame');self.window.pack(fill='both',expand=True)
-        self.audio=None;self.path='';self.worker=None;self.process=None;self.stop_event=threading.Event();self.rolls={};self.mixer_channels=[None]*10;self.song_blocks=[];self._build()
+        self.audio=None;self.path='';self.worker=None;self.process=None;self.stop_event=threading.Event();self.record_stop=threading.Event();self.rolls={};self.mixer_channels=[None]*10;self.song_blocks=[];self._build()
     def _build(self):
         top=ttk.Frame(self.window,padding=10);top.pack(fill='x')
         if self.on_back:ttk.Button(top,text='← Back to Home',command=self.back).pack(side='left',padx=(0,8))
@@ -83,11 +83,35 @@ class MusicTool:
         ttk.Button(panel,text='Export Turntable Mix WAV',command=lambda:self.export_audio('wav')).grid(row=4,column=0,sticky='ew',padx=(0,4))
         ttk.Button(panel,text='Export Turntable Mix MP3',command=lambda:self.export_audio('mp3')).grid(row=4,column=1,sticky='ew',padx=(4,0))
     def _build_vocals(self,parent):
-        panel=ttk.Frame(parent,padding=18);panel.pack(fill='both',expand=True);panel.columnconfigure(0,weight=1)
-        ttk.Label(panel,text='Vocals',font=('Segoe UI Semibold',14)).grid(row=0,column=0,sticky='w',pady=(0,12))
-        ttk.Label(panel,text='Split the loaded song into vocals and instrumental stems. Each stem is saved separately; enable merge to also create a combined export.',wraplength=650,justify='left').grid(row=1,column=0,sticky='w')
-        ttk.Checkbutton(panel,text='Merge stems after separation',variable=self.merge_stems).grid(row=2,column=0,sticky='w',pady=12)
-        ttk.Button(panel,text='Split Vocals / Instrumental',command=self.split_vocals).grid(row=3,column=0,sticky='ew')
+        panel=ttk.Frame(parent,padding=18);panel.pack(fill='both',expand=True);panel.columnconfigure(0,weight=1);self.record_channels=tk.StringVar(value='Mono');self.record_status=tk.StringVar(value='Recorder ready')
+        ttk.Label(panel,text='Vocals',font=('Segoe UI Semibold',14)).grid(row=0,column=0,columnspan=3,sticky='w',pady=(0,12));ttk.Label(panel,text='Split the loaded song into vocals and instrumental stems, or record directly from the selected system input.',wraplength=650,justify='left').grid(row=1,column=0,columnspan=3,sticky='w');ttk.Checkbutton(panel,text='Merge stems after separation',variable=self.merge_stems).grid(row=2,column=0,columnspan=3,sticky='w',pady=12);ttk.Button(panel,text='Split Vocals / Instrumental',command=self.split_vocals).grid(row=3,column=0,columnspan=3,sticky='ew')
+        ttk.Separator(panel).grid(row=4,column=0,columnspan=3,sticky='ew',pady=14);ttk.Label(panel,text='Recording channels').grid(row=5,column=0,sticky='w');ttk.Combobox(panel,textvariable=self.record_channels,values=('Mono','Stereo'),state='readonly',width=12).grid(row=5,column=1,sticky='w');ttk.Button(panel,text='Record',command=self.start_recording).grid(row=6,column=0,sticky='ew',pady=8);ttk.Button(panel,text='Stop Recording',command=lambda:self.record_stop.set()).grid(row=6,column=1,sticky='ew',padx=5,pady=8);ttk.Label(panel,textvariable=self.record_status).grid(row=7,column=0,columnspan=3,sticky='w');ttk.Button(panel,text='Find Sound Packs',command=lambda:webbrowser.open('https://opengameart.org/art-search-advanced?keys=sound')).grid(row=8,column=0,sticky='w',pady=12);ttk.Button(panel,text='Browse Freesound',command=lambda:webbrowser.open('https://freesound.org/browse/')).grid(row=8,column=1,sticky='w',pady=12)
+    def start_recording(self):
+        path=filedialog.asksaveasfilename(defaultextension='.wav',filetypes=[('WAV','*.wav')])
+        if not path:return
+        channels=1 if self.record_channels.get()=='Mono' else 2;self.record_stop.clear();self.record_status.set(f'Recording {self.record_channels.get()}…')
+        def worker():
+            frames=[]
+            try:
+                import sounddevice as sd
+                def callback(indata,_frames,_time,status):
+                    if status:self.window.after(0,lambda:self.record_status.set(str(status)))
+                    frames.append(indata.copy())
+                with sd.InputStream(samplerate=44100,channels=channels,dtype='int16',callback=callback):
+                    while not self.record_stop.wait(.05):pass
+                import numpy as np
+                data=np.concatenate(frames,axis=0).tobytes() if frames else b''
+                if not data:raise RuntimeError('No microphone samples were captured.')
+                with wave.open(path,'wb') as output:output.setnchannels(channels);output.setsampwidth(2);output.setframerate(44100);output.writeframes(data)
+                self.window.after(0,lambda:self._recording_finished(path))
+            except Exception as error:self.window.after(0,lambda:messagebox.showerror('Recording',f'Recording requires sounddevice and an available microphone.\n\n{error}'))
+        threading.Thread(target=worker,daemon=True).start()
+    def _recording_finished(self,path):
+        self.record_status.set(f'Saved recording: {os.path.basename(path)}')
+        try:
+            from pydub import AudioSegment
+            self.audio=AudioSegment.from_wav(path);self.path=path;self.path_var.set(path);self.v['end'].set(f'{len(self.audio)/1000:.3f}');self.draw_waveform()
+        except Exception:pass
     def _build_piano(self,parent):
         bar=ttk.Frame(parent,padding=(6,6,6,4));bar.pack(fill='x');self.root_note=tk.StringVar(value='C');self.scale_name=tk.StringVar(value='Major');self.chord_name=tk.StringVar(value='Major');self.piano_octave=tk.IntVar(value=3);self.pressed_note=None
         for label,var,values in [('Root',self.root_note,NOTES),('Scale',self.scale_name,tuple(SCALES)),('Chord',self.chord_name,tuple(CHORDS)),('Octave',self.piano_octave,tuple(range(1,7)))]:

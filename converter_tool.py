@@ -3,6 +3,7 @@ import importlib.util
 import os
 import threading
 import tkinter as tk
+import zipfile
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
@@ -30,9 +31,10 @@ class ConverterTool:
 
     def _build(self):
         shell = ttk.Frame(self.parent, padding=12);shell.pack(fill='both', expand=True)
-        shell.columnconfigure(1, weight=1);shell.rowconfigure(7, weight=1)
+        shell.columnconfigure(1, weight=1);shell.rowconfigure(8, weight=1)
         self.input_dir=tk.StringVar();self.output_dir=tk.StringVar();self.filter_name=tk.StringVar(value='All PNG, JPG, and WebP')
         self.script_name=tk.StringVar();self.dds_format=tk.StringVar(value='Uncompressed RGBA')
+        self.archive_script=tk.StringVar();self.archive_path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'resources','PYTHON.zip');self.archive_members=[]
         self.recursive=tk.BooleanVar(value=False);self.preserve_structure=tk.BooleanVar(value=True);self.overwrite=tk.BooleanVar(value=False)
         self.progress=tk.DoubleVar(value=0);self.progress_text=tk.StringVar(value='0%');self.status=tk.StringVar(value='Load folders and choose Convert.')
         ttk.Label(shell,text='Python converter scripts',font=('Segoe UI Semibold',13)).grid(row=0,column=0,columnspan=3,sticky='w')
@@ -45,17 +47,18 @@ class ConverterTool:
         script_row=ttk.Frame(shell);script_row.grid(row=5,column=1,columnspan=2,sticky='ew',pady=5);script_row.columnconfigure(0,weight=1)
         self.script_combo=ttk.Combobox(script_row,textvariable=self.script_name,state='readonly');self.script_combo.grid(row=0,column=0,sticky='ew')
         ttk.Button(script_row,text='Reload Scripts',command=self.reload_scripts).grid(row=0,column=1,padx=(6,0))
-        ttk.Label(shell,text='DDS format').grid(row=6,column=0,sticky='w',pady=5)
-        ttk.Combobox(shell,textvariable=self.dds_format,values=('Uncompressed RGBA','DXT1 / BC1','DXT3 / BC2','DXT5 / BC3','BC5'),state='readonly').grid(row=6,column=1,sticky='ew',pady=5)
-        options=ttk.Frame(shell);options.grid(row=6,column=2,sticky='e',padx=(12,0))
+        ttk.Label(shell,text='Python archive').grid(row=6,column=0,sticky='w',pady=5);archive_row=ttk.Frame(shell);archive_row.grid(row=6,column=1,columnspan=2,sticky='ew');archive_row.columnconfigure(0,weight=1);self.archive_combo=ttk.Combobox(archive_row,textvariable=self.archive_script,state='readonly');self.archive_combo.grid(row=0,column=0,sticky='ew');ttk.Button(archive_row,text='Load Archive',command=self.choose_archive).grid(row=0,column=1,padx=5);ttk.Button(archive_row,text='Extract Selected',command=self.extract_archive_script).grid(row=0,column=2)
+        ttk.Label(shell,text='DDS format').grid(row=7,column=0,sticky='w',pady=5)
+        ttk.Combobox(shell,textvariable=self.dds_format,values=('Uncompressed RGBA','DXT1 / BC1','DXT3 / BC2','DXT5 / BC3','BC5'),state='readonly').grid(row=7,column=1,sticky='ew',pady=5)
+        options=ttk.Frame(shell);options.grid(row=7,column=2,sticky='e',padx=(12,0))
         ttk.Checkbutton(options,text='Subfolders',variable=self.recursive).pack(side='left')
         ttk.Checkbutton(options,text='Keep structure',variable=self.preserve_structure).pack(side='left',padx=8)
         ttk.Checkbutton(options,text='Overwrite',variable=self.overwrite).pack(side='left')
-        results=ttk.Frame(shell);results.grid(row=7,column=0,columnspan=3,sticky='nsew',pady=(8,6));results.rowconfigure(0,weight=1);results.columnconfigure(0,weight=1)
+        results=ttk.Frame(shell);results.grid(row=8,column=0,columnspan=3,sticky='nsew',pady=(8,6));results.rowconfigure(0,weight=1);results.columnconfigure(0,weight=1)
         self.tree=ttk.Treeview(results,columns=('source','result','status'),show='headings')
         for key,title,width in (('source','Source',330),('result','DDS Output',330),('status','Status',180)):self.tree.heading(key,text=title);self.tree.column(key,width=width,anchor='w')
         sy=ttk.Scrollbar(results,orient='vertical',command=self.tree.yview);self.tree.configure(yscrollcommand=sy.set);self.tree.grid(row=0,column=0,sticky='nsew');sy.grid(row=0,column=1,sticky='ns')
-        bottom=ttk.Frame(shell);bottom.grid(row=8,column=0,columnspan=3,sticky='ew');bottom.columnconfigure(0,weight=1)
+        bottom=ttk.Frame(shell);bottom.grid(row=9,column=0,columnspan=3,sticky='ew');bottom.columnconfigure(0,weight=1)
         ttk.Progressbar(bottom,variable=self.progress,maximum=100,style='Accent.Horizontal.TProgressbar').grid(row=0,column=0,sticky='ew')
         ttk.Label(bottom,textvariable=self.progress_text,width=6).grid(row=0,column=1,padx=6)
         self.convert_button=ttk.Button(bottom,text='Convert to DDS',command=self.start);self.convert_button.grid(row=0,column=2)
@@ -88,6 +91,26 @@ class ConverterTool:
         names=tuple(self.converters);self.script_combo.configure(values=names)
         if names and self.script_name.get() not in self.converters:self.script_name.set(names[0])
         self.status.set(f'Loaded {len(names)} converter script(s) from Python\\Coverters.'+(f' Errors: {len(errors)}' if errors else ''))
+        if os.path.isfile(self.archive_path):self.load_archive(self.archive_path)
+    def choose_archive(self):
+        path=filedialog.askopenfilename(title='Select Python script archive',filetypes=[('ZIP archive','*.zip')])
+        if path:self.archive_path=path;self.load_archive(path)
+    def load_archive(self,path):
+        try:
+            with zipfile.ZipFile(path) as archive:self.archive_members=[name for name in archive.namelist() if name.lower().endswith('.py') and not name.endswith('/')]
+            self.archive_combo.configure(values=self.archive_members)
+            if self.archive_members:self.archive_script.set(self.archive_members[0])
+            self.status.set(f'Indexed {len(self.archive_members):,} Python conversion/reference scripts. Scripts are not executed automatically.')
+        except Exception as error:self.status.set(f'Python archive error: {error}')
+    def extract_archive_script(self):
+        member=self.archive_script.get()
+        if not member or not os.path.isfile(self.archive_path):return
+        try:
+            target_dir=os.path.join(self.script_dir,'Imported');os.makedirs(target_dir,exist_ok=True);target=os.path.join(target_dir,os.path.basename(member))
+            with zipfile.ZipFile(self.archive_path) as archive:data=archive.read(member)
+            with open(target,'wb') as output:output.write(data)
+            self.status.set(f'Extracted as reference: {target}. It is not run unless adapted to convert_file().')
+        except Exception as error:messagebox.showerror('Python archive',str(error))
 
     def files(self):
         root=Path(self.input_dir.get());extensions=FILTERS[self.filter_name.get()]

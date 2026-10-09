@@ -1,5 +1,5 @@
 """Raw sound-bank scanner and structure-preserving extractor for AI Generator."""
-import os, struct, threading, tkinter as tk, zipfile
+import os, random, shutil, struct, tempfile, threading, tkinter as tk, zipfile
 from dataclasses import dataclass
 from tkinter import filedialog, messagebox, ttk
 
@@ -40,6 +40,7 @@ class SoundScanner:
     def __init__(self, parent):
         self.parent=parent;self.data=b'';self.path='';self.items=[];self.stop_event=threading.Event();self.worker=None
         self.path_var=tk.StringVar();self.status=tk.StringVar(value='Open any file or sound bank to begin.');self.progress=tk.DoubleVar()
+        self.current_index=0;self.repeat=tk.BooleanVar();self.shuffle=tk.BooleanVar();self.position=tk.DoubleVar();self.play_paused=False;self.temp_audio=[];self.current_duration=1.
         self._build()
 
     def _build(self):
@@ -58,6 +59,12 @@ class SoundScanner:
         ttk.Progressbar(bottom,variable=self.progress,maximum=100,style='Accent.Horizontal.TProgressbar').grid(row=0,column=0,sticky='ew')
         ttk.Button(bottom,text='Extract selected',command=self.extract_selected).grid(row=0,column=1,padx=(8,4));ttk.Button(bottom,text='Extract all',command=self.extract_all).grid(row=0,column=2)
         ttk.Label(bottom,textvariable=self.status).grid(row=1,column=0,columnspan=3,sticky='w',pady=(4,0))
+        playback=ttk.Frame(self.parent,padding=(8,0,8,8));playback.grid(row=4,column=0,sticky='ew');playback.columnconfigure(4,weight=1);ttk.Button(playback,text='Previous',command=lambda:self.move_track(-1)).grid(row=0,column=0);ttk.Button(playback,text='Play',command=self.play_selected).grid(row=0,column=1,padx=3);ttk.Button(playback,text='Pause',command=self.pause_playback).grid(row=0,column=2);ttk.Button(playback,text='Next',command=lambda:self.move_track(1)).grid(row=0,column=3,padx=3);self.position_scale=ttk.Scale(playback,from_=0,to=1000,variable=self.position,command=self.seek);self.position_scale.grid(row=0,column=4,sticky='ew',padx=8);ttk.Checkbutton(playback,text='Repeat',variable=self.repeat).grid(row=0,column=5);ttk.Checkbutton(playback,text='Shuffle',variable=self.shuffle).grid(row=0,column=6,padx=(5,0));ttk.Button(playback,text='Load Playlist',command=self.load_playlist).grid(row=1,column=0,columnspan=2,sticky='ew',pady=(5,0));ttk.Button(playback,text='Save Playlist',command=self.save_playlist).grid(row=1,column=2,columnspan=2,sticky='ew',padx=4,pady=(5,0));self.tree.bind('<<TreeviewSelect>>',self._select_track)
+
+    def build_convert_tab(self,parent):
+        parent.grid_columnconfigure(1,weight=1);self.convert_format=tk.StringVar(value='wav');self.convert_output=tk.StringVar();self.convert_bitrate=tk.StringVar(value='320k')
+        ttk.Label(parent,text='Convert extracted or discovered sounds',font=('Segoe UI Semibold',14)).grid(row=0,column=0,columnspan=3,sticky='w',padx=10,pady=10);ttk.Label(parent,text='Output folder').grid(row=1,column=0,sticky='w',padx=10);ttk.Entry(parent,textvariable=self.convert_output).grid(row=1,column=1,sticky='ew');ttk.Button(parent,text='Browse',command=lambda:self.convert_output.set(filedialog.askdirectory() or self.convert_output.get())).grid(row=1,column=2,padx=8)
+        ttk.Label(parent,text='Format').grid(row=2,column=0,sticky='w',padx=10,pady=8);ttk.Combobox(parent,textvariable=self.convert_format,values=('wav','mp3','ogg','flac','aac'),state='readonly').grid(row=2,column=1,sticky='ew');ttk.Label(parent,text='MP3 bitrate').grid(row=3,column=0,sticky='w',padx=10);ttk.Combobox(parent,textvariable=self.convert_bitrate,values=('128k','192k','256k','320k'),state='readonly').grid(row=3,column=1,sticky='ew');ttk.Button(parent,text='Convert Selected',command=lambda:self.convert_items(False)).grid(row=4,column=1,sticky='w',pady=12);ttk.Button(parent,text='Convert All',command=lambda:self.convert_items(True)).grid(row=4,column=1,sticky='e',pady=12)
 
     def open_file(self):
         path=filedialog.askopenfilename(filetypes=[('All files','*.*')])
@@ -121,6 +128,88 @@ class SoundScanner:
         for index,item in enumerate(items):
             size=item.end if item.offset<0 else item.end-item.offset;self.tree.insert('','end',iid=str(index),values=(index+1,item.kind,'Archive' if item.offset<0 else f'0x{item.offset:08X}',self._size(size),item.relative_path))
         self.scan_button.config(state='normal');self.stop_button.config(state='disabled');self.status.set(f'{"Stopped" if stopped else "Scan complete"}: {len(items):,} sound item(s).')
+    def _select_track(self,_event=None):
+        selection=self.tree.selection()
+        if selection:self.current_index=int(selection[0]);self.position.set(0)
+    def _playable_file(self,item):
+        if item.offset==-2:return item.relative_path
+        folder=os.path.join(tempfile.gettempdir(),'AI_Generator_SoundPreview');os.makedirs(folder,exist_ok=True);target=self._extract(item,folder);self.temp_audio.append(target);return target
+    def play_selected(self):
+        if not self.items:return
+        selection=self.tree.selection()
+        if selection:self.current_index=int(selection[0])
+        try:
+            import pygame
+            if not pygame.mixer.get_init():pygame.mixer.init()
+            path=self._playable_file(self.items[self.current_index]);pygame.mixer.music.load(path)
+            try:
+                from pydub import AudioSegment
+                self.current_duration=max(.1,len(AudioSegment.from_file(path))/1000)
+            except Exception:self.current_duration=1.
+            self.position_scale.configure(to=self.current_duration);pygame.mixer.music.play();self.play_paused=False;self.status.set(f'Playing {self.items[self.current_index].name}');self._poll_playback()
+        except Exception as error:messagebox.showerror('Sound playback',f'Playback requires pygame and a supported codec.\n\n{error}')
+    def pause_playback(self):
+        try:
+            import pygame
+            if self.play_paused:pygame.mixer.music.unpause()
+            else:pygame.mixer.music.pause()
+            self.play_paused=not self.play_paused
+        except Exception:pass
+    def move_track(self,direction):
+        if not self.items:return
+        self.current_index=random.randrange(len(self.items)) if self.shuffle.get() else (self.current_index+direction)%len(self.items);self.tree.selection_set(str(self.current_index));self.tree.see(str(self.current_index));self.play_selected()
+    def _poll_playback(self):
+        try:
+            import pygame
+            if pygame.mixer.music.get_busy() or self.play_paused:
+                position=max(0,pygame.mixer.music.get_pos())/1000;self.position.set(min(self.current_duration,position));self.parent.after(250,self._poll_playback)
+            elif self.repeat.get():self.play_selected()
+        except Exception:pass
+    def seek(self,value):
+        # Pygame seeking varies by codec. It is applied when supported and the
+        # slider otherwise remains a playback-position indicator.
+        if not getattr(self,'items',None):return
+        try:
+            import pygame
+            if pygame.mixer.music.get_busy():pygame.mixer.music.set_pos(float(value))
+        except Exception:pass
+    def load_playlist(self):
+        path=filedialog.askopenfilename(filetypes=[('M3U playlist','*.m3u *.m3u8'),('Text','*.txt')])
+        if not path:return
+        items=[];base=os.path.dirname(path)
+        for line in open(path,'r',encoding='utf-8',errors='ignore'):
+            value=line.strip()
+            if not value or value.startswith('#'):continue
+            source=value if os.path.isabs(value) else os.path.join(base,value)
+            if os.path.isfile(source):items.append(SoundItem(os.path.basename(source),'Playlist audio',-2,os.path.getsize(source),source))
+        self._finish(items,False);self.status.set(f'Loaded playlist with {len(items)} track(s).')
+    def save_playlist(self):
+        if not self.items:return
+        path=filedialog.asksaveasfilename(defaultextension='.m3u8',filetypes=[('M3U8','*.m3u8')])
+        if not path:return
+        try:
+            with open(path,'w',encoding='utf-8') as output:
+                output.write('#EXTM3U\n')
+                for item in self.items:output.write(self._playable_file(item)+'\n')
+            self.status.set(f'Saved playlist: {path}')
+        except Exception as error:messagebox.showerror('Playlist',str(error))
+    def convert_items(self,all_items):
+        selection=self.tree.selection();items=self.items if all_items else ([self.items[int(selection[0])]] if selection else [])
+        folder=self.convert_output.get().strip()
+        if not items or not folder:messagebox.showwarning('Convert','Scan sounds, select an item when needed, and choose an output folder.');return
+        os.makedirs(folder,exist_ok=True);fmt=self.convert_format.get()
+        def worker():
+            converted=failed=0
+            try:from pydub import AudioSegment
+            except Exception as error:self.parent.after(0,lambda:messagebox.showerror('Convert',f'Pydub and FFmpeg are required.\n\n{error}'));return
+            for item in items:
+                try:
+                    source=self._playable_file(item);audio=AudioSegment.from_file(source);target=os.path.join(folder,os.path.splitext(item.name)[0]+'.'+fmt);base,ext=os.path.splitext(target);number=1
+                    while os.path.exists(target):target=f'{base}_{number}{ext}';number+=1
+                    kwargs={'bitrate':self.convert_bitrate.get()} if fmt=='mp3' else {};audio.export(target,format=fmt,**kwargs);converted+=1
+                except Exception:failed+=1
+            self.parent.after(0,lambda:self.status.set(f'Converted {converted}; failed {failed}.'))
+        threading.Thread(target=worker,daemon=True).start()
 
     @staticmethod
     def _size(value):
@@ -137,6 +226,8 @@ class SoundScanner:
         return candidate
 
     def _extract(self,item,folder):
+        if item.offset==-2:
+            target=self._safe_path(folder,os.path.basename(item.relative_path));shutil.copy2(item.relative_path,target);return target
         target=self._safe_path(folder,item.relative_path)
         if item.offset<0:
             with zipfile.ZipFile(self.path) as archive,archive.open(item.relative_path) as source,open(target,'wb') as output:output.write(source.read())

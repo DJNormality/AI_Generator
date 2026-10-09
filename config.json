@@ -44,7 +44,7 @@
     "standalone_colorizer": "DDColor Natural",
     "colorize_overwrite": false,
     "rename_dir": "",
-    "rename_filter": "Videos",
+    "rename_filter": "All files",
     "rename_find": "",
     "rename_replace": "",
     "rename_prefix": "",

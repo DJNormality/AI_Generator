@@ -201,6 +201,88 @@ The Quadro P5000 configuration is expected to be slow. A single edit may take se
 
 ## Models
 
+### Create meshes from images
+
+The **Models → Create** tab builds a local 3D mesh from one or more source-image
+silhouettes. Add several views of the same object, choose **Index Images**, set a
+target polygon count and select **Quads** or **Triangles**. The project index
+stores copies of the source views, hashes, dimensions, settings, and every
+generated OBJ. **Rebuild Mesh** refines foreground detection and smoothing
+while retaining each earlier generation. The preview supports rotation, pan,
+and mouse-wheel zoom before exporting to Wavefront `.obj`.
+
+This is a silhouette/profile reconstruction tool. Transparent PNGs, clean
+backgrounds, and evenly spaced views give the best results; it is not a neural
+photogrammetry replacement.
+
+The Create tab now has five reconstruction engines:
+
+- **Auto detect** recognizes Autohome-style cubemap tiles such as
+  `l2_f_1_1.jpg`, removes duplicate `(2)` downloads, chooses the highest tile
+  level, and assembles the Front/Back/Left/Right/Up/Down faces.
+- **Panorama depth** accepts a local Hugging Face-format Depth Anything V2
+  model folder and estimates a non-metric interior-depth shell from the six
+  assembled faces. Without a model it deliberately creates only a panorama
+  sphere preview instead of pretending that real depth was recovered.
+- **Photogrammetry (COLMAP)** runs a user-selected `colmap.exe` against images
+  or video frames captured while the camera physically moves. It converts the
+  dense PLY mesh to OBJ through `trimesh` and reports when camera matching or
+  surface reconstruction did not succeed. Every run receives a new image-only
+  staging directory; JSON indexes, OBJ generations, and cached project files
+  are validated and excluded before COLMAP starts.
+- **Silhouette** retains the original isolated-object profile workflow.
+
+- **Local AI 3D (SF3D)** reconstructs the first source image into a textured,
+  UV-unwrapped GLB using a model installed on the same computer. It supports
+  512, 1024, or 2048 texture resolution plus unchanged, triangle, or quad
+  remeshing. The generated GLB is stored in project history, displayed in the
+  Models viewport, and can also be converted to OBJ. Run
+  `Setup_Local_3D_Generator.bat` once while online. After the model weights are
+  cached, reconstruction requires no cloud API, API key, credits, or internet.
+  The separate Python 3.11 environment is stored under
+  `tools\stable-fast-3d` and does not modify AI Generator's main environment.
+
+**Add Video** extracts distinct frames at the selected interval and removes
+near-identical consecutive frames. Video improves reconstruction only when the
+camera changes position and produces parallax; rotating at one fixed panorama
+location does not reveal hidden geometry. A vehicle-interior capture should
+move slowly through the cabin, keep exposure/focus locked, avoid motion blur,
+and maintain strong overlap between frames.
+
+When an Autohome-style cubemap is detected, selecting COLMAP now stops before
+processing and explains that **Panorama depth** is required. This prevents a
+single fixed camera position from being mistaken for a moving-camera sequence.
+
+On Windows, the COLMAP selector accepts either `COLMAP.exe` or the preferred
+top-level `COLMAP.bat`. AI Generator adds the adjacent `bin`, `lib`, and Qt
+plugin directories to the child process environment and automatically locates
+`plugins\platforms\qwindows.dll`. If the DLL is missing, the GUI explains that
+the complete COLMAP package is required instead of showing the raw Qt error.
+
+### One-step 3D reconstruction setup
+
+Run `Setup_3D_Reconstruction.bat` from the main AI Generator directory. It:
+
+1. Uses `Scripts\python.exe` first, without creating another environment.
+2. Installs Transformers, Accelerate, Safetensors, Trimesh, and Hugging Face
+   Hub support.
+3. Downloads `Depth-Anything-V2-Small-hf` into
+   `models\Depth-Anything-V2-Small-hf`.
+4. Searches common locations for a complete COLMAP installation, optionally
+   accepts a pasted COLMAP folder, and verifies that `qwindows.dll` exists.
+5. Stores only the detected paths in `tools\depth_model_location.txt` and
+   `tools\colmap_location.txt`. Models → Create reads these files at startup,
+   so users do not have to move executables, Qt DLLs, or model files manually.
+
+If verification finds a mixed or incomplete Torch installation (for example,
+`cannot import name is_fake_tensor`), setup automatically calls
+`Repair_PyTorch.bat`. The repair uninstalls only Torch/Torchvision/Torchaudio,
+removes their leftover module directories from AI Generator's active
+`site-packages`, installs a matched official CUDA 12.8 wheel set, and restores
+the required `setuptools<82` constraint. It does not touch models, projects,
+configuration, indexed faces, or generated media. `Repair_PyTorch.bat` can also
+be run independently.
+
 The **Models** section contains the raw binary Model Tool directly in its
 main tab. It does not create a separate always-on-top window. Its file picker
 uses **All files**, so a file does not need a recognized model extension.
@@ -326,12 +408,24 @@ connected mesh edges, highlights the loop in orange in both views, and **Apply
 Loops to UV** transfers its adjacent polygons to the UV selection. UVs can be
 generated from only the current selection. Both views support independent zoom
 and movement, with transparent UV PNG and UV-enabled OBJ export.
+- UV canvas loading controls reduce memory without changing the complete 3D
+  model viewport: **Load All** draws every UV polygon, **Load Half** draws every
+  second polygon, **Load Lowest** caps the preview near 1,500 representative
+  polygons while retaining selected faces, and **Clear** releases all UV canvas
+  objects until another loading level is chosen. Exports continue to use the
+  complete UV data rather than only the reduced preview.
 
 ## Files
 
 The top-level **Files** section opens a built-in decompressor and extractor. It
 does not require QuickBMS or external scripts and does not attempt password
 cracking or encryption bypass.
+
+The **Convert** subtab also indexes the supplied `resources\PYTHON.zip`
+collection without importing all 1,385 scripts into memory. A selected script
+can be extracted into `Python\Coverters\Imported` for review and adaptation.
+Only trusted plug-ins implementing AI Generator's `convert_file()` interface
+are executed by the normal batch converter.
 
 - Opens every file extension as raw bytes.
 - Indexes recognizable headers, hexadecimal offsets, buffer sizes, stored
@@ -395,6 +489,22 @@ cracking or encryption bypass.
 
 ## Music Editor
 
+The Music workspace includes a fully local **Create** subtab powered by an
+ACE-Step 1.5 model installed on the same computer. It accepts a title, style,
+track description, structured lyrics, instrumental mode, duration, BPM, key,
+meter, language, inference steps, and deterministic or random seeds. Generated
+tracks can be played inside AI Generator and saved as WAV, MP3, FLAC, or Opus.
+Run `Setup_ACE_Step_Local.bat` once while online, then use
+`Start_ACE_Step_Local.bat` or **Start Local Engine**. Once the model files have
+been downloaded, generation uses `127.0.0.1` and requires no cloud API, API key,
+external account, or internet connection. ACE-Step uses a separate environment in
+`tools\ACE-Step-1.5`, so it does not alter AI Generator's Python 3.13 packages.
+The setup downloads the official source ZIP directly with PowerShell and does
+not require Git or `winget`; it also locates `uv.exe` even before Windows refreshes PATH.
+Extraction occurs inside the AI Generator `tools` folder to avoid cross-drive
+permission errors. An incomplete earlier installation is renamed with an
+`_incomplete_` suffix for recovery instead of being deleted.
+
 - Adds dedicated **Drums**, **Bass**, **Turntable**, and **Vocals** subtabs.
 - Drums provides an eight-lane step sequencer; Bass provides a low-register
   twelve-note sequencer. Both can loop, export WAV/MP3/MIDI, and save patterns
@@ -402,6 +512,9 @@ cracking or encryption bypass.
 - Turntable exposes the loaded track's speed and gain controls with WAV/MP3
   mix export. Vocals embeds vocal/instrumental stem separation and optional
   merged-stem output directly inside Music.
+- Vocals also records microphone input directly to WAV with selectable Mono or
+  Stereo capture through `sounddevice`. The finished recording is loaded into
+  the waveform editor. Sound-pack shortcuts open OpenGameArt and Freesound.
 
 The top-level **Music** section opens an embedded audio editor.
 
@@ -496,6 +609,19 @@ The top-level **Videos** section opens a dark embedded non-destructive editor.
   Firefox, Safari, or every detected installed browser. Missing browsers are
   reported instead of being launched blindly.
 
+## Remove
+
+- Adds a preview-first **Remove** main tab with separate **Folders** and **Files**
+  subtabs. Each scanner can filter by Name, Type, minimum/maximum Size, and
+  modified Date range, then displays Name, Type, Size, Date, and Path columns.
+  Folder scans calculate recursive folder sizes and can target empty,
+  non-empty, or all folders. File scans accept extension filters such as JPG,
+  PNG, WAV, or any other type. Selected results use the Recycle Bin whenever
+  `send2trash` is installed.
+- Scanning is read-only. Only explicitly selected results are removed after a
+  confirmation dialog. `send2trash` moves them to the Windows Recycle Bin when
+  available; the status clearly reports when permanent deletion is used.
+
 ## Asset Sorter
 
 - Adds a dedicated **Sort** tab with directory selection and a complete move
@@ -567,6 +693,11 @@ The top-level **Videos** section opens a dark embedded non-destructive editor.
   structure when extracting sound assets.
 - Includes Stop scan, Extract selected, and Extract all controls. Existing
   files are never overwritten; numbered suffixes are added automatically.
+- Adds Previous, Play, Pause, Next, seek slider, Repeat, Shuffle, and M3U/M3U8
+  playlist loading/saving. Playback uses Pygame and retains the discovered
+  items as the current playlist.
+- **Extract > Sound > Convert** converts selected or all discovered sounds to
+  WAV, MP3, OGG, FLAC, or AAC through Pydub and FFmpeg.
 
 ## PS1 / PS2 Extract Workspace
 
@@ -585,9 +716,30 @@ The top-level **Videos** section opens a dark embedded non-destructive editor.
 - The Models section can append exactly two ordered companion files: a skeleton
   first and an animation sequence second. Their names and attachment state are
   shown in the viewport.
+- Model results now use an interactive 3D viewport with wheel zoom, drag rotate,
+  and middle-drag movement. OBJ payloads are read directly; unknown raw formats
+  receive a bounded Float32 point-cloud test rather than consuming the entire
+  file as geometry.
+- Animations use the current model geometry and include **Test Animation**,
+  Play, Pause, Stop, and configurable frame skipping. Test rejects missing
+  models, tiny files, and data without enough plausible transform values before
+  enabling structural playback.
+- Archives now use one **Decompress** window. Auto handles GZIP, BZIP2, XZ,
+  ZLIB, and the existing bounded LZSS variant; the bundled QuickBMS executable
+  indexes 4,457 supplied BMS game scripts by filename. Scripts requesting DLL,
+  process, or network execution are blocked for manual review. Offzip is an
+  optional selectable engine for zlib streams when `offzip.exe` is supplied.
+- Offset-table results are named from recognized header bytes (`.png`, `.dds`,
+  `.wav`, `.tim`, `.tmd`, `.nif`, and others); unknown payloads use `.dat`
+  instead of inheriting the archive's extension.
+- **Extract > Blender** catalogs the supplied Blender and 3DS Max scripts by
+  game/purpose and format hints. Selected scripts can be exported; Blender
+  Python scripts can be run only through a user-selected trusted Blender
+  executable. 3DS Max scripts are references, not ML training material.
 - Includes Auto Detect, PS1 Generic, PSXPrev Compatible, Parasite Eve,
-  Parasite Eve 2, PS2 Generic, Wild Arms 3, and Wild Arms Alter Code: F
-  profiles so game-specific rules can be refined without changing the GUI.
+  Parasite Eve 2, PS2 Generic, Speed Racer PS2 / NIF, Wild Arms 3,
+  Wild Arms Alter Code: F, PS3 Generic, Twisted Metal 2012, PSP / Vita Generic,
+  and PlayStation All-Stars Vita profiles.
 - The native PS1 scanner recognizes validated TIM textures and TMD models plus
   HMD, BFF, PMD, MOD/Croc, PSX, TOD, VDF, AN, VAG, VAB, SEQ, CD-XA, CDF, and
   PKG candidates. Archive scanning annotates recognized candidates aligned to
@@ -596,6 +748,19 @@ The top-level **Videos** section opens a dark embedded non-destructive editor.
 - The supplied Parasite Eve, Parasite Eve 2, TMSB, MR-to-OBJ, and PSXPrev
   executables were inspected as format references only. They are not bundled,
   executed, or required by AI Generator.
+- PS2 Speed Racer support recognizes complete `.nif` files plus embedded
+  Gamebryo headers. NIF geometry, skin, texture, and animation blocks remain
+  available to the model scanner after extraction.
+- PS3 Twisted Metal 2012 support recognizes `.vram` geometry sources, C3D and
+  geometry markers, and the tool's ASCII/OBJ-oriented workflow. Proprietary
+  vertex branch decoding remains heuristic until representative game data can
+  be validated.
+- PlayStation All-Stars Vita support recognizes big-endian `MODL` version 8
+  `.cmdl`/`.cskn` models, `.ctxr` and GXT texture containers, and `.cesm`
+  animation containers. The reference scripts document Float/Half/Short vertex
+  streams, UVs, blend indices/weights, PVRTC, DXT1/3/5, and skeleton matrices.
+  Whole-file recognition ensures those files can be extracted even when stored
+  without a repeated internal signature.
 - Archives can scan BIN files for embedded headers and plausible little-endian
   offset tables. The LZSS action implements the common PS2/Okumura 4 KB ring
   buffer variant with LSB-first flags, 12-bit distance, and 4-bit length.
@@ -616,12 +781,16 @@ The top-level **Videos** section opens a dark embedded non-destructive editor.
 ## Animated interface
 
 - Main navigation uses precision-rounded buttons in this order: Home, Models,
-  Textures, Files, Extract, Music, Videos, Design, Sort, and Research.
+  Textures, Files, Extract, Music, Videos, Design, Sort, Research, Remove, and
+  Library. Library is restored as the final main tab.
 - The animated cyber background is restricted to **Home** so tool tables and
   text fields stay readable. Blue Matrix-style data flows downward while a
   soft blue fog layer rolls across the original cyber artwork.
 - Home contains icon-only Patreon, Discord, PayPal, and Website
   shortcuts. The Website globe opens the 3D Model Archives site.
+- Home uses the supplied static 1920×1080 synthwave artwork with no Matrix
+  rain, fog, panning, rotation, or animation timer. The image is center-cropped
+  only as needed to cover the resized Home viewport and remains Home-only.
 - **Midi** is a dedicated subtab inside the Music studio.
 
 ## Building the Windows EXE
@@ -668,6 +837,9 @@ added automatically.
 - Reduced minimum window size and compact bottom-button widths support smaller
   desktop layouts without clipping the GUI.
 - Startup is centered at approximately 1120×700 with a 900×620 minimum.
+- The main tool bar uses compact navigation pages. Rounded left/right arrows
+  reveal the remaining tools without shrinking or clipping their labels, and
+  selecting a hidden tool automatically opens its button group.
 - The Rename utility now lives under **Files → Rename**, not Images.
 - The Models viewport adds Solid, Wireframe, Solid + outline, and Points modes,
   customizable background/surface/outline/vertex colors, line width, and point size.
@@ -919,3 +1091,52 @@ Only process media you own or have permission to edit. Follow applicable privacy
 - Patreon: https://www.patreon.com/c/3dmodelserver
 - Discord: https://discord.com/invite/sMZuNzhmxC
 - PayPal: https://www.paypal.com/paypalme/GameModNation?country.x=US&locale.x=en_US
+# Models Skeleton/Animation and Texture RGB Update
+
+## Home fog overlay
+
+- Home now layers `resources\HomeFog.png` over the static synthwave artwork.
+- The replacement RGBA fog uses its authored transparency with a restrained Lighten/Screen-style blend, preventing a visible rectangle and keeping the background vivid.
+- Horizontal fog edges are wrap-corrected and the original edge mismatch is crossfaded inside the tile, eliminating the vertical seam during motion.
+- The duplicated fog boundary pixel was removed so the moving layer no longer produces a one-pixel vertical stripe.
+- Clicking the Home artwork fires a fast green torus laser with a fading tracer trail into space.
+- The Home laser now uses a bright plasma core, concentric green energy rings and corkscrew tracer sparks matching the supplied shot reference.
+- The supplied seamless fog tile is used directly without edge shifting, feathering, duplicated pixels or cropping.
+- It moves slowly to the left and tiles continuously for a seamless loop.
+- Small stars now twinkle occasionally with randomized position, brightness, and timing.
+- The animation is Home-only; tool tabs retain their solid dark backgrounds for readability.
+
+## Models → Scan
+
+- **Skeleton Finder** searches any imported binary for common 4×4 and 3×4 float matrices, half-float matrices, TRS records, padded records, both endian orders, and likely repeated bone strides.
+- **Animation Finder** scans the appended animation file for repeated translation/quaternion and translation/quaternion/scale key blocks. Results show offset, assumed byte size, key count, stride, endian, and confidence.
+- Import the possible skeleton first, append the possible animation second, select the matching finder, and use **Scan** or **Deep Rescan**.
+- The scanner remains heuristic: proprietary game formats can still need a game-specific conversion script after the correct offsets and layouts are found.
+
+The supplied ASH (Amateur Skeleton Hunter) and ARC (Animation Recipe Cracker) packages were compiled programs without source code. Their useful search concepts—bone layout, translation/rotation/scale records, hierarchy-oriented strides, animation keys, endian choices, and offsets—were recreated in the embedded Models scanner. Their executable files are not required at runtime.
+
+## Textures → Scan: DDS and PVR
+
+- **Open DDS / PVR** previews a container directly.
+- **Convert DDS / PVR** converts between supported image/container formats.
+- Pillow is used first. If the codec is not available there, AI Generator uses `tools\PVRTexTool\PVRTexToolCLI.exe`.
+- The supplied RawTex helpers are stored under `tools\RawTex` for their original specialist DDS/raw workflows. AI Generator's embedded raw decoder remains the main interface for offsets, pixel formats, endian, swizzle, palette, compression, and bulk export.
+
+## Textures → RGB
+
+The **RGB** subtab builds a final packed texture from three source images.
+
+1. Import a source for the final R, G, and B outputs. You may import the same packed image in each slot or use three separate grayscale maps.
+2. For each output, choose the source channel: Red, Green, Blue, Alpha, or Luminance.
+3. Optionally invert a channel or change its strength from 0–200%.
+4. Choose **Mix / Refresh**, inspect the zoomable/pannable final result, then export PNG, TGA, TIFF, or BMP.
+
+Included presets:
+
+- RMA: R = roughness, G = metallic, B = ambient occlusion
+- ART: R = ambient occlusion, G = roughness, B = translucency
+- CSM: R = cavity, G = specular, B = mask
+- MK1 ID/Tone: extracts the ID blue channel and Tone green/blue channels for mask work
+
+Choose **Save Blender Node Functions** to save `blender_texture_nodes.py`. It contains reusable Blender functions for RMA, ART, and MK-style ID/Tone separation. The supplied `.blend` scene is not bundled or required.
+

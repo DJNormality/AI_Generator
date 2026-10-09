@@ -1,5 +1,5 @@
 """Embedded PS1/PS2 asset extraction framework for AI Generator."""
-import bz2, gzip, io, lzma, os, re, struct, threading, tkinter as tk, zlib
+import bz2, gzip, io, lzma, os, re, struct, subprocess, tempfile, threading, tkinter as tk, zipfile, zlib
 from dataclasses import dataclass
 from tkinter import filedialog, messagebox, ttk
 
@@ -31,6 +31,17 @@ PS1_SIGNATURES=(
     ('Archive','Parasite Eve PKG reference',b'.pkg','.pkg'),
 )
 
+PS3_SIGNATURES=(
+    ('Model','Twisted Metal C3D geometry',b'C3D','.vram'),
+    ('Model','Twisted Metal geometry branch',b'Geometry','.vram'),
+)
+
+VITA_SIGNATURES=(
+    ('Model','PSASBR MODL v8',b'MODL\x00\x00\x00\x08','.cmdl'),
+    ('Texture','Vita GXT texture',b'GXT\x00','.ctxr'),
+    ('Animation','PSASBR CESM animation',b'CESM','.cesm'),
+)
+
 @dataclass
 class Asset:
     category:str;kind:str;offset:int;end:int;extension:str;name:str=''
@@ -39,19 +50,24 @@ class ExtractTool:
     def __init__(self,parent):
         self.parent=parent;self.stop_event=threading.Event();self.data=b'';self.path='';self.assets=[];self.worker=None
         self.profile=tk.StringVar(value='Auto Detect');self.status=tk.StringVar(value='Choose a section and input file.');self.progress=tk.DoubleVar()
-        self.paths={};self.outputs={};self.trees={};self.assets_by_key={};self.index_files={};self.index_labels={};self.preview_canvases={};self.preview_images={};self.preview_photos={};self.preview_zoom={};self.appended_files=[];self._build()
+        self.paths={};self.outputs={};self.trees={};self.assets_by_key={};self.index_files={};self.index_labels={};self.preview_canvases={};self.preview_images={};self.preview_photos={};self.preview_zoom={};self.model_viewers={};self.appended_files=[];self._build()
     def _build(self):
         self.parent.grid_columnconfigure(0,weight=1);self.parent.grid_rowconfigure(1,weight=1)
-        header=ttk.Frame(self.parent,padding=(8,6));header.grid(row=0,column=0,sticky='ew');ttk.Label(header,text='Console / game profile').pack(side='left');ttk.Combobox(header,textvariable=self.profile,values=('Auto Detect','PS1 Generic','PSXPrev Compatible','Parasite Eve','Parasite Eve 2','PS2 Generic','Wild Arms 3','Wild Arms Alter Code: F'),state='readonly',width=24).pack(side='left',padx=7);ttk.Label(header,text='Non-destructive: source files are never modified and helper EXEs are not launched.').pack(side='left',padx=8)
+        header=ttk.Frame(self.parent,padding=(8,6));header.grid(row=0,column=0,sticky='ew');ttk.Label(header,text='Console / game profile').pack(side='left');ttk.Combobox(header,textvariable=self.profile,values=('Auto Detect','PS1 Generic','PSXPrev Compatible','Parasite Eve','Parasite Eve 2','PS2 Generic','Speed Racer PS2 / NIF','Wild Arms 3','Wild Arms Alter Code: F','PS3 Generic','Twisted Metal 2012','PSP / Vita Generic','PlayStation All-Stars Vita'),state='readonly',width=27).pack(side='left',padx=7);ttk.Label(header,text='Non-destructive: source files are never modified and helper EXEs are not launched.').pack(side='left',padx=8)
         self.tabs=ttk.Notebook(self.parent,style='Modern.TNotebook');self.tabs.grid(row=1,column=0,sticky='nsew',padx=7)
-        for key,title in (('archives','Archives'),('models','Models'),('textures','Textures'),('animations','Animations'),('sound','Sound'),('batch','Batch Processing')):
+        for key,title in (('archives','Archives'),('models','Models'),('textures','Textures'),('animations','Animations'),('sound','Sound'),('blender','Blender'),('batch','Batch Processing')):
             page=ttk.Frame(self.tabs,padding=7);self.tabs.add(page,text=f'  {title}  ')
             if key=='batch':self._build_batch(page)
             elif key=='sound':
                 try:
                     from sound_scanner import build_sound_scanner
-                    self.sound_scanner=build_sound_scanner(page)
+                    sound_tabs=ttk.Notebook(page,style='Modern.TNotebook');sound_tabs.pack(fill='both',expand=True);scan_page=ttk.Frame(sound_tabs);convert_page=ttk.Frame(sound_tabs);sound_tabs.add(scan_page,text='  Scan / Playback  ');sound_tabs.add(convert_page,text='  Convert  ');self.sound_scanner=build_sound_scanner(scan_page);self.sound_scanner.build_convert_tab(convert_page)
                 except Exception as error:ttk.Label(page,text=f'Sound scanner could not start: {error}').pack(anchor='w',padx=8,pady=8)
+            elif key=='blender':
+                try:
+                    from blender_script_tool import build_blender_script_tool
+                    self.blender_scripts=build_blender_script_tool(page)
+                except Exception as error:ttk.Label(page,text=f'Blender scripts could not start: {error}').pack(anchor='w',padx=8,pady=8)
             else:self._build_section(page,key,title)
         footer=ttk.Frame(self.parent,padding=(8,4,8,7));footer.grid(row=2,column=0,sticky='ew');footer.columnconfigure(0,weight=1);ttk.Progressbar(footer,variable=self.progress,maximum=100,style='Accent.Horizontal.TProgressbar').grid(row=0,column=0,sticky='ew');self.stop_button=ttk.Button(footer,text='Stop',command=self.stop,state='disabled');self.stop_button.grid(row=0,column=1,padx=(7,0));ttk.Label(footer,textvariable=self.status).grid(row=1,column=0,columnspan=2,sticky='w',pady=(3,0))
     def _build_section(self,page,key,title):
@@ -60,7 +76,7 @@ class ExtractTool:
         actions=ttk.Frame(page);actions.grid(row=1,column=0,sticky='ew',pady=6)
         label={'archives':'Scan BIN / Archive','models':'Scan Mesh + Skeleton','textures':'Scan Texture Data','animations':'Scan Animation Data'}[key]
         ttk.Button(actions,text=label,command=lambda k=key:self.start_scan(k)).pack(side='left')
-        if key=='archives':ttk.Button(actions,text='LZSS Decompress',command=self.start_lzss).pack(side='left',padx=5)
+        if key=='archives':ttk.Button(actions,text='Decompress',command=self.open_decompressor).pack(side='left',padx=5)
         if key=='models':
             ttk.Button(actions,text='Import Skeleton',command=lambda:self.append_model_file('Skeleton')).pack(side='left',padx=5)
             ttk.Button(actions,text='Append Animation',command=lambda:self.append_model_file('Animation')).pack(side='left')
@@ -69,8 +85,13 @@ class ExtractTool:
         tree=ttk.Treeview(listing,columns=('item','type','offset','size','output'),show='headings');self.trees[key]=tree
         for column,text,width in (('item','#',45),('type','Detected data',190),('offset','Offset',110),('size','Assumed size',110),('output','Output name',320)):tree.heading(column,text=text);tree.column(column,width=width,anchor='w')
         sy=ttk.Scrollbar(listing,orient='vertical',command=tree.yview);sx=ttk.Scrollbar(listing,orient='horizontal',command=tree.xview);tree.configure(yscrollcommand=sy.set,xscrollcommand=sx.set);tree.grid(row=0,column=0,sticky='nsew');sy.grid(row=0,column=1,sticky='ns');sx.grid(row=1,column=0,sticky='ew');tree.bind('<<TreeviewSelect>>',lambda _e,k=key:self.preview_selected(k))
-        pbar=ttk.Frame(preview);pbar.pack(fill='x');ttk.Label(pbar,text=f'{title} preview').pack(side='left');ttk.Button(pbar,text='Fit',command=lambda k=key:self.preview_fit(k)).pack(side='right')
-        canvas=tk.Canvas(preview,bg='#020617',highlightthickness=1,highlightbackground='#334155');canvas.pack(fill='both',expand=True,pady=(4,0));canvas.create_text(20,20,text='Select an item to preview',anchor='nw',fill='#cbd5e1',tags='message');canvas.bind('<MouseWheel>',lambda e,k=key:self.preview_wheel(k,e));canvas.bind('<Configure>',lambda _e,k=key:self.draw_preview(k));self.preview_canvases[key]=canvas
+        if key in ('models','animations'):
+            from extract_preview3d import ExtractPreview3D
+            viewer=ExtractPreview3D(preview,lambda message:self.status.set(message));self.model_viewers[key]=viewer;self.preview_canvases[key]=viewer.canvas
+            if key=='animations':viewer.enable_animation_controls(self.test_animation)
+        else:
+            pbar=ttk.Frame(preview);pbar.pack(fill='x');ttk.Label(pbar,text=f'{title} preview').pack(side='left');ttk.Button(pbar,text='Fit',command=lambda k=key:self.preview_fit(k)).pack(side='right')
+            canvas=tk.Canvas(preview,bg='#020617',highlightthickness=1,highlightbackground='#334155');canvas.pack(fill='both',expand=True,pady=(4,0));canvas.create_text(20,20,text='Select an item to preview',anchor='nw',fill='#cbd5e1',tags='message');canvas.bind('<MouseWheel>',lambda e,k=key:self.preview_wheel(k,e));canvas.bind('<Configure>',lambda _e,k=key:self.draw_preview(k));self.preview_canvases[key]=canvas
     def _build_batch(self,page):
         page.grid_columnconfigure(1,weight=1);self.batch_input=tk.StringVar();self.batch_output=tk.StringVar();self.batch_lzss=tk.BooleanVar(value=True);self.batch_scan=tk.BooleanVar(value=True)
         for row,(label,var,command) in enumerate((('Input directory',self.batch_input,self.pick_batch_input),('Output directory',self.batch_output,self.pick_batch_output))):ttk.Label(page,text=label).grid(row=row,column=0,sticky='w',pady=5);ttk.Entry(page,textvariable=var).grid(row=row,column=1,sticky='ew',padx=7);ttk.Button(page,text='Browse',command=command).grid(row=row,column=2)
@@ -122,10 +143,12 @@ class ExtractTool:
         self.path=path;self.assets=[];self.assets_by_key[key]=[];self.trees[key].delete(*self.trees[key].get_children());self.stop_event.clear();self._running(True,f'Scanning {os.path.basename(path)}…');self.worker=threading.Thread(target=self._scan_worker,args=(key,),daemon=True);self.worker.start()
     def _scan_worker(self,key):
         category={'models':'Model','textures':'Texture','animations':'Animation'}.get(key);hits=[]
-        profile=self.profile.get();use_ps1=profile in ('Auto Detect','PS1 Generic','PSXPrev Compatible','Parasite Eve','Parasite Eve 2');use_ps2=profile in ('Auto Detect','PS2 Generic','Wild Arms 3','Wild Arms Alter Code: F')
+        profile=self.profile.get();use_ps1=profile in ('Auto Detect','PS1 Generic','PSXPrev Compatible','Parasite Eve','Parasite Eve 2');use_ps2=profile in ('Auto Detect','PS2 Generic','Speed Racer PS2 / NIF','Wild Arms 3','Wild Arms Alter Code: F');use_ps3=profile in ('Auto Detect','PS3 Generic','Twisted Metal 2012');use_vita=profile in ('Auto Detect','PSP / Vita Generic','PlayStation All-Stars Vita')
         signatures=[]
         if use_ps1:signatures.extend(PS1_SIGNATURES)
         if use_ps2:signatures.extend(PS2_SIGNATURES)
+        if use_ps3:signatures.extend(PS3_SIGNATURES)
+        if use_vita:signatures.extend(VITA_SIGNATURES)
         signatures=[entry for entry in signatures if not category or entry[0]==category]
         for signature_index,(group,kind,magic,extension) in enumerate(signatures):
             position=0
@@ -135,6 +158,7 @@ class ExtractTool:
                 if self._valid_signature(kind,position):hits.append((position,group,kind,extension))
                 position+=max(1,len(magic))
             self.parent.after(0,lambda value=(signature_index+1)/max(1,len(signatures))*75:self.progress.set(value))
+        hits.extend(self._profile_whole_file_hits(key,profile))
         if key=='archives':hits.extend(self._offset_table_hits())
         if use_ps1 and key=='archives':hits.extend(self._ps1_sector_hits(hits))
         # Auto Detect can find the same payload through both console tables.
@@ -159,8 +183,28 @@ class ExtractTool:
                     cursor+=struct.unpack_from('<I',self.data,cursor)[0]
                     if offset<cursor<=len(self.data):end=min(end,cursor)
                 except Exception:pass
+            if kind=='Offset-table entry':extension=self._extension_from_header(self.data[offset:offset+32])
             name=stored_names[index] if index<len(stored_names) else f'{group.lower()}_{index+1:04d}_{offset:08X}{extension}';assets.append(Asset(group,kind,offset,max(offset+1,end),extension,name))
         self.parent.after(0,lambda:self._finish_scan(key,assets,self.stop_event.is_set()))
+    def _profile_whole_file_hits(self,key,profile):
+        """Recognize proprietary console assets by their selected whole-file extension."""
+        extension=os.path.splitext(self.paths[key].get().strip())[1].lower();table={
+            '.nif':('Model','Gamebryo NIF (whole file)','.nif'),
+            '.vram':('Model','Twisted Metal 2012 VRAM geometry','.vram'),
+            '.ascii':('Model','Twisted Metal ASCII geometry','.ascii'),
+            '.cmdl':('Model','PSASBR Vita model','.cmdl'),
+            '.cskn':('Model','PSASBR Vita skinned model','.cskn'),
+            '.ctxr':('Texture','PSASBR Vita texture','.ctxr'),
+            '.gxt':('Texture','Vita GXT texture','.gxt'),
+            '.cesm':('Animation','PSASBR Vita animation','.cesm'),
+            '.cdf':('Archive','Parasite Eve CDF archive','.cdf'),
+            '.pkg':('Archive','PlayStation package archive','.pkg'),
+        }
+        entry=table.get(extension)
+        if not entry:return []
+        wanted={'models':'Model','textures':'Texture','animations':'Animation','archives':'Archive'}.get(key)
+        if wanted and entry[0]!=wanted:return []
+        return [(0,entry[0],entry[1],entry[2])]
     def _valid_signature(self,kind,offset):
         """Reject the most common false positives in raw PS1 scans."""
         try:
@@ -191,7 +235,69 @@ class ExtractTool:
             if value==0 and not values:continue
             if value%4 or value>=len(self.data) or (values and value<=values[-1]):break
             values.append(value)
-        return [(value,'Archive','Offset-table entry','.bin') for value in values] if len(values)>=3 else []
+        return [(value,'Archive','Offset-table entry','.dat') for value in values] if len(values)>=3 else []
+    @staticmethod
+    def _extension_from_header(data):
+        signatures=((b'\x89PNG\r\n\x1a\n','.png'),(b'\xff\xd8\xff','.jpg'),(b'DDS ','.dds'),(b'RIFF','.wav'),(b'OggS','.ogg'),(b'fLaC','.flac'),(b'VAGp','.vag'),(b'PK\x03\x04','.zip'),(b'7z\xbc\xaf\x27\x1c','.7z'),(b'Rar!','.rar'),(b'\x1f\x8b','.gz'),(b'BZh','.bz2'),(b'\xfd7zXZ\x00','.xz'),(b'TIM2','.tm2'),(b'Gamebryo File Format','.nif'),(b'MODL','.cmdl'))
+        for magic,extension in signatures:
+            if data.startswith(magic):return extension
+        if data.startswith(b'\x10\x00\x00\x00'):return '.tim'
+        if data.startswith(b'\x41\x00\x00\x00'):return '.tmd'
+        return '.dat'
+
+    def open_decompressor(self):
+        path=self.paths['archives'].get().strip();output=self.outputs['archives'].get().strip()
+        if not os.path.isfile(path) or not output:messagebox.showwarning('Decompress','Choose an archive and output folder first.');return
+        window=tk.Toplevel(self.parent);window.title('Overall Decompress');window.geometry('880x520');window.configure(bg='#111827');window.transient(self.parent.winfo_toplevel())
+        frame=ttk.Frame(window,padding=10);frame.pack(fill='both',expand=True);frame.columnconfigure(1,weight=1);frame.rowconfigure(5,weight=1)
+        engine=tk.StringVar(value='Auto / Native');quickbms=tk.StringVar(value=os.path.join(os.path.dirname(os.path.abspath(__file__)),'tools','quickbms.exe'));offzip=tk.StringVar(value=os.path.join(os.path.dirname(os.path.abspath(__file__)),'tools','offzip.exe'));script=tk.StringVar()
+        ttk.Label(frame,text='Engine').grid(row=0,column=0,sticky='w');ttk.Combobox(frame,textvariable=engine,values=('Auto / Native','QuickBMS','Offzip (zlib)'),state='readonly').grid(row=0,column=1,sticky='ew')
+        def executable_row(row,label,var):
+            ttk.Label(frame,text=label).grid(row=row,column=0,sticky='w',pady=4);ttk.Entry(frame,textvariable=var).grid(row=row,column=1,sticky='ew',padx=5);ttk.Button(frame,text='Browse',command=lambda:file_pick(var)).grid(row=row,column=2)
+        def file_pick(var):
+            selected=filedialog.askopenfilename(filetypes=[('Executable','*.exe'),('All files','*.*')])
+            if selected:var.set(selected)
+        executable_row(1,'QuickBMS executable',quickbms);executable_row(2,'Offzip executable',offzip)
+        archive_path=os.path.join(os.path.dirname(os.path.abspath(__file__)),'resources','BMS.zip');members=[]
+        try:
+            with zipfile.ZipFile(archive_path) as archive:members=[name for name in archive.namelist() if name.lower().endswith('.bms') and not name.endswith('/')]
+        except Exception:pass
+        ttk.Label(frame,text='QuickBMS game/script').grid(row=3,column=0,sticky='w');combo=ttk.Combobox(frame,textvariable=script,values=members,state='readonly');combo.grid(row=3,column=1,columnspan=2,sticky='ew',pady=4)
+        if members:script.set(members[0])
+        ttk.Label(frame,text=f'{len(members):,} scripts indexed. Game names are taken from script filenames and searchable by typing the first letters.',wraplength=780).grid(row=4,column=0,columnspan=3,sticky='w')
+        log=tk.Text(frame,bg='#020617',fg='#e2e8f0',insertbackground='white');log.grid(row=5,column=0,columnspan=3,sticky='nsew',pady=7)
+        def run():
+            os.makedirs(output,exist_ok=True);choice=engine.get();log.delete('1.0','end');log.insert('end',f'Input: {path}\nEngine: {choice}\n')
+            def worker():
+                try:
+                    if choice=='QuickBMS':
+                        if not os.path.isfile(quickbms.get()):raise FileNotFoundError('Choose a valid QuickBMS executable.')
+                        if not script.get():raise RuntimeError('Choose a BMS game script.')
+                        script_dir=os.path.join(tempfile.gettempdir(),'AI_Generator_BMS');os.makedirs(script_dir,exist_ok=True);script_path=os.path.join(script_dir,os.path.basename(script.get()))
+                        with zipfile.ZipFile(archive_path) as archive:script_data=archive.read(script.get())
+                        text=script_data.decode('utf-8','ignore')
+                        if re.search(r'(?im)^\s*(?:execute|calldll|open\s+process|socket)\b',text):raise RuntimeError('This script requests external code/process/network features. Export and review it before running manually.')
+                        with open(script_path,'wb') as target:target.write(script_data)
+                        command=[quickbms.get(),script_path,path,output]
+                    elif choice=='Offzip (zlib)':
+                        if not os.path.isfile(offzip.get()):raise FileNotFoundError('Choose a valid Offzip executable.')
+                        command=[offzip.get(),'-a',path,output,'0']
+                    else:
+                        command=None;data=open(path,'rb').read();name=os.path.splitext(os.path.basename(path))[0]+'_decompressed.dat'
+                        if data.startswith(b'\x1f\x8b'):result=gzip.decompress(data)
+                        elif data.startswith(b'BZh'):result=bz2.decompress(data)
+                        elif data.startswith(b'\xfd7zXZ\x00'):result=lzma.decompress(data)
+                        elif data[:2] in (b'\x78\x01',b'\x78\x5e',b'\x78\x9c',b'\x78\xda'):result=zlib.decompress(data)
+                        else:result=self.lzss_decompress(data)
+                        target=self.unique_path(output,name);open(target,'wb').write(result);message=f'Wrote {target} ({len(result):,} bytes)'
+                    if command:
+                        completed=subprocess.run(command,capture_output=True,text=True,timeout=3600)
+                        message=(completed.stdout+'\n'+completed.stderr).strip()
+                        if completed.returncode:raise RuntimeError(message or f'Engine returned {completed.returncode}')
+                except Exception as error:message=f'ERROR: {error}'
+                window.after(0,lambda:log.insert('end','\n'+message+'\n'))
+            threading.Thread(target=worker,daemon=True).start()
+        ttk.Button(frame,text='Decompress',command=run).grid(row=6,column=2,sticky='e')
     def _finish_scan(self,key,assets,stopped):
         self.assets=assets;self.assets_by_key[key]=assets;tree=self.trees[key]
         for index,item in enumerate(assets):tree.insert('','end',iid=str(index),values=(index+1,f'{item.category}: {item.kind}',f'0x{item.offset:08X}',self._size(item.end-item.offset),item.name))
@@ -222,8 +328,20 @@ class ExtractTool:
                 self.preview_zoom[key]=1.0;self.preview_fit(key);return
             except Exception as error:
                 canvas.create_text(canvas.winfo_width()/2,canvas.winfo_height()/2,text=f'2D TEXTURE PREVIEW ERROR\n{item.kind}: {error}\nRaw/TIM2 data may require format settings or decompression.',fill='#f87171',justify='center',tags='message');return
+        if key=='models':
+            if not self.model_viewers[key].load_payload(payload):canvas.create_text(canvas.winfo_width()/2,canvas.winfo_height()/2,text='3D PREVIEW ERROR\nNo supported OBJ data or plausible vertex stream was found.',fill='#f87171',justify='center');return
+            self.status.set(f'3D preview loaded: {item.name}. Drag to rotate, wheel to zoom, middle-drag to move.');return
+        if key=='animations':
+            model=self.model_viewers.get('models');viewer=self.model_viewers[key]
+            if model and model.vertices:viewer.set_geometry(model.vertices,model.faces)
+            viewer.animation_payload=payload;viewer.draw();self.status.set(f'Animation candidate loaded: {item.name}. Press Test Animation to validate it.');return
         companions='\n'.join(f'{role}: {os.path.basename(path)}' for role,path in self.appended_files) if key=='models' else ''
         canvas.create_text(20,20,anchor='nw',fill='#e2e8f0',font=('Consolas',10),text=f'{item.category}: {item.kind}\nName: {item.name}\nOffset: 0x{item.offset:08X}\nSize: {self._size(len(payload))}\n{companions}',tags='message')
+    def test_animation(self):
+        viewer=self.model_viewers.get('animations');payload=getattr(viewer,'animation_payload',b'') if viewer else b''
+        if not viewer or not payload:messagebox.showerror('Animation Test','Select an animation result first.');return
+        passed,message=viewer.test_animation(payload);self.status.set(message)
+        if not passed:messagebox.showerror('Animation Test',message)
     def preview_fit(self,key):
         image=self.preview_images.get(key);canvas=self.preview_canvases.get(key)
         if image and canvas:self.preview_zoom[key]=min(max(1,canvas.winfo_width()-20)/image.width,max(1,canvas.winfo_height()-20)/image.height,8);self.draw_preview(key)

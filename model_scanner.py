@@ -101,6 +101,24 @@ class BoneCandidate:
                 f'{self.layout} {byte_order} | {confidence}%')
 
 
+@dataclass
+class AnimationCandidate:
+    score: float
+    offset: int
+    key_count: int
+    stride: int
+    layout: str
+    endian: str = 'Little'
+
+    def label(self, item_number=None):
+        prefix = f'Anim {item_number:03d} | ' if item_number is not None else ''
+        confidence = max(0, min(100, int(self.score + 0.5)))
+        return (f'{prefix}Offset 0x{self.offset:08X} | '
+                f'Size {_friendly_size(self.key_count * self.stride)} | '
+                f'{self.key_count} keys | Stride {self.stride} | {self.layout} | '
+                f'{"LE" if self.endian == "Little" else "BE"} | {confidence}%')
+
+
 def _unpack_vector(data, offset, format_name, components, endian='<', value_scale=1.0):
     code, size, scale = FORMATS[format_name]
     end = offset + size * components
@@ -177,7 +195,7 @@ class BinaryMeshScanner:
         self.search_mode = tk.StringVar(value='Geometry')
         self.search_combo = ttk.Combobox(
             top, textvariable=self.search_mode,
-            values=['Geometry', 'Animation / Rigging'],
+            values=['Geometry', 'Skeleton Finder', 'Animation Finder'],
             state='readonly', width=17)
         self.search_combo.pack(side=tk.LEFT, padx=(0, 8))
         self.search_combo.bind('<<ComboboxSelected>>', self.update_search_mode_ui)
@@ -295,8 +313,9 @@ class BinaryMeshScanner:
         add_fields(settings_tabs['Mesh'],rows)
         add_fields(settings_tabs['UV'],(('UV offset in stride','uv_offset'),('UV type','uv_type')))
         ttk.Label(settings_tabs['UV'],text='UV values are read from each vertex stride and included in OBJ exports.',wraplength=330).grid(row=2,column=0,columnspan=2,sticky='w',pady=(7,0))
-        ttk.Label(settings_tabs['Animation'],text='Use Animation / Rigging search mode to scan a companion skeleton or animation file. Detected bones and XYZ axes appear in red in the viewport.',wraplength=330).grid(row=0,column=0,columnspan=2,sticky='w')
-        ttk.Button(settings_tabs['Animation'],text='Select Animation Search',command=lambda:(self.search_mode.set('Animation / Rigging'),self.update_search_mode_ui())).grid(row=1,column=0,columnspan=2,sticky='ew',pady=(7,0))
+        ttk.Label(settings_tabs['Animation'],text='Skeleton Finder searches matrices, half-float matrices, TRS blocks, quaternion transforms, hierarchy-like strides, and both endian orders. Animation Finder searches repeated translation + quaternion key blocks in the appended animation file.',wraplength=330).grid(row=0,column=0,columnspan=2,sticky='w')
+        ttk.Button(settings_tabs['Animation'],text='Skeleton Finder',command=lambda:(self.search_mode.set('Skeleton Finder'),self.update_search_mode_ui())).grid(row=1,column=0,sticky='ew',pady=(7,0))
+        ttk.Button(settings_tabs['Animation'],text='Animation Finder',command=lambda:(self.search_mode.set('Animation Finder'),self.update_search_mode_ui())).grid(row=1,column=1,sticky='ew',padx=(5,0),pady=(7,0))
         ttk.Label(settings_tabs['Texture'],text='Texture and material settings are used for viewport presentation. Use the Textures tool for decoding and bulk export.',wraplength=330).grid(row=0,column=0,columnspan=2,sticky='w')
         ttk.Label(settings_tabs['Texture'],text='Surface color').grid(row=1,column=0,sticky='w',pady=(7,0));ttk.Button(settings_tabs['Texture'],text='Choose',command=lambda:self.choose_mesh_color('surface')).grid(row=1,column=1,sticky='ew',pady=(7,0))
         action_row = 1
@@ -366,10 +385,10 @@ class BinaryMeshScanner:
             f'{preset["step"]}-byte alignment.')
 
     def update_search_mode_ui(self, _event=None):
-        if self.search_mode.get() == 'Animation / Rigging':
+        if self.search_mode.get() in ('Skeleton Finder','Animation Finder'):
             self.settings_notebook.select(2)
             self.status.set(
-                'Animation / Rigging mode: load any animation or skeleton file, then scan.')
+                f'{self.search_mode.get()}: import the matching companion file, then scan.')
         else:
             if self.settings_notebook.index(self.settings_notebook.select()) == 2:self.settings_notebook.select(0)
             self.status.set('Geometry mode: open any model file, then scan.')
@@ -404,7 +423,7 @@ class BinaryMeshScanner:
                 self.skeleton_data = stream.read()
             self.skeleton_path = path
             self.appended_text.set(f'1 / 2  {os.path.basename(path)}')
-            self.search_mode.set('Animation / Rigging')
+            self.search_mode.set('Skeleton Finder')
             self.update_search_mode_ui()
             self.status.set(
                 f'Skeleton file loaded: {os.path.basename(path)} '
@@ -443,12 +462,14 @@ class BinaryMeshScanner:
         return ''
 
     def scan(self):
-        if self.search_mode.get() == 'Animation / Rigging' and self.skeleton_data:
+        if self.search_mode.get() == 'Skeleton Finder' and self.skeleton_data:
+            pass
+        elif self.search_mode.get() == 'Animation Finder' and self.animation_data:
             pass
         elif not self.data:
             self.open_file()
-        if self.search_mode.get() == 'Animation / Rigging':
-            if not (self.skeleton_data or self.data):
+        if self.search_mode.get() in ('Skeleton Finder','Animation Finder'):
+            if not (self.skeleton_data or self.animation_data or self.data):
                 return
         elif not self.data:
             return
@@ -460,19 +481,23 @@ class BinaryMeshScanner:
         self.deep_scan_button.configure(state='disabled')
         self.stop_scan_button.configure(state='normal')
         self._report_scan_progress(0, 0)
-        if self.search_mode.get() == 'Animation / Rigging':
+        if self.search_mode.get() == 'Skeleton Finder':
             self.status.set('Searching for bone matrices, TRS transforms, and hierarchy data…')
+        elif self.search_mode.get() == 'Animation Finder':
+            self.status.set('Searching for repeated translation, quaternion, scale, and keyframe blocks…')
         else:
             self.status.set('Scanning common offsets, strides, padding, and numeric types…')
         threading.Thread(target=self._scan_worker, args=(False,), daemon=True).start()
 
     def deep_rescan(self):
-        if self.search_mode.get() == 'Animation / Rigging' and self.skeleton_data:
+        if self.search_mode.get() == 'Skeleton Finder' and self.skeleton_data:
+            pass
+        elif self.search_mode.get() == 'Animation Finder' and self.animation_data:
             pass
         elif not self.data:
             self.open_file()
-        active_data = self.skeleton_data if (
-            self.search_mode.get() == 'Animation / Rigging' and self.skeleton_data) else self.data
+        active_data = (self.animation_data if self.search_mode.get() == 'Animation Finder' and self.animation_data else
+                       self.skeleton_data if self.search_mode.get() == 'Skeleton Finder' and self.skeleton_data else self.data)
         if not active_data or self.scanning:
             return
         self.scanning = True
@@ -493,8 +518,10 @@ class BinaryMeshScanner:
 
     def _scan_worker(self, deep=False):
         try:
-            if self.search_mode.get() == 'Animation / Rigging':
+            if self.search_mode.get() == 'Skeleton Finder':
                 self._scan_bone_candidates(deep)
+            elif self.search_mode.get() == 'Animation Finder':
+                self._scan_animation_candidates(deep)
             else:
                 self._scan_candidates(deep)
         except Exception as error:
@@ -722,6 +749,60 @@ class BinaryMeshScanner:
             count += 1
         return count
 
+    def _scan_animation_candidates(self, deep=False):
+        data = self.animation_data or self.data
+        preset = CONSOLE_PRESETS[self.console_var.get()]
+        endian_names = ('Little','Big') if preset['endian']=='Auto' else (preset['endian'],)
+        # Common raw-key arrangements: T+Q, Q+T, and T+Q+S.
+        layouts=(('Translation + quaternion F32',28,0,12),('Quaternion + translation F32',28,16,0),
+                 ('Translation + quaternion + scale F32',40,0,12),('Padded T/Q/S F32',48,0,16))
+        step=4 if deep else max(4,len(data)//16384 or 4); stop=min(len(data),1048576) if deep else len(data)
+        anchors=range(0,stop,step); total=max(1,(stop+step-1)//step); candidates=[]
+        for number,offset in enumerate(anchors,1):
+            if self.scan_stop_event.is_set():break
+            for endian_name in endian_names:
+                endian=ENDIAN_CODES[endian_name]
+                for layout,stride,t_off,q_off in layouts:
+                    valid=0; varying=0; previous=None
+                    for key in range(12):
+                        base=offset+key*stride
+                        try:
+                            translation=struct.unpack_from(endian+'3f',data,base+t_off)
+                            quaternion=struct.unpack_from(endian+'4f',data,base+q_off)
+                        except (struct.error,OverflowError):break
+                        values=translation+quaternion
+                        if not all(math.isfinite(x) and abs(x)<1e7 for x in values):break
+                        qlen=math.sqrt(sum(x*x for x in quaternion))
+                        if not .35<=qlen<=1.65:break
+                        valid+=1
+                        current=tuple(round(x,5) for x in values)
+                        if previous is not None and current!=previous:varying+=1
+                        previous=current
+                    if valid>=8 and varying>=3:
+                        count=self._estimate_animation_keys(data,offset,stride,t_off,q_off,endian)
+                        candidates.append(AnimationCandidate(min(100,58+varying*3+min(12,count/10)),offset,count,stride,layout,endian_name))
+            if number==1 or number%128==0:
+                self.window.after(0,lambda p=number/total*98,f=len(candidates):self._report_scan_progress(p,f))
+        candidates.sort(key=lambda x:x.score,reverse=True);unique=[];seen=set()
+        for candidate in candidates:
+            key=(candidate.offset,candidate.stride,candidate.endian)
+            if key not in seen:seen.add(key);unique.append(candidate)
+            if len(unique)>=100:break
+        stopped=self.scan_stop_event.is_set();self.window.after(0,lambda:self._finish_scan(unique,stopped))
+
+    @staticmethod
+    def _estimate_animation_keys(data,offset,stride,t_off,q_off,endian):
+        count=0
+        for key in range(100000):
+            base=offset+key*stride
+            try:values=struct.unpack_from(endian+'3f',data,base+t_off)+struct.unpack_from(endian+'4f',data,base+q_off)
+            except struct.error:break
+            if not all(math.isfinite(x) and abs(x)<1e7 for x in values):break
+            qlen=math.sqrt(sum(x*x for x in values[3:]))
+            if not .2<=qlen<=2:break
+            count+=1
+        return count
+
     def _finish_scan(self, unique, stopped=False):
         self.scanning = False
         self.scan_button.configure(state='normal')
@@ -746,6 +827,8 @@ class BinaryMeshScanner:
             if not stopped:
                 if isinstance(unique[0], BoneCandidate):
                     self.load_bone_candidate(unique[0])
+                elif isinstance(unique[0], AnimationCandidate):
+                    self.load_animation_candidate(unique[0])
                 else:
                     self.load_candidate(unique[0])
 
@@ -778,6 +861,8 @@ class BinaryMeshScanner:
             candidate = self.candidates[selected[0]]
             if isinstance(candidate, BoneCandidate):
                 self.load_bone_candidate(candidate)
+            elif isinstance(candidate, AnimationCandidate):
+                self.load_animation_candidate(candidate)
             else:
                 self.load_candidate(candidate)
 
@@ -804,6 +889,10 @@ class BinaryMeshScanner:
             f'{os.path.basename(self.skeleton_path or self.path)}. '
             'Bright red lines show bones; X/Y/Z labels show local axes.')
         self.reset_view()
+
+    def load_animation_candidate(self,candidate):
+        self.current_animation_candidate=candidate
+        self.status.set(f'Animation candidate selected: {candidate.key_count:,} assumed keys at 0x{candidate.offset:X}, {candidate.layout}. Import a matching skeleton to preview bone placement; use this offset/stride in conversion scripts.')
 
     def load_candidate(self, candidate):
         values = {
