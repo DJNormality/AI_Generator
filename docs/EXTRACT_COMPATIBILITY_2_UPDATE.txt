@@ -1,0 +1,55 @@
+Extract Compatibility Update 2
+
+Apply after Wild Arms 3 and Extract Compatibility Update 1. Close AI Generator,
+extract into its folder and replace included files. Only changed/new files.
+Open Extract > Compatibility Tools.
+
+Added workflows:
+- LBA splitter: configure exact table layout using config.ini and HowTo.txt.
+- LAU: ru/steam/jp/tw/cn tools listed individually.
+- VAG: supplied towav single-file conversion to WAV, staged input.
+- OWM: install OWM_Addon.zip in Blender (declares 3.0 minimum).
+- Devilian NIF: Blender 2.49 workspace and isolated libraries.
+- SSF: original explorer and bundled lookup tables.
+- Oblivion PSP: first build / other build tools retained separately.
+- Rogue SDF: supplied tool identifies Division SDFTOC, not arbitrary SDF.
+  Reads selected archive and companion data in original location, output separate.
+- Xdelta3: Input = patch, Base / companion = original file. Output
+  reconstructed.bin in a new folder. Original files are not overwritten.
+- Far Cry 5 Lua: supplied decompiler and unluac.jar; Java may be required.
+- Unreal legacy UPK: separate decompress / extract commands from supplied batches.
+- Unreal PAK / PUBG: connects existing native reader (unencrypted v1-8 only).
+  Encrypted indexes/entries and v9+ indexes require an appropriate external
+  decoder; no PUBG build is confirmed. These UPK utilities do not add PAK support.
+- CMP: supplied SDL viewer, settings and examples.
+- MipKiller: supplied texture mipmap utility, not a generic .mip decompressor.
+- CPK: package is Diablo III CPK Reader SOURCE, not CRI CPK or a compiled tool.
+  BUILD_READER.bat requires Visual Studio MSBuild and matching .NET targeting
+  tools. Source inspection/build workflow only; no new native CPK extraction.
+- Kuro MDL: mesh export and CLE decrypt/decompress scripts, staged inputs.
+  Install requirements_extract_kuro.txt into the same Python used by AI Generator
+  if needed. Dependencies are not installed automatically.
+- Tecmo: original Sigma converter interface.
+- MikuMiku Dance: install MMD_Addon.zip in matching Blender (declares 2.80).
+  Supported family extensions include PMD/PMX/VMD/VPD; .mmd is not presumed.
+- VPK: supplied Titanfall-era UnVPK tool exposed with its original workflow;
+  numbered companion files and compatible archive version remain necessary.
+- Zlib: direct bounded streaming decompression, 512 MiB maximum, rejects
+  incomplete/trailing data. Select a container decoder for chunked streams.
+- TIGER: supplied extractor identifies Marvel's Avengers beta, requires v8 and
+  supported main root archive. Companion parts stay beside original input.
+  Shadow of the Tomb Raider is a reference entry, not an implemented decoder:
+  supplied MAB extractor does not establish SOTTR compatibility.
+- PkgEditor: PS4 LibOrbisPkg GUI with Windows Desktop .NET Core 3.0 requirement.
+  Independent of KUF2 PKG and Unreal/PUBG.
+
+Standalone tools keep their original interfaces. Legacy console tools with
+undocumented arguments may require their own input workflow from the tool
+folder. This catalog does not turn every external program into a native decoder.
+Python scripts, Blender add-ons, viewers and extractors are labeled separately.
+No automatic installation or Blender-version migration is performed.
+
+Validation: compilation, every catalog path, packaged add-on ZIP integrity,
+synthetic legacy PAK scan/read/extraction, streaming zlib decode and malformed
+trailing-data rejection passed. Windows EXEs/Blender importers have not executed
+here. No game archives were supplied for compatibility or visual output tests.

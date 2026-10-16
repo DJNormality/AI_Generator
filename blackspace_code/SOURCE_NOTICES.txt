@@ -1,0 +1,11 @@
+Headless PAC/PAM format routines adapted from the user-uploaded
+crimson-desert-model-browser-main.zip, commit 1d5a6bda94231843b2ee71018078076fee97ed7a.
+Project: https://github.com/Altair200333/CrimsonDesertPacBrowser
+The supplied README labels this source MIT. Original README retained.
+No separate license file was included in that upload.
+
+PAZ filename-derived crypto source from:
+https://github.com/lazorr410/crimson-desert-unpacker
+MIT license retained in UNPACKER_LICENSE.txt.
+AI Generator uses its own bounded PAMT reader and extraction pipeline.
+No external desktop application is launched.

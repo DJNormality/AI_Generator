@@ -1,0 +1,35 @@
+Close AI Generator. Merge this folder into your current installation.
+Run Apply_Cabinet_Placement_Update.bat, then Run.bat. No Setup needed.
+This installer supports both root-module installations and the organized app folder.
+Existing startup launchers and Python environments are not changed.
+
+Upper cabinets:
+The placement panel offers Auto / Base / Upper grids and Add Upper Cabinet Grid.
+Auto adds an upper grid when you place above the base grid. Choosing a Wall
+preset selects the upper grid. A base-width template placed in the upper grid
+uses a matching 30-inch-tall Wall preset where available, with elevation 54 inches.
+The upper and base views are separate drawing bands; their physical floor
+coordinates remain aligned for the 3D view. Upper cabinets sit at their actual elevation.
+Both grid bands expand horizontally to contain the full combined cabinet runs.
+Upper and base totals are shown separately. Original cabinet widths remain unchanged.
+
+Rotation:
+Paint: press and keep holding the left mouse button, move to rotate, release to place.
+A quick click retains the original angle. Left Shift snaps to 45-degree steps,
+including 90, 180 and 270 degrees. Escape cancels the current placement/rotation.
+Right-click any cabinet and choose Left-click Rotate; then left-click, hold and move.
+Rotation Angle offers an editable angle and 45-degree increments.
+Right-click the 3D Rotate icon to choose Left-click Rotate View or Rotate Cabinet.
+Overlaps at the same elevation are rejected on release. Placement has one Undo step.
+Rotated footprints, item selection, 3D rendering and exported SVG outlines use the actual angle.
+
+The toolbar has new icons and clearer controls. Dimension arrows/text are black.
+Games settings labels, fields, dropdown text and icon captions are white on a dark background.
+Previously added line crop, shared icon slider, icon visibility, console artwork
+and cover-search behavior are preserved in the Games module.
+
+Replaced files are saved under backups/Cabinet_Placement_<time>.
+To undo the update, close the app and copy the backup files to their recorded relative paths.
+Geometry, collision, full-run bounds, upper-grid mapping, snapping, placement
+commit/cancel/undo, 3D rendering and organized-layout installation checks passed.
+The Windows UI has not been executed in this environment.

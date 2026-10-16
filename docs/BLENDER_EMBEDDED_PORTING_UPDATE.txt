@@ -1,0 +1,42 @@
+Portable Blender and in-app Fortnite workspace update
+
+Apply after Extract Compatibility Update 2 and the Porting update. Close
+AI Generator, extract this ZIP into its folder and replace included files.
+Only changed/new files are supplied.
+
+Extract:
+- Bundled Blender 2.49b and Python 2.6 from the supplied portable archive.
+- Compatibility Tools defaults to tools/Blender249Portable/App/Blender/blender.exe
+  for Black Desert, Iris and Devilian legacy workspaces. Python runtime paths
+  are supplied to the process; libraries remain isolated beside each importer.
+- Extract > Blender also defaults to the bundled executable. Scripts importing
+  the old Blender API use interactive -P. Modern scripts require selecting a
+  matching modern Blender installation; they are not forced into Blender 2.49.
+- Scripts with complex dependencies/input dialogs still need the original
+  importer workflow. Legacy importer execution is not verified here.
+- Uploaded Data/settings, temporary .blend projects and runtime log are omitted.
+  The application/runtime files and portable distribution notices are retained.
+
+Porting > Fortnite:
+- Replaces the external EXE launcher with an in-app asset workspace.
+- Assets Folder / Open PAK / Scan, asset search, multiple selection, shared
+  viewport, Export Selected and Export All Listed.
+- Folder export preserves asset paths in a new output subfolder and leaves
+  inputs unchanged. Existing legacy PAK reader handles raw member export.
+- Update checks the upstream official stable release. It does not replace the
+  in-app decoder with the upstream executable. No FortnitePorting.exe process
+  is launched. The previous bundled EXE may remain on disk but is unused.
+
+Material limitation:
+This is a working local-file/legacy-PAK interface, not a port of the complete
+Fortnite Porting asset engine. Current Fortnite encrypted PAK / newer indexes /
+IoStore, On-Demand assets, mapping-based UObject decoding and native cooked
+model/material export are not implemented by this patch. Unsupported archives
+report an error. Full feature parity requires integrating a compatible asset
+backend from source; the uploaded single-file GUI EXE does not supply an API
+for this workspace. Its update check cannot add those decoding capabilities.
+
+Validation: changed Python files compile; headless local asset scan/export,
+source preservation, no Fortnite subprocess launch, bundled Blender/Python
+paths and patch ZIP integrity checked. Windows Blender execution and visual
+Tkinter layout could not be tested in this Linux build environment.

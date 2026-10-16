@@ -1,0 +1,28 @@
+Close AI Generator. Merge the included AI_Generator folder into your installation.
+Run Apply_Photos_Cabinet_Update.bat, then Run.bat. No Setup needed.
+The update supports both the original root layout and organized app folder.
+
+Photos navigation:
+The supplied glossy icon row provides buttons for Paths, Face Swap,
+Restoration, Qwen / Prompt Edit, Crop and Colorize.
+Visible Photos tab headers are replaced by these buttons. The existing pages
+and tools remain in the notebook. Selecting a button opens its page and
+highlights that button. Buttons wrap on narrower windows and keep keyboard focus.
+The supplied source artwork is stored unchanged as a runtime icon atlas.
+If the icon navigation cannot initialize, the original tabs remain available.
+
+Cabinet Designer:
+Expanded viewport with a compact icon toolbar, narrower options sidebar,
+Options button to collapse/reopen that sidebar, and smaller viewport controls.
+Hover catalog items, finishes, appliances, object-list rows or 2D cabinets for
+2 seconds to see a sample model rendered with the actual selected finish.
+Rendering runs in a background thread; moving away cancels the preview.
+Upper grids, full cabinet-run bounds, rotation and Shift snapping are retained.
+
+The update patches only Photos navigation in your current main.py; other code
+and startup behavior are preserved. It backs up replaced files under
+backups/Photo_Cabinet_<time>. Copy these files back to undo the update.
+Python, environments, Games and your existing resources are not replaced.
+The package includes all new Cabinet and Photos helper modules it references.
+Code, icon-route matching, focused main patch, repeat installation, geometry,
+hover scheduling and organized-layout checks passed. Windows UI remains untested.

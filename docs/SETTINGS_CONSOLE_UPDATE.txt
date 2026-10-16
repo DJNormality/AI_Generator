@@ -1,0 +1,29 @@
+Close AI Generator. Merge this folder into your existing installation.
+Run Apply_Settings_Console_Update.bat, then Run.bat. No Setup needed.
+Both the original root layout and the organized app folder are supported.
+
+Settings colors:
+The existing Aero/Neon Map callbacks were overriding white settings text with
+dark theme text. This update adds a narrow opt-out for the dark glass settings
+windows. Labels, canvas captions, input text and buttons keep their white text.
+The global application theme is unchanged. Current theme modules are patched
+in place rather than replaced with older copies.
+
+Arcade Consoles:
+Games now has an Arcade Consoles button that shows the console navigation icons.
+The supplied collection is stored unchanged and mapped by the current names:
+Gameboy Advance, Gamecube, Windows Live, Xbox 360, Playstation,
+Playstation (Original), Playstation 2, Playstation 3, Playstation 4,
+Playstation 5, Wii. The Xbox 360 artwork is separate from Windows Live.
+Console navigation uses the hardware artwork with transparency. Game-title covers
+still use their console frames. Upload Image, cover search, sorting, visibility,
+Aero Icons and the shared size slider remain available.
+On first startup of this update, the mapped consoles use the supplied artwork.
+Prior GamesTiles preferences are backed up beside their settings.json before
+old console-specific image/cover overrides are cleared. Game-title covers remain.
+
+The package includes the related Games, Home, glass and cover helper modules
+and artwork together. Cabinet files, main.py, Run.bat, Python and environments
+are not replaced. Replaced files are backed up under backups/Settings_Console_<time>.
+Code, theme protection, repeated installation and console-mapping checks passed.
+The Windows GUI has not been run in this environment.

@@ -1,0 +1,9 @@
+Close AI Generator. Merge this AI_Generator folder into D:\PROGRAMS\AI_Generator. Run Apply_Glass_Switcher_Update.bat, then your existing Run.bat. Uses your existing Scripts\python.exe, supports root and app directory layouts, and saves backups.
+
+Settings: smaller theme-inherited main settings with background, icon, visibility, sorting, theme, maintenance, Aero and Surface Colors options. Existing visibility/maintenance helper imports remain supported. Aero Appearance includes Blur % with a live percentage readout. Windows chooses the native blur radius; the slider controls blur tint strength, with zero disabling blur. Color-key transparency is cleared to remove holes/fringes around labels and icons. Native glass is applied to window chrome while opaque tool surfaces retain their own colors.
+
+Surface Colors: optional theme-specific overrides for Panels, Text boxes, Viewports and Text. Choose any color, including black. Unchecked overrides preserve authored colors; removing an existing override restores the original on restart. Aero no longer unconditionally paints every Canvas white.
+
+Explorer Switcher: all currently open Explorer entries appear as a zoomed-out diagonal stack of icon cards inside the main window. Click Switcher, or Tab outside editable fields (Ctrl+Tab also opens it). Click a card to open. Tab/arrows cycle, Enter opens, Escape cancels. Hold Shift and scroll anywhere in the app; after 650ms without scrolling the selected tool opens. Closed dock entries are excluded. Tools continue to launch inside the main window. Cards show icons and tool names, not live screenshots.
+
+Verified: syntax, applying over prior updates, repeated installation, original and organized layouts, blur value clamping, and wheel wrapping/timer cancellation. Windows glass rendering and interactive GUI appearance require local verification.

@@ -1,0 +1,32 @@
+Close AI Generator. Merge the included AI_Generator folder into the existing installation.
+Run Apply_Crop_Viewport_Update.bat, then Run.bat. No Setup needed.
+
+Manual Crop Editor and Guide Crop / Slice Sheet now have a Line Mode button.
+Click corners in sequence, then click the first point to close the outline.
+Open outlines cannot be saved. Closing only finishes the selection; it does not save automatically.
+Save Line Crop exports a PNG at source-pixel resolution with transparency outside the outline.
+Escape discards the current line selection and exits Line Mode. It does not close the entire editor.
+Backspace or Undo Corner lets you correct the outline. Existing guide and rectangular crop tools remain available.
+
+The main Settings icon now opens the settings for the visible icon viewport:
+Icon Settings, Show / Hide Icons, Sort / Arrange, Background, and Games' Aero Icons.
+The extra Games footer controls and slider are removed. One shared Icon Size slider remains beside the bottom viewport navigation and targets the active Home or Games viewport.
+Right-click an empty part of the icon viewport and select Show / Hide Icons.
+The dialog includes hidden icons, Show All, Hide All and Apply. Settings persist by name.
+
+The supplied console collection is stored unchanged as an artwork atlas.
+Runtime mappings display its matching artwork inside the existing console frames:
+Gameboy Advance, Gamecube, Windows Live, Xbox 360, Playstation,
+Playstation (Original), Playstation 2, Playstation 3, Playstation 4,
+Playstation 5, Wii. Xbox 360 uses its own neutral frame when no existing frame is available.
+On first startup, old console image/cover selections are cleared for these named consoles
+so the supplied artwork is applied. Your prior GamesTiles preferences are saved to
+before_console_art_<time>.json beside settings.json. Game-title cover choices are retained.
+New image uploads and online-cover search remain available after this migration.
+
+Application files are backed up under backups/Line_Crop_Settings_<time>.
+Only the manual crop method is patched in your current main.py; startup code and
+other application methods are preserved. Python, Lib, Scripts and launchers are unchanged.
+To restore application code, copy the backed-up files to their original relative paths.
+Code, polygon output, console mappings, backup and repeat-install checks passed.
+Windows UI execution remains untested. Use this update's BAT for the manual-editor integration.

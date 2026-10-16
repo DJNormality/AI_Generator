@@ -1,0 +1,27 @@
+Porting / Fortnite update
+
+Close AI Generator. Extract this patch into the AI_Generator folder, replacing
+included files and retaining paths. Includes only changed/new files.
+Home automatically lists Porting with a customizable icon and Fortnite subtab.
+
+Launch opens the supplied Windows x64 FortnitePorting.exe in its own interface.
+Select installation/assets and export targets there. Companion Blender / Unreal
+plugins are managed by Fortnite Porting. This patch is a launcher and update
+manager; it does not embed or rewrite the external application's UI.
+
+Update — Check Latest checks stable releases at:
+https://api.github.com/repos/h4lfheart/FortnitePorting/releases/latest
+Official project: https://github.com/h4lfheart/FortnitePorting
+Install Latest downloads that release's exact FortnitePorting.exe asset.
+Download size and PE header are validated; SHA256 is checked when the release
+provides a sha256 digest. Each version is retained separately under local app
+settings, preserving the supplied executable. Close the launched tool before
+updating. No automatic check or installation runs at AI Generator startup.
+Browse allows selecting an existing executable. Folders opens its location.
+Network failures/rate limits are displayed; Releases opens the official page.
+The supplied executable's application version is unverified, so the tool does
+not infer it from the bundled .NET host version.
+
+Validation: Python compilation and simulated release/download/hash-failure
+checks passed. Live updater network access and Windows application launch need
+verification on Windows; no external executable was run in this build workspace.

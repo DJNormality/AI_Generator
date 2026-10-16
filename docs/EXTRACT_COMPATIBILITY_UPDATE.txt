@@ -1,0 +1,54 @@
+Extract Compatibility Update
+
+Close AI Generator and extract this ZIP into the AI_Generator folder. Replace
+included files, keeping directory paths. This is a changed/new files patch.
+Requires the previous Wild Arms 3 update (retained in extract_tool.py).
+
+Extract > Archives now recognizes:
+- HPK with BPUL header: directory descriptors, nested paths, chunked ZLIB.
+  LZSS payloads remain compressed; the supplied HPK tool also lacks LZSS support.
+- Historical Path of Exile GGPK: reference-count header, FILE/PDIR/FREE tree.
+  New GGPK versions and modern bundle codecs are not implemented by this reader.
+- Wolfenstein SPK/MPK: 0x12C header, zlib chunks, file tables and typed outputs.
+
+Choose Compatibility Tools to select a format/tool and scan directly in Archives
+or use the supplied Windows tool. Integration types are visible in the list:
+- native: built-in Python reader, Scan/Extract Selected/Extract All
+- cli: documented commands run in isolated output folders
+- arc: ARCtool -x, selected game/platform, isolated archive copy
+- gui: launches supplied standalone program; use its original input workflow
+- blender: opens supplied .blend in a chosen Blender 2.49 executable
+- addon: opens installable RE Chain package for Blender preferences
+
+Automatic CLI integration:
+KUF2 PKG (with Projects/FileNames.list), Gibbed Dead Rising 2 Unpack (Rev11),
+ITP to PNG, Parasite Eve assets/model (following supplied batch commands),
+Resident Evil ARC Tool with game/platform dropdown.
+Each run copies its package and input into an isolated output directory, retains
+original inputs, reports outputs, writes converter.log, and supports Stop CLI.
+
+External tools / required environments:
+TXR, BF, N3-2 MCT/MCTS: supplied standalone extractor interfaces.
+Parasite Eve animation/background/image/texture and TFC collection: original
+programs exposed individually; their specific input workflows remain external.
+TFC packages are game-specific (DC Universe, Gigantic, Paladins, Rocket League,
+Obscure and Injustice 2 tools); no universal TFC decoder is claimed.
+NIF 2.5.9 installer: legacy Blender importer, not a current Blender add-on.
+Black Desert PAC/PAB/PAA and PAM: supplied Blender 2.49 importers and libraries.
+Iris NIF: supplied Blender 2.49 importer and libraries.
+RE Chain: Blender add-on, declares minimum Blender 3.1.2; install
+RE_Chain_Addon.zip. Chain physics editing/import is not archive decompression.
+GS Dump: GSdx dump viewer/replayer; compatible GSdx plugin DLLs required and
+not supplied. No automatic GS geometry extraction is claimed.
+
+All packages are isolated to prevent incompatible import libraries/DLLs merging.
+Duplicate HPK upload is included once. Tool source/readmes/licenses are retained;
+redundant compiled Python caches, debug symbols and the bundled cmd.exe omitted.
+No installers run automatically. Blender and external runtimes are not bundled.
+
+Validation: Python compilation, HPK/ZLIB, legacy GGPK, SPK/MPK synthetic fixtures,
+malformed input bounds, and all catalog target paths checked. No game archives
+were supplied. Windows tools/Blender importers have not run in this Linux build
+workspace; test output using your game files. Direct decoded archive budget is
+512 MiB; generic scan loads the input into memory, so huge GGPK archives need
+adequate RAM or the supplied external GGPK extractor.

@@ -1,0 +1,51 @@
+AI GENERATOR CONSOLIDATED ROOT FILES — 2026-10-13
+SOURCE: your uploaded AI_Generator.zip (239 entries). This is not a 40GB backup.
+No models, resources, Scripts, Lib or external tool folders were supplied.
+Every uploaded original is retained in backups/20261013-0205/AI_Generator_Original_Root_Files.zip.
+
+APPLY
+Close AI Generator processes before replacing source files.
+Copy the contents of this package's AI_Generator folder into the existing
+D:\PROGRAMS\AI_Generator folder. Merge folders and replace included source files.
+Do not delete existing folders or extract into a new empty folder expecting a full app.
+Run Run.bat once. Setup.bat is only needed if the dependency checks report missing packages.
+
+CHANGES
+Run.bat and AI Generator.py select the existing Scripts environment only.
+Old launch BATs forward to Run.bat and the same Windows single-instance guard.
+Startup preflight and reports now live under logs through the canonical launcher.
+Competing general Python installers are retired; originals retained under maintenance/legacy.
+Specialized feature installer implementations are in maintenance/installers;
+root BATs forward there, with their root paths preserved. Their internal installation
+behavior is otherwise unchanged and has not been run or globally certified safe.
+Setup.bat invokes maintenance/setup/install_core.py. No Python/venv creation, no
+PATH registry edits, no automatic installer, no forced package upgrades.
+Optional python-lzf is separated from core requirements and tried as a wheel only.
+If optional LZF cannot install, its texture decoder remains unavailable.
+Removed Games ThemeChanged callback that reapplied ttk styles inside theme events.
+Removed the remaining active Switch mount and Arcade Switch entry per your earlier request.
+The dormant switch_arcade.py file is retained for backup compatibility.
+Console hiding respects diagnostic mode.
+Existing feature modules and user configuration are preserved unless listed as changed.
+
+EVIDENCE AND LIMITS
+Uploaded single-launch log reached the event loop in about 11.43 seconds and loaded
+InsightFace. It does not show a native import failure in that run.
+The Games theme callback is a plausible event-loop problem; Windows UI repair is
+not confirmed. No Windows runtime is available for full validation here.
+The uploaded compression script uses compact.exe to compress eligible old documents
+in place, excludes root files and runtime folders, and does not move or delete files.
+Its BAT uses PowerShell; retained unchanged for evidence, not invoked by startup/setup.
+The existing GTAV bridge also uses PowerShell. No new PowerShell script was added.
+Root pyvenv.cfg is retained unchanged; installed environment remains local to your PC.
+This package consolidates the state you uploaded, not unseen historical versions.
+
+ROLLBACK
+Extract the original root-files ZIP over the root to restore original source files.
+New maintenance/docs/logs files may remain; restoring original Run.bat bypasses them.
+Do not run old archived installers as part of rollback.
+
+VALIDATION
+All Python files parsed. Archive CRC checked. Launcher paths reviewed.
+Behavioral checks cover optional-LZF setup failure and preflight without Switch.
+Actual Windows launching, native DLLs and feature installers have not been tested.

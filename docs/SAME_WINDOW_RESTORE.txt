@@ -1,0 +1,5 @@
+Close AI Generator. Merge this AI_Generator folder into your current installation. Run Apply_Same_Window_Restore.bat, then your existing Run.bat.
+
+Restores embedded tool launching inside the main AI Generator window. Explorer gets Back/Forward, Sort, Minimize (Home with shortcut retained), Maximize (main-window fullscreen; Escape exits), and Close Tool. Close and dock X remove the shortcut and release optional tool UI through existing destroy handlers; reopening creates it again. Persistent Photos settings stay available; active Photos processing uses Stop. Aero styling and playback repairs are retained. Sorting uses the first visible table in the current tool. No Python environment changes. Backups are saved before changes. Supports original and organized app layouts.
+
+Verified: syntax, applying over the previous Aero update, repeated installation, both layouts, and retention of playback patches. Windows GUI has not been run here.

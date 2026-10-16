@@ -1,0 +1,12 @@
+Close AI Generator. Merge this AI_Generator folder into your program, then run Apply_Online_Cover_Update.bat and Run.bat. No Setup needed.
+Restores 160-pixel icons on the first run of this update; the existing size slider remains available.
+Click an icon corner arrow: Online Cover Search opens a five-choice front-cover search.
+Enter the game title, choose a result, or Search Again to request new results.
+Console icons ask for a game title; game icons prefill their game name.
+Covers are fitted inside the existing console frame and saved locally; Remove Online Cover restores the underlying icon.
+Aero Icons remains optional and off by default. Existing custom images and original resources are preserved.
+Search uses public Bing image results, with Wikipedia cover search as a fallback, without an API key. Network access is required.
+If fewer than five usable images are available, the dialog shows the available choices; it does not repeat images to fill slots.
+Search-provider HTML or blocking can affect availability. Search Again advances results without repeating seen URLs.
+Source links are available in the picker. No installer, global Python variable, main.py, or launcher is changed.
+Windows GUI and live online search are not validated in this environment.

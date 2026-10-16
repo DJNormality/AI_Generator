@@ -1,0 +1,5 @@
+Close AI Generator. Merge this AI_Generator folder into your existing installation. Run Apply_Explorer_Interface_Update.bat, then Run.bat. Saves timestamped backups and supports original/app layouts. No Python or package changes.
+
+Replaces the large Explorer text buttons with one compact icon/address/search bar based on your references. Left controls: minimize, maximize, close, with yellow, blue, red LED hover in that order. Right: previous glows green, next glows blue. Stack icon opens the existing diagonal switcher. Address shows the active tool route; small arrow sorts columns. Search filters currently open Explorer tools while typing, shows results within the main window, and opens a selected result by click or Enter. Down arrow enters the result list. Escape or clicking outside dismisses results. Tools remain inside the main window.
+
+Validation: syntax, repeat installation, both directory layouts, search filtering and retention of prior settings/playback patches. Interactive Windows appearance has not been run here.

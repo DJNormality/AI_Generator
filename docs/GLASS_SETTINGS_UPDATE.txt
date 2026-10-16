@@ -1,0 +1,9 @@
+Close AI Generator. Merge this AI_Generator folder into your existing installation. Run Apply_Glass_Settings_Update.bat, then Run.bat. No Setup needed.
+Home Settings now has rounded glass cards, subtle reflections, 97-percent window opacity, and uniform readable buttons independent of the global theme. Native window rounding depends on Windows support.
+All existing background, icon, sorting and theme options remain available.
+Update AI Generator: choose a local update ZIP, review the files, then apply. It does not check an online release server. Updates preserve a rollback backup and must be followed by an app restart.
+The updater supports normal application-file ZIPs and the existing payload-based updates. It checks Python syntax and rejects unsafe paths and environment/model changes. It does not execute update BATs or installers.
+Preview Cleanup organizes loose archives and logs in the program root and maintenance/updates/logs subfolders. It skips installed modules, payload files, backups, resources, models, environments and duplicate destination filenames. No files are deleted. Undo Last Action restores the latest maintenance backup.
+main.py, Python, Lib, Scripts and existing startup launchers are unchanged.
+The initial installer backs up home_launcher.py under backups/Glass_Settings_<time>. Copy that file back for rollback of the settings redesign.
+Code, update validation, cleanup and rollback checks passed. Windows UI execution remains untested.
