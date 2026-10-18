@@ -1,6 +1,5 @@
+<img width="1122" height="732" alt="python_vp4qVG2uo0" src="https://github.com/user-attachments/assets/1e4d56c5-1b4e-402f-aaac-7756b70c4a6f" />
 
-
-https://github.com/user-attachments/assets/4862c0dd-deca-4c07-9f88-943d137fdf50
 
 # AI Generator
 
