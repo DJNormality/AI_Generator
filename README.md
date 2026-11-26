@@ -1,1145 +1,907 @@
-<img width="1122" height="732" alt="python_vp4qVG2uo0" src="https://github.com/user-attachments/assets/1e4d56c5-1b4e-402f-aaac-7756b70c4a6f" />
+<img width="1122" height="732" alt="python_OcwNpU430D" src="https://github.com/user-attachments/assets/3855bce6-eda4-41e2-9eb9-cc7483e33f62" />
+
+AI GENERATOR - FEATURE LIST
+Compiled November 26, 2026
+Windows project coverage: updates through V329
+Android Food companion coverage: 1.0.328
+
+This inventory combines the available application source, supplied tool modules,
+and completed updates in this project. Exact availability depends on the installed
+version, downloaded models, supplied plug-ins and external programs. Android Food
+is a separate companion application, not the entire Windows suite on Android.
+
+CONTENTS
+01. Home, navigation and general interface
+02. Processing, settings and installation
+03. Photos and face processing
+04. Image editing, icons and enhancement
+05. Models, 3D creation and rigging
+06. Textures and UV tools
+07. Files and batch utilities
+08. Research, Library and engine/game references
+09. Extract and asset inspection
+10. Engine workspaces
+11. Games, Arcade and console navigation
+12. Capture and porting
+13. Music Player and AI music creation
+14. Splitter
+15. Vocalist
+16. Autotuner
+17. Music Info, metadata and playback effects
+18. Chords and LearnOn
+19. Studio and instruments
+20. Video
+21. Design and layout editing
+22. Cabinet Builder
+23. Sprite Skinner
+24. DYI project assistant
+25. JuiceWRLD media library
+26. Food - Recipe Maker
+27. Food - Meal Maker and timer
+28. Food - ingredient cost estimates
+29. Food for Android
+30. Integration and offline-use notes
+
+
+01. HOME, NAVIGATION AND GENERAL INTERFACE
+-----------------------------------------
+- Home launcher with visual page icons.
+- Configurable icon images, labels, visibility and sizing.
+- Icon positioning, ordering, sorting and grid/snap organization.
+- Saved launcher preferences and icon arrangements.
+- Animated Home background with moving fog and star/twinkle effects.
+- Main-page and subtool navigation through icon toolbars.
+- Compact Vista-style controls and transparent icon artwork.
+- Custom toolbar icons and built-in icon selection.
+- Built-in icon libraries with category filtering and search.
+- Paginated icon browsing and previous/next navigation.
+- Icon-only choices in the updated built-in icon dialog.
+- Toolbar ordering and hold/drag interactions in supported toolbars.
+- Home and settings controls available from the shared interface.
+- Session Tool Explorer for revisiting open workspaces.
+- Route history with back/forward navigation.
+- Tool close, reopen and close-all actions.
+- Live tool instances retained during supported navigation changes.
+- Shared playback controls and visual feedback in the main interface.
+- Window minimize, maximize, restore and fullscreen controls.
+- Supported per-workspace layout and position preferences.
+- Searchable/filterable lists and tree views throughout the suite.
+- Sortable table headings and contextual sorting options.
+- Scrollable content regions with click-armed mouse-wheel routing.
+- Task status, progress and error feedback.
+- Filling percentage bars in updated processing tools.
+- Compact icon buttons with tooltip descriptions in supported tools.
+- Support/community links in the application interface.
+- Version display and versioned incremental updates.
+- Food first-open activation fix: Recipe Maker is initialized after the page
+  is visible and its layout is ready, without first opening another Food tool.
+
+
+02. PROCESSING, SETTINGS AND INSTALLATION
+---------------------------------------
+- Source, target, output and temporary directory selection.
+- Background workers for supported long-running operations.
+- Start/stop/cancel controls where the underlying task supports cancellation.
+- Current-task and overall progress tracking in the image pipeline.
+- Saved application settings and per-tool configuration.
+- Resume/checkpoint handling for supported batch operations.
+- Reprocessing and output-reuse options in the face/image workflow.
+- CPU, CUDA and DirectML provider selection in compatible image tools.
+- Auto/GPU/CPU selection in the updated Vocalist workflow.
+- Local-model setup helpers for supported AI features.
+- External-tool executable paths and dependency setup controls.
+- Versioned Rebuild.bat update packages.
+- Automatic target-directory handling in recent Windows update packages.
+- Preflight syntax checks, backups and rollback in recent incremental installers.
+- Original-environment/path repair utilities.
+- Standalone launch helpers for supported tools, including Music and Cabinet
+  Builder project variants.
+- Optional executable-build batch workflows supplied during the project.
+
+
+03. PHOTOS AND FACE PROCESSING
+-----------------------------
+- Face Swap workspace with selectable swapper models.
+- Source-image and target-media processing workflow.
+- Face indexing and index rebuild controls.
+- Face-consistency settings.
+- Original and reduced processing-resolution choices.
+- Blend percentage and edge-feather controls.
+- Face color-correction option.
+- Quick-scan option.
+- Review pass and manual-review modes.
+- Existing-output reprocessing controls.
+- Smart masking and face-boundary/occlusion protection.
+- Combined use of compatible occluder, face-parser and XSeg models.
+- Face-restoration model selection, including configured CodeFormer, GFPGAN,
+  RestoreFormer++ and GPEN choices when their model files are installed.
+- Restoration-strength adjustment.
+- Batch image processing with output and temporary-file management.
+- Video reconstruction from processed temporary frames.
+- Standalone image colorization workflow.
+- Colorization choices such as ColorizeStable and DDColor variants when available.
+- Prompt-based image editing through configured local or external engines.
+- Qwen/prompt-edit workspace and local-model options.
+- Prompt, strength and model configuration for compatible image-edit backends.
+- Brightness and gamma adjustments.
+- Image upscaling through configured RealESRGAN, UltraSharp and UltraMix models.
+- Upscale-factor selection, including 2x/4x options.
+- Manual image cropping.
+- Guide crop and sprite-sheet/image slicing.
+- Batch cropping by aspect ratio or exact dimensions.
+- Common portrait, square and landscape aspect-ratio presets.
+- Centered or custom crop placement.
+
+
+04. IMAGE EDITING, ICONS AND ENHANCEMENT
+--------------------------------------
+- Embedded Image Editor.
+- Layer controls and visibility.
+- Brush tools and selectable brush tips.
+- Drawing and shape controls, including filled shapes.
+- Color picker and HEX color entry.
+- Font selection for text-related editing.
+- Attribute editing and application to selected content.
+- Fit-to-window viewing and zoom-related controls.
+- Icon Maker workspace for creating/editing icon artwork.
+- Color and shape tools in Icon Maker.
+- Classic image-enhancement workspace.
+- Node-graph enhancement workspace.
+- Selection of compatible ONNX enhancement models.
+- Denoising controls, including median denoise.
+- Export/background-color handling for formats without transparency.
+- PNG export and alpha-aware image workflows in compatible editors.
+
+
+05. MODELS, 3D CREATION AND RIGGING
+---------------------------------
+Models / Scan
+- Open and inspect supported model/binary files.
+- Generic binary mesh scanning.
+- Mesh candidate identification and preview.
+- Integrated 3D preview and view transforms.
+- Combined Scan & Options, View & Transform and Batch Export workspace.
+- Scale, rotation and position controls.
+- Apply current preview transforms to supported exports.
+- Queued/batch export operations.
+
+Models / Create
+- Add reference images, image folders or video inputs.
+- Index reference images.
+- Build and rebuild generated/reconstructed meshes.
+- Local AI 3D setup options, including the configured SF3D integration.
+- Depth-model and COLMAP configuration for supported reconstruction paths.
+- Export generated meshes as OBJ or GLB.
+
+Design / 3D
+- Polygon/model editing workspace.
+- Object selection and transformation.
+- Move, scale and rotation workflows.
+- Position, size and related object attributes.
+- Vertex-oriented editing controls.
+- Extrude, cut, connect and split operations in the editor.
+- Boolean-operation controls.
+- Primitive/object creation, including cube-based construction.
+- Duplicate and delete actions.
+- Undo/redo checkpoints.
+- Import, open, save and export actions for supported mesh/project formats.
+- Projection selection and saved views.
+- Optional four-view display.
+- World-axis, axis-lock and grid controls.
+- Wireframe/solid display modes.
+- Lighting controls and light editing.
+- Material creation, selection, editing and application.
+- Material drag/drop interactions.
+- UV-related editing controls.
+- CPU/resource feedback in the 3D workspace where available.
+
+Auto Rig
+- Open a mesh or use a selected mesh from the 3D workspace.
+- Local Blender-based rigging workflow.
+- Biped template and editable joint landmarks.
+- Normalized width/depth/height joint placement.
+- Reset joint-template controls.
+- Reference-image upload and preview.
+- Automatic rig and skin-weight generation for compatible inputs.
+- Configurable Blender path, output directory and export options.
+- Skeleton preview.
+- Background execution, stop controls and job/status feedback.
+- Open the generated result/output folder.
+- Optional configured cloud-provider adapters; these are separate from local rigging.
+
+3DSim
+- Integrated mesh view and transform workspace.
+- Wireframe preview.
+- Scale, position and rotation application.
+- Optional supplied 3DSimED integration for proprietary formats.
+
+
+06. TEXTURES AND UV TOOLS
+------------------------
+Texture Scan
+- Automatic texture candidate scanning inside supported files.
+- Configurable raw-texture dimensions, formats and decode settings.
+- Candidate tuning and search limits.
+- Detected-texture list and preview.
+- Open DDS/PVR textures and compatible arbitrary binary inputs.
+- Compression analysis and candidate testing.
+- Decode/preview candidate textures.
+- Use a detected candidate as raw data.
+- Extract original texture data.
+- Export individual/all detected textures.
+- Export raw-texture results.
+- Index supplied QuickBMS/Noesis script collections.
+- Add script folders or ZIP collections.
+- Stop scanning and return-to-Home navigation.
+
+RGB Mixer
+- Single-image RGB channel mixing.
+- Live color preview.
+- Image and mask import.
+- Alpha-mask handling.
+- Mask inversion and removal.
+- Color reset and PNG export.
+
+UV Layout
+- UV-layout workspace for compatible meshes.
+- UV inspection and layout editing/export paths provided by the installed tool.
+- Related UV mapping controls in Design's layout/3D editors.
+
+
+07. FILES AND BATCH UTILITIES
+----------------------------
+Convert
+- Script-driven batch file conversion.
+- Scan an input directory and discover supported candidates.
+- Include subfolders.
+- Preserve folder structure when converting.
+- Optional overwrite behavior.
+- Reload conversion scripts.
+- Load a supplied Python script archive.
+- Optional Blender/3DS Max host-runner integrations for compatible scripts.
+- Background conversion and stop controls.
+
+Rename
+- Batch file-renaming workflow.
+- Input/output naming configuration and preview-oriented processing.
+- Apply renaming to supported file selections/directories.
+
+Sort
+- Preview file sorting before applying changes.
+- Asset organization based on supported naming/type rules.
+- Collision-aware sorting behavior.
+- Move files and create ZIP output.
+- Continue supported interrupted sorting operations.
+
+Remove
+- Separate file and folder cleanup views.
+- Directory scanning and filtering.
+- Select-all and selected-item removal controls.
+- Review selected results before applying cleanup actions.
+
+Cutter / File Scanner
+- Scan data structures, buffers and embedded-file candidates.
+- View detected entries in a hierarchical list.
+- Expand/collapse entry trees.
+- Read data from a chosen offset.
+- Export a selected byte range/cut.
+- Extract selected entries or all supported entries.
+- Rebuild supported directory structures during extraction.
+- Search-online action for research assistance.
+
+Compress
+- Directory/file ZIP workflows.
+- Automatic ZIP creation after the configured short delay.
+- Output selection and batch-oriented archive creation.
+
+
+08. RESEARCH, LIBRARY AND ENGINE/GAME REFERENCES
+----------------------------------------------
+- Binary Research workspace.
+- Hex inspection.
+- String finding and search results.
+- Signature and embedded-file discovery.
+- Offset/page navigation through inspected data.
+- Extract a detected file or all detected files.
+- Stop long-running scans.
+- Online reference Library search.
+- Web search and open-selected-reference controls.
+- Connection checking for online Library services.
+- Offline engine/game reference catalogue.
+- Optional game examples in catalogue results.
+- Engine and game source links.
+- Catalogue refresh/update, clear and CSV export controls.
+- Supplied schema/definition collections used by compatible extraction tools.
+
+
+09. EXTRACT AND ASSET INSPECTION
+-------------------------------
+- PS1/PS2-oriented asset extraction framework.
+- Native PC asset scanning in supported readers.
+- Legacy-format reader/converter controls.
+- Supported archive/container inspection.
+- File and optional index-file input.
+- Output-directory selection.
+- Selected or batch extraction.
+- LZSS decompression attempts for supported data.
+- Rescan decompressed data for recognizable PS2 assets.
+- Raw sound-bank scanning and extraction.
+- Sound scan/playback and conversion actions.
+- Structure-preserving output where supported.
+- Lightweight 3D and animation-validation preview.
+- Skeleton import and animation append actions in compatible preview workflows.
+- NIF workspace with block and texture inspection.
+- Reader/converter discovery and selection.
+- Compatibility workspace for native readers, verified CLI commands and external UIs.
+- Imported script/schema catalogues for supported formats.
+- Error/status reporting when a format or supplied dependency is unsupported.
+
+
+10. ENGINE WORKSPACES
+---------------------
+Common engine interface
+- Dedicated engine pages with archive/assets views and auxiliary SDK/tool tabs.
+- Standardized preview, output and external-helper configuration patterns.
+- Batch operations where the specific engine reader provides them.
+
+Havok
+- Conversion and header inspection.
+- Havok string discovery.
+- Current-input preview.
+- Recursive folder conversion.
+- Source preservation and overwrite options.
+- Automatic tool discovery and saved tool paths.
+- TagTools install/update integration.
+- Blender/Noesis add-on folder access.
+- Supplied skeleton/conversion options.
+
+Anvil / Forge
+- Supported Forge archive browsing and extraction.
+- Archive-entry and asset views.
+- Model/asset preview and view reset.
+- Optional Oodle DLL selection for compatible compressed content.
+
+Unity
+- Dedicated Unity asset-processing workspace and configured helper integrations.
+
+Unreal
+- Dedicated Unreal asset-processing workspace and configured helper integrations.
+
+Creation
+- BSA/BA2 archive browser.
+- NIF-oriented inspection and preview workspace.
+
+NeoX
+- Native extraction and shared model/texture preview.
+- ZZZ4 block scanning and supported model conversion.
+
+Blackspace
+- Extraction/conversion workspace.
+- XML decryption controls.
+- Supported batch conversion.
+
+Insomniac
+- Layout CSV input and extraction workflows.
+- Shared model/texture viewport.
+- Block decoding and saved decoded output.
+- Imported schema database.
+- IGZ conversion/status controls.
+- Supplied converter GUI, endian and texture-related helpers.
+- Supported FBX/batch-conversion paths through configured tools.
+
+Disrupt
+- Supported extraction and asset preview.
+- Hash-name loading and game-file lists.
+- Imported file-list support.
+- Project XML/list handling.
+- Binary metadata XML export.
+- Gibbed object-definition/schema integration.
+
+Frostbite
+- Engine workspace and supplied Frosty-helper integration.
+- Profile and build lists.
+- Import/select compatible keys.
+- Import and apply supported cache data.
+- Refresh and helper-path configuration.
+
+Decima
+- Supported native archive and asset inspection.
+- Selected or batch extraction.
+- Asset-path browsing.
+- Localization export and language controls.
+- Supplied Workshop CLI integration.
+- Preview, output-folder and stop controls.
+
+
+11. GAMES, ARCADE AND CONSOLE NAVIGATION
+---------------------------------------
+- Games/Arcade launcher with console and game filters.
+- Saved custom game/console icon images and positions.
+- Cover-image upload, removal and optional online cover search.
+- Game-to-console memberships and filtering.
+- Configured file/application launch actions.
+- Console-oriented workspace/launcher entries for the project's configured
+  PlayStation generations, Game Boy Advance, GameCube, Wii, Xbox 360 and
+  Windows/PC categories; Switch integration is also part of the project setup.
+- Per-console emulator/tool setup and launch configuration where installed.
+- Package/tool workflows for the supplied PS4/PS5-related utilities.
+- RPCS3 integration/configuration for the supplied PS3 workflow.
+
+Game workbenches
+- Wild Arms 3 asset workflow.
+- Wild Arms Alter Code F asset workflow.
+- Twisted Metal series workspaces, including original PlayStation titles,
+  Small Brawl, Head On, Harbor City, Black and the 2012 game where supplied.
+- NBA workbench using the supplied NBA exporter tools.
+- Horizon assets and batch-conversion workflows.
+- Horizon EDGE/TXT/SMD animation-conversion helper paths.
+- GTAV workbench with CodeWalker-related tooling and native asset operations.
+- GTAV RPF input, preview, XML editing/conversion and format/tool controls.
+- GTAV selected-image export and DDS-to-PNG conversion.
+
+Console names are launcher/workspace categories. They do not mean the application
+itself implements a working emulator for every listed console. Some third-party
+emulators and utilities open externally rather than remaining inside the main UI.
+
+
+12. CAPTURE AND PORTING
+----------------------
+Capture
+- Running-process selection and connection workflow.
+- RenderDoc-related capture controls.
+- Disconnect and saved capture/tool settings.
+- Captured mesh conversion through configured tools.
+
+Porting
+- Fortnite Porting launcher.
+- Official-release updater integration for the configured porting application.
+- Cyberpunk workbench with supplied WolvenKit CLI support.
+- Background execution and configured input/output/tool paths.
+
+
+13. MUSIC PLAYER AND AI MUSIC CREATION
+-------------------------------------
+Music Player
+- Directory-based music library browsing.
+- Persistent playlists.
+- Open/select songs from the library.
+- Play, pause, stop, previous and next controls.
+- Shuffle and repeat controls.
+- Seek/progress feedback.
+- Waveform artwork/visual feedback.
+- Shared overall transport and playback visualization.
+- Links between compatible current-track tools.
+- Standalone Music launch batch.
+- Initial-tool selection updates for the Music page.
+
+AI Music Create
+- Local prompt-based music creation through the configured engine.
+- Generation length, BPM, key and meter controls.
+- Language and output-format configuration where supported.
+- Generation-step settings.
+- Output-directory selection.
+- Engine startup/status checks.
+- Generate, stop, play and open-output actions.
+
+
+14. SPLITTER
+------------
+- Vocal/instrumental stem separation through the configured Demucs workflow.
+- Select a single song.
+- Directory input for processing multiple songs.
+- Output-folder selection.
+- Demucs model selection.
+- Background processing with progress feedback.
+- Cancellation/stop handling.
+- Suppressed processing console windows in updated Windows workers.
+- Source song name included in exported stem filenames.
+- Naming pattern: Song Name (Instrumental).wav and Song Name (Vocals).wav.
+- No extra dash inserted before the parenthesized stem label.
+- Per-song output folders use the song stem rather than retaining .mp3/.MP3.
+- Updated output flow avoids creating split.log.
+
+
+15. VOCALIST
+------------
+- Saved-voice library for local text-to-speech generation.
+- Create a new voice entry.
+- Import voice recordings from audio files, ZIPs or a directory.
+- Add more samples to the currently selected voice.
+- Store recordings and voice data in a local database/library.
+- Recording-count and storage-size summaries.
+- Analyze recordings and rebuild/improve saved speaker references.
+- Reuse prior analyzed references when improving a voice.
+- Preserve a previous working voice model/reference set when an update fails.
+- Text prompting for speech generation.
+- Text box without the previous 2,000-character UI cap.
+- Long-input handling through the installed synthesis workflow.
+- Expressiveness and voice-guidance controls.
+- Auto, GPU and CPU device choices.
+- Generated-audio playback and stop controls.
+- Download/export generated WAV audio.
+- Cancel jobs and view processing progress/status.
+- Compact icon buttons in updated versions.
+- Database-folder selection and existing-recording restoration controls.
+- Local engine setup and saved configuration.
+- Voice-library naming, including the project's JuiceWRLD entry.
+- No recording-preview list or dedicated Import JuiceWRLD button in the revised UI.
+
+The voice-improvement workflow builds/updates speaker conditioning from recordings;
+it should not be described as full base-model training or automatic sung melody
+generation. Generated quality depends on the installed engine and source samples.
+
+
+16. AUTOTUNER
+-------------
+- Upload an isolated vocal recording.
+- Detect vocal pitch and apply pitch correction.
+- Chromatic correction to nearby semitones.
+- Major/minor scale correction with a selected musical key.
+- Correction-strength control.
+- Retune-speed control.
+- Maximum pitch-shift limit.
+- Automatic, low-voice and high-voice pitch ranges.
+- Corrected-audio preview/playback and stop controls.
+- Corrected WAV output/export.
+- Background worker/status feedback.
+- Separate temporary outputs for repeated correction jobs in updated versions.
+- Original uploaded recordings retained.
+- Dependency setup through Setup_Autotuner.bat.
+
+
+17. MUSIC INFO, METADATA AND PLAYBACK EFFECTS
+-------------------------------------------
+- Info tool tied to the current compatible music-player track.
+- Open a song directly from Info.
+- Details action to read song metadata.
+- Edit title, artist, album, album artist, genre and date.
+- Edit track/disc numbers, composer and supported album-sort fields.
+- Save metadata back to the song with backup handling.
+- Playback resume handling around supported metadata writes.
+- Ten-band equalizer: 32, 64, 125, 250, 500 Hz; 1, 2, 4, 8 and 16 kHz.
+- Preamp and per-band gain adjustment from -12 to +12 dB.
+- Apply sound changes to current playback.
+- Reset sound controls.
+- Sound filters: Echo, Hallway, Tunnel, Stadium, Sewer, Auditorium and Speakers.
+- Speed control from -10x to +10x, excluding zero.
+- Negative speed/reverse processing in the supported playback-filter workflow.
+- FFmpeg-backed audio processing.
+
+
+18. CHORDS AND LEARNON
+---------------------
+- Music Chords workspace and chord-reference controls.
+- Input and scan a local song.
+- Chord, pitch/key and timing analysis through configured local analysis tools.
+- Guitar fingering and fretboard visualization.
+- Playback-synchronized chord/note displays.
+- Perspective guitar-highway view.
+- Piano keyboard highlighting from scanned pitches.
+- Playback-synchronized drum estimates.
+- Reference-note tuner independent of the main music player.
+- Lyrics/word detection through configured transcription tools.
+- Edit, append and clear detected words/lyrics.
+- Genius lookup/link integration.
+- Seek, restart, previous/next and play/pause actions.
+- Local scan history and completed-analysis archive.
+- Cache/index analyses by the audio file's revision.
+- Save chord-song data and local .song references.
+- Public song/reference lookup where configured.
+- Visual color and instrument-board settings.
+- Guitar Pro tablature conversion through the configured library.
+- Rocksmith-related local audio conversion and arrangement export.
+
+
+19. STUDIO AND INSTRUMENTS
+-------------------------
+- Unified Studio workspace in Design.
+- Piano workspace and piano-roll note editing.
+- Guitar workspace with fretboard/string/fret configuration.
+- Guitar chord selection and strum/play interactions.
+- Drums, Bass and Turntable workspaces.
+- Vocals/recording workspace.
+- Song/playlist arrangement view.
+- MIDI-related workspace and import/export paths provided by the installed tool.
+- Waveform view and visualization controls.
+- Channel rack and pattern arrangement.
+- Song blocks with editing, moving and removal.
+- Pattern playback and song playback.
+- Piano-roll playback/rendering and export.
+- Pattern/channel mixer.
+- Per-channel volume and pan.
+- Mixer changes applied to arranged blocks without replacing their notes.
+- Song audio export, including supported WAV/MP3 paths.
+- Audio trimming, speed, gain, channels and fade controls.
+- Instrument, root, scale, chord and octave settings where applicable.
+- Saved Studio settings and compact icon navigation.
+
+
+20. VIDEO
+---------
+- Video workspace with Timeline and Audio Sync tools.
+- Timeline-based processing/editing through the installed Video tool.
+- Audio/video input and output configuration.
+- Align multiple screen captures against a shared soundtrack.
+- Reference-view selection for synchronization.
+- Audio offset analysis and manual offset adjustment.
+- Crop controls for supported views.
+- Per-view background/layout configuration.
+- Export synchronized separate views.
+- Save project/configuration data for supported sync workflows.
+- Background scan/export jobs and status reporting.
+- Clipchamp launch integration from the Video page.
+- Reconstruction of videos from processed frames in the image pipeline.
+
+Clipchamp is a launcher integration with Microsoft's application, not a bundled
+replacement implementation of the entire Clipchamp editor.
+
+
+21. DESIGN AND LAYOUT EDITING
+----------------------------
+- Layout Designer workspace.
+- Layered blueprint/layout editing.
+- Open reference images.
+- New, open and save project actions.
+- PNG export.
+- Snap controls and color/style settings.
+- Place supported layout items.
+- Scan & Generate workflow for compatible inputs.
+- UV-mapping related controls.
+- Drawing information blocks and project information.
+- Size/style settings and modern insert/item controls.
+- Shared access to Studio, Image Editor, Icon Maker, 3D, Cabinet Builder,
+  Sprite Skinner and DYI workspaces.
+
+
+22. CABINET BUILDER
+-------------------
+Workspace and viewing
+- Cabinet Builder workspace, historically labeled Cabinet Designer in some modules.
+- Wall, Base and Both planning/view modes in the project updates.
+- Floor/wall area sizing.
+- Plan and 3D preview workflows.
+- Current-layout and preview-layout views.
+- Grid, camera/view and display controls.
+- Zoom controls, mouse-wheel zoom and supported middle-mouse panning.
+- Selection attributes, dimensions, position and elevation controls.
+- GPU/CPU/memory feedback in supported 3D views.
+
+Catalogs and items
+- Catalog-driven cabinet/item library.
+- Brand selection, select-all and deselect-all controls.
+- Catalog/item indexing, search and discovery feedback.
+- Catalog model assignment and nearest supported catalog-size selection.
+- Item preview lists and drag-to-place interactions.
+- Preview sizing/sorting preferences.
+- Cabinets, doors, panels, corner cabinets, lazy Susan and trash-cabinet items
+  where included in the installed catalogs.
+- Appliance, window and obstacle placement categories.
+- Cabinet-set alignment and supported random-plan generation.
+- Overlap checks in supported placement/generation paths.
+
+Editing
+- Add/place items from previews.
+- Move and rotate items.
+- Rotation-angle controls and 90/180-degree actions.
+- Resize and replace operations.
+- Size-aware replacement filtering in the updated replacement workflow.
+- Multi-selection and selection-rectangle interactions in supported views.
+- Align, duplicate, rename and delete selected items.
+- Elevation and dimension editing.
+- Floor/wall images and material/finish controls.
+- Texture scale, masks/recoloring and supported tiling preferences.
+- Apply supported finishes/materials to selected items.
+- Collapsible attributes and compact toolbar/settings layout.
+
+Image Input
+- Reference-image upload and embedded image-input workspace.
+- Local OCR/Tesseract scanning.
+- Multiple scanning passes and saved discovery results.
+- Discovery progress and measurement-related analysis.
+- Rotate and horizontal/vertical flip controls.
+- Line, box and polygon selection tools in the project image-input workflow.
+- Marker/highlighter tools and clear-selection controls.
+- Catalog matching from detected dimensions and item information.
+- Brand/finish-aware preview matching and placement into layout previews.
+- Window/door/obstacle interpretation where supported by the installed analysis.
+
+Saving and output
+- Save/open layout/project workflows, including the project's .nxt layout format.
+- UI/layout templates and saved workspace arrangements.
+- Connected/reorderable toolbars in supported revisions.
+- Movable/resizable workspace panels in the cabinet-specific UI.
+- Blueprint, dimension and export-sheet workflows supplied by project modules.
+- Camera/export and Blender rendering integrations where installed.
+- Standalone Cabinet Builder launch/setup variants supplied during the project.
+
+
+23. SPRITE SKINNER
+------------------
+- Load sprite sheets/reference poses.
+- Detect and slice frames.
+- RPG/template layout helpers.
+- Single-character/template organization.
+- Pose/frame assignment and named clip scanning.
+- Frame-positioning and guide-line adjustment.
+- Reskin/reference-frame workflow.
+- Sprite-frame preview and zoom.
+- Horizontal flipping.
+- Animation playback and timing preview.
+- Save named clips and export sprite assets.
+
+
+24. DYI PROJECT ASSISTANT
+------------------------
+- Add reference images or directories.
+- Optional recursive image import.
+- Image selection, fit and zoom.
+- Local OCR passes and saved pass/reference history.
+- Optional local AI scan/generation through configured models.
+- Editable project instructions and ordered steps.
+- Add, remove, reorder and edit steps.
+- Materials/tools lists.
+- Apply step edits to the project.
+- Generate, preview and save PDF output.
+- Previous/next PDF page navigation and refreshed previews.
+- Save and reopen projects.
+- Setup/model settings, cancellation and background job feedback.
+
+
+25. JUICEWRLD MEDIA LIBRARY
+--------------------------
+- Local song/media browsing.
+- Folder selection and media scanning.
+- Open/play local files.
+- Songs, albums and related catalogue views.
+- Sourced offline album/reference catalogue.
+- Release and sales source links where provided.
+- Shared Home/player controls and spectrum integration.
+- Studio/Drive-file browser integration.
+- ZIP directory previews.
+- Explicit local downloads through the supplied workflow.
+
+This media-library page is separate from the Vocalist voice database entry.
+
+
+26. FOOD - RECIPE MAKER
+----------------------
+- Food is a main application page.
+- Recipe Maker and Meal Maker are Food subtools.
+- Local archive of 3,634 meals from the supplied cookbook collection.
+- Search by meal name and ingredient text.
+- Cookbook and category filters.
+- Meal name, yield/servings and category fields.
+- Ingredients displayed for a selected meal.
+- Expanded Preparation editor.
+- Available cookbook directions displayed as ordered, numbered steps.
+- Preparation supplied for 3,342 archived entries in the current archive update.
+- Source guidance for entries without reliably extracted directions.
+- Original recipe/cookbook source links and PDF-page references.
+- Cookbook/source overview.
+- Create new personal recipes.
+- Copy an archived recipe into a personal version.
+- Edit and save ingredients and preparation notes.
+- Local SQLite recipe storage.
+- Preserve personal records separately from the cookbook archive.
+- Keep in-session drafts when switching between recipe entries.
+- Delete personal recipes without deleting archive recipes.
+- Export recipe/ingredient data as text or JSON.
+- Estimate Cost button replacing the older ingredient checklist button.
+- Removal of the redundant Food header and Cooking/provenance block above
+  Preparation in the relevant updates.
+- First-open Recipe Maker activation repair in V329.
+
+
+27. FOOD - MEAL MAKER AND TIMER
+------------------------------
+- Upload up to five ingredient photos for one scan.
+- Individual image upload boxes with previews.
+- Replace or remove uploaded images.
+- Local vision-model scanning in the configured Windows workflow.
+- Detected ingredients shown in an editable list/viewport.
+- Add, edit or remove ingredients manually.
+- Create meal ideas from available ingredient types.
+- Compare the list against the archived recipes.
+- Show matched ingredients and additional ingredients needed.
+- Optional pantry staples: water, salt, pepper and oil.
+- Open/view the source recipe for a suggested meal.
+- No claim that visual item matching proves sufficient ingredient quantities.
+- Kitchen countdown timer with a specified duration.
+- Start/resume, pause and reset controls.
+- Alert sound at expiry and alert testing where provided.
+- Timer retained independently of recipe scanning/meal selection.
+
+
+28. FOOD - INGREDIENT COST ESTIMATES
+----------------------------------
+- Select Meijer, Target, Walmart, Kroger, Aldi, Dollar General or Family Dollar.
+- Check publicly readable current product offers.
+- Show matched product/package, package count, unit/package price and line cost.
+- Display a total above the price table.
+- Automatically choose a suitable supported product match in the Windows update.
+- No requirement to open store search just to display an available price.
+- Editable product choice, package count and manual price.
+- Price-source link and checked timestamp.
+- Local SQLite history of observed and manually entered prices.
+- Reuse previous matching prices when live lookup fails.
+- Same-store historical prices preferred over another store's history.
+- Explicit other-store labels when an estimate uses another retailer's history.
+- Historical/manual estimates marked with a tilde and estimate status.
+- Show previous estimates immediately while refreshing live prices.
+- Initial reference history containing 22 observed common-grocery quotes.
+- Filter cookbook page/footer text out of the ingredient price check.
+- Distinguish live prices, estimates and items without price history.
+- Partial-total labeling when some ingredients cannot be priced.
+- Cancel lookup jobs and reject stale results after store changes.
+- Export estimates with source/status information.
+- Optional direct store search and source-opening actions remain available.
+
+These are whole-package estimates, not automatic recipe-portion costing.
+Taxes, delivery fees, deposits, coupons and package-unit conversion are excluded.
+Public retailer access and local prices vary; no missing price is invented.
+
+
+29. FOOD FOR ANDROID - SEPARATE COMPANION APP
+--------------------------------------------
+- Standalone signed APK; Windows AI Generator is not needed to run it.
+- Touch-friendly phone interface and wider tablet layout.
+- Recipe Maker, Meal Maker and Timer navigation.
+- Bundled offline recipe archive and available preparation directions.
+- Meal and ingredient search, cookbook/category filters and paging.
+- Favorite recipes.
+- Save personal recipes, preparation notes and drafts on the device.
+- Export/restore personal-data backups through Android's document picker.
+- Five image slots with previews and local image selection/resizing.
+- Editable ingredient suggestions and local meal matching.
+- Native timer scheduling, notification alerts and foreground sound.
+- Android notification/precise-alarm settings access.
+- Cost-estimate interface with the seven retailer choices and online price lookup.
+- Same package/signing identity for in-place updates from the earlier Food APK.
+
+Offline scanning in Android 1.0.328
+- Bundled ARM64 llama.cpp CPU inference engine.
+- Bundled SmolVLM-500M Q8 language model and image projector.
+- Model files included in the APK; no separate runtime download required.
+- First-scan local extraction/preparation and SHA-256 verification.
+- Optional Prepare offline model action in Settings.
+- No internet, Wi-Fi, computer or Ollama server required for photo scanning.
+- Food-presence check before ingredient extraction.
+- Ingredient-name extraction from model output.
+- Filtering of speculative caption alternatives and redundant ingredient names.
+- Image-by-image processing and progress feedback.
+- Cancel scan without overwriting the prior ingredient list.
+- Unload model/working context after the scan to release memory.
+- Targeted to ARM64 devices such as the user's Samsung Galaxy S23+.
+- Native library uses 16 KB ELF LOAD alignment.
+- Installer size is approximately 525 MB because model weights are included.
+- Source/rebuild package with model-restoration helper and setup instructions.
+
+The compact vision model can miss or misidentify items; the list stays editable.
+Fresh store-price checks still require internet. The Windows V327 price-history
+feature and Android price UI are separate implementations. Android signature,
+packaging, host inference and mobile UI checks were performed; physical S23+
+installation/native-inference testing was not available in this workspace.
+
+
+30. INTEGRATION AND OFFLINE-USE NOTES
+-----------------------------------
+- Local files, saved projects and supported native editors can work without web
+  access once their required dependencies are installed.
+- Windows local AI tools require their configured engines/models; they are not
+  all bundled into the base application.
+- Android Food 1.0.328 specifically bundles its offline scanning engine/model.
+- External cloud/provider integrations need compatible credentials/connectivity.
+- Live price checks, web searches, online covers, source lookups and downloads
+  need internet access.
+- Blender, FFmpeg, COLMAP, RenderDoc, Noesis, QuickBMS, 3DSimED, game SDKs,
+  emulators and proprietary utilities are separate dependencies where used.
+- A configured engine/game workspace is not a promise of support for every
+  proprietary archive revision, skeleton, texture format or game release.
+- Installed catalog/model/script collections determine available item counts,
+  file formats, inference choices and conversion coverage.
+- Existing code and completed updates were inventoried; this document is a
+  feature reference rather than a claim that every external integration was
+  tested on the user's installed machine.
 
 
-# AI Generator
-
-AI Generator is a Windows desktop application for batch face replacement, image and video processing, face restoration, colorization, upscaling, prompt-guided image editing, cropping, batch file renaming, and exploratory 3D mesh scanning.
-
-It began as a fork of Smart Face Swapper and has been expanded with a modern tabbed interface, persistent source-face indexing, multiple restoration and upscaling models, local and cloud prompt editors, processing progress displays, and utility tools.
-
-## Main Features
-
-### Face replacement
-
-- Batch-process image and video folders.
-- Detect and replace one or more faces in each target.
-- Choose the closest indexed source face automatically.
-- Use the original InsightFace-compatible 128 model, FP16 128 model, or compatible ReSwapper 256 model.
-- Processing-resolution and face-consistency controls.
-- Optional color correction.
-- Quick scan, review pass, and manual review options.
-- Pause, resume, stop, and reprocess-existing controls.
-- NVIDIA, DirectML, and CPU execution options, depending on installed providers.
-
-### Persistent source-face indexing
-
-- Source faces are indexed once and stored for later sessions.
-- Unchanged source folders reuse their existing index.
-- New or changed source images can be added without discarding completed work.
-- A **Rebuild face index this run** option forces a clean index when necessary.
-- Indexing and overall progress are displayed as green progress bars with percentages.
-- More forgiving face-detection passes improve recognition of angled, small, or difficult portraits.
-
-Persistent indexes are stored as:
-
-    models/source_faces_*.pkl
-
-These files contain data derived from personal source images. Remove them before distributing a clean copy of the application.
-
-### Face restoration
-
-Supported restoration choices:
-
-- CodeFormer
-- GFPGAN 1024
-- RestoreFormer++
-- GPEN 512
-- GPEN 1024
-
-Restoration strength has a visible percentage readout in the interface.
-
-### Colorization
-
-- ColorizeStable
-- DDColor Natural
-- DDColor Artistic
-
-### Standalone Colorize tab
-
-- Colorize complete folders of black-and-white images without indexing source
-  faces and without performing a face swap.
-- Select independent input and output folders.
-- Choose DDColor Natural, DDColor Artistic, or ColorizeStable.
-- DDColor Natural is the recommended default for photographs because it keeps
-  the original full-resolution luminance and predicts new color channels.
-- Preserve every original filename.
-- Preserve the alpha channel of transparent PNG images.
-- Skip existing outputs or enable overwrite mode.
-- Download the selected ONNX model automatically when it is missing.
-- Display per-image and overall progress using the main green progress bars.
-- Stop an active standalone colorization batch with the main Stop button.
-
-### Upscaling and sharpening
-
-- RealESRGAN x4
-- 4x UltraSharp
-- 4x UltraMix Smooth
-- 2x and 4x output options
-
-### Tone correction
-
-- Brightness adjustment from -100 to +100.
-- Gamma adjustment from 0.20 to 3.00.
-- Tone correction can be combined with restoration, colorization, and upscaling.
-
-### Smart face-boundary protection
-
-The optional smart-mask stage combines:
-
-- Occluder
-- FaceParser
-- XSeg
-
-This helps protect hair, glasses, hats, face boundaries, and foreground obstructions while compositing a swapped face.
-
-## Prompt Editing
-
-Prompt editing is applied before the final face replacement for still images. This lets an editor change hair, clothing, glasses, makeup, pose, or background, after which the face swap restores the selected identity.
-
-Example:
-
-    Change her hair to long black hair fully braided into pigtails.
-
-Prompt editing for every video frame is optional because it is slow and may flicker between frames.
-
-### A2E
-
-- Uses the official A2E REST API.
-- Supports Nano Banana, GPT Image, and Qwen choices exposed by A2E.
-- Supports 1K and 2K output selections.
-- Saves a redacted diagnostic file when a task fails.
-- Requires an A2E token configured with `Configure_A2E_API_Token.bat`.
-- Uses online credits.
-
-### Local
-
-- Uses `timbrooks/instruct-pix2pix`.
-- Runs through PyTorch and Diffusers on an NVIDIA GPU.
-- Uses FP16, attention slicing, and VAE slicing.
-- Processes a reduced working image and restores the original dimensions afterward.
-- Does not require credits after the model has been downloaded.
-
-### Qwen 2.1 Local
-
-- Uses the complete `Qwen/Qwen-Image-2.1` Diffusers pipeline.
-- Supports reference-preserving prompt-based image editing.
-- Uses FP16 on the Quadro P5000 instead of the model's native BF16 configuration.
-- Uses sequential CPU offload, attention slicing, VAE slicing, and VAE tiling.
-- Limits the working image to 768 pixels on its longest side to reduce VRAM usage.
-- Restores the original image dimensions after editing.
-- Keeps the model cached between edits during a session.
-- Can load from a Hugging Face model ID or a complete local folder.
-
-The complete Qwen Image 2.1 repository is approximately 33 GB. The `text_encoder` folder alone is not enough. The local folder must contain:
-
-    models/Qwen-Image-2.1/
-    ├── model_index.json
-    ├── processor/
-    ├── scheduler/
-    ├── text_encoder/
-    ├── transformer/
-    └── vae/
-
-In the GUI, select **Qwen 2.1 Local** and enter:
-
-    D:\PROGRAMS\AI_Generator\models\Qwen-Image-2.1
-
-Alternatively, leave the model field as:
-
-    Qwen/Qwen-Image-2.1
-
-The Hugging Face model ID downloads into the normal Hugging Face cache on first use. A complete cached model can be used offline afterward.
-
-The Quadro P5000 configuration is expected to be slow. A single edit may take several minutes.
-
-### Cloud
-
-- Uses the OpenAI Images API.
-- Supports the Cloud model and quality choices displayed in the GUI.
-- Requires `OPENAI_API_KEY`, configured with `Configure_Cloud_API_Key.bat`.
-- Uses online API credits.
-
-### Qwen Cloud
-
-- Uses Qwen Image Edit through Hugging Face Inference Providers.
-- Includes retry logic when a provider returns an almost unchanged image.
-- Requires `HF_TOKEN`, configured with `Configure_HuggingFace_Token.bat`.
-- Provider availability and charges depend on the Hugging Face account.
-
-## Crop Tools
-
-### Manual crop editor
-
-- Open an individual image.
-- Drag a crop rectangle directly over the preview.
-- The rectangle is red while it is being drawn or scaled and turns green when
-  the final crop selection is valid.
-- Save the selected area as a new file.
-- Preserves PNG transparency.
-
-### Batch crop
-
-- Crop an entire directory of images and videos.
-- Choose common aspect ratios.
-- Enter an exact output width and height.
-- Keep the original centered crop behavior or choose **Custom selection**.
-- Load the first image in the folder, or the first frame of the first video
-  when the folder contains no images, and draw a reusable crop template.
-- The template rectangle is red while being drawn and turns green after the
-  final selection is completed.
-- Apply the selected relative position to every image and video in the folder,
-  even when media dimensions differ.
-- Preserve video audio when producing the cropped video.
-- Control whether existing output files are overwritten.
-
-## Batch Renamer
-
-- Rename images, videos, or all supported files.
-- Find and replace text in filenames.
-- Add prefixes and suffixes.
-- Add sequential numbers with selectable starting value and digit count.
-- Optionally include subfolders.
-- Preview every old and new filename before applying changes.
-- Uses temporary names internally to avoid collisions.
-
-## Models
-
-### Create meshes from images
-
-The **Models → Create** tab builds a local 3D mesh from one or more source-image
-silhouettes. Add several views of the same object, choose **Index Images**, set a
-target polygon count and select **Quads** or **Triangles**. The project index
-stores copies of the source views, hashes, dimensions, settings, and every
-generated OBJ. **Rebuild Mesh** refines foreground detection and smoothing
-while retaining each earlier generation. The preview supports rotation, pan,
-and mouse-wheel zoom before exporting to Wavefront `.obj`.
-
-This is a silhouette/profile reconstruction tool. Transparent PNGs, clean
-backgrounds, and evenly spaced views give the best results; it is not a neural
-photogrammetry replacement.
-
-The Create tab now has five reconstruction engines:
-
-- **Auto detect** recognizes Autohome-style cubemap tiles such as
-  `l2_f_1_1.jpg`, removes duplicate `(2)` downloads, chooses the highest tile
-  level, and assembles the Front/Back/Left/Right/Up/Down faces.
-- **Panorama depth** accepts a local Hugging Face-format Depth Anything V2
-  model folder and estimates a non-metric interior-depth shell from the six
-  assembled faces. Without a model it deliberately creates only a panorama
-  sphere preview instead of pretending that real depth was recovered.
-- **Photogrammetry (COLMAP)** runs a user-selected `colmap.exe` against images
-  or video frames captured while the camera physically moves. It converts the
-  dense PLY mesh to OBJ through `trimesh` and reports when camera matching or
-  surface reconstruction did not succeed. Every run receives a new image-only
-  staging directory; JSON indexes, OBJ generations, and cached project files
-  are validated and excluded before COLMAP starts.
-- **Silhouette** retains the original isolated-object profile workflow.
-
-- **Local AI 3D (SF3D)** reconstructs the first source image into a textured,
-  UV-unwrapped GLB using a model installed on the same computer. It supports
-  512, 1024, or 2048 texture resolution plus unchanged, triangle, or quad
-  remeshing. The generated GLB is stored in project history, displayed in the
-  Models viewport, and can also be converted to OBJ. Run
-  `Setup_Local_3D_Generator.bat` once while online. After the model weights are
-  cached, reconstruction requires no cloud API, API key, credits, or internet.
-  The separate Python 3.11 environment is stored under
-  `tools\stable-fast-3d` and does not modify AI Generator's main environment.
-
-**Add Video** extracts distinct frames at the selected interval and removes
-near-identical consecutive frames. Video improves reconstruction only when the
-camera changes position and produces parallax; rotating at one fixed panorama
-location does not reveal hidden geometry. A vehicle-interior capture should
-move slowly through the cabin, keep exposure/focus locked, avoid motion blur,
-and maintain strong overlap between frames.
-
-When an Autohome-style cubemap is detected, selecting COLMAP now stops before
-processing and explains that **Panorama depth** is required. This prevents a
-single fixed camera position from being mistaken for a moving-camera sequence.
-
-On Windows, the COLMAP selector accepts either `COLMAP.exe` or the preferred
-top-level `COLMAP.bat`. AI Generator adds the adjacent `bin`, `lib`, and Qt
-plugin directories to the child process environment and automatically locates
-`plugins\platforms\qwindows.dll`. If the DLL is missing, the GUI explains that
-the complete COLMAP package is required instead of showing the raw Qt error.
-
-### One-step 3D reconstruction setup
-
-Run `Setup_3D_Reconstruction.bat` from the main AI Generator directory. It:
-
-1. Uses `Scripts\python.exe` first, without creating another environment.
-2. Installs Transformers, Accelerate, Safetensors, Trimesh, and Hugging Face
-   Hub support.
-3. Downloads `Depth-Anything-V2-Small-hf` into
-   `models\Depth-Anything-V2-Small-hf`.
-4. Searches common locations for a complete COLMAP installation, optionally
-   accepts a pasted COLMAP folder, and verifies that `qwindows.dll` exists.
-5. Stores only the detected paths in `tools\depth_model_location.txt` and
-   `tools\colmap_location.txt`. Models → Create reads these files at startup,
-   so users do not have to move executables, Qt DLLs, or model files manually.
-
-If verification finds a mixed or incomplete Torch installation (for example,
-`cannot import name is_fake_tensor`), setup automatically calls
-`Repair_PyTorch.bat`. The repair uninstalls only Torch/Torchvision/Torchaudio,
-removes their leftover module directories from AI Generator's active
-`site-packages`, installs a matched official CUDA 12.8 wheel set, and restores
-the required `setuptools<82` constraint. It does not touch models, projects,
-configuration, indexed faces, or generated media. `Repair_PyTorch.bat` can also
-be run independently.
-
-The **Models** section contains the raw binary Model Tool directly in its
-main tab. It does not create a separate always-on-top window. Its file picker
-uses **All files**, so a file does not need a recognized model extension.
-
-The current interface embeds the complete 3D scanner directly inside the
-**Models** tab. Texture Search, File Extractor, Music Studio, Audio Split,
-and Video Editor are likewise mounted directly in their tabs; launcher pages,
-extra tool windows, and embedded Back to Home buttons are no longer required.
-
-- Scan raw bytes for ranked position-buffer candidates.
-- Choose console-aware presets for PS1, PS2, PS3, PS4, PS5, Wii,
-  GameCube, Xbox, Xbox 360, Xbox One, and Dreamcast. Presets select the usual
-  byte order, alignment, and preferred numeric formats for that platform.
-- Automatically recognize Wii `SRWiiDisplayList` and PS2
-  `NiPS2GeometryStreamer` blocks in Gamebryo NIF files.
-- Switch the independent search option between **Geometry** and
-  **Animation / Rigging**.
-- A cleaner settings notebook separates **Mesh**, **UV**, **Animation**, and
-  **Texture** controls while keeping the compact results list and viewport
-  visible. Selecting Animation / Rigging automatically opens its settings tab.
-- Append up to two companion files directly above the viewport in a defined
-  order: **1 Import Skeleton**, then **2 Append Animation**. Both pickers accept
-  any file type, including DAT, BIN, ANM, SKEL, extensionless, and proprietary
-  console files. The viewport status shows how many companions are attached.
-- Search animation and skeleton data for Float32/Float16 4x4 matrices, 3x4
-  matrices, TRS transforms, common strides, both byte orders, and assumed bone
-  hierarchy sequences.
-- Merge a selected rig candidate over the current mesh preview. Bones are
-  bright red, joints are numbered, and X/Y/Z axes are labeled at bone points.
-- Use **Deep Rescan** to test two-byte stride increments and finely aligned
-  offsets around the currently selected candidate.
-- Stop normal or deep scanning at any time with **Stop Scan**. Partial results
-  already found are preserved and ranked instead of being discarded.
-- View live scan progress with a green percentage bar and a **Found items**
-  counter during normal and deep scans.
-- Candidate descriptions use compact numbered labels showing **Item number**,
-  hexadecimal **Offset**, assumed **Size** using B/KB/MB/GB, vertex count,
-  stride, numeric type, byte order, and confidence percentage.
-- Test Float32, Float16, signed and unsigned 32-bit, 16-bit, and 8-bit values,
-  including normalized short and byte formats.
-- Test common vertex strides and padding values.
-- Enter or correct vertex offset, count, stride, position type, UV offset, and
-  UV type manually.
-- Displays a white landscape grid on the XY ground plane with **Z Up**, including
-  a white vertical Z-axis marker. The grid remains visible before a model loads.
-- Read UInt16 or UInt32 face/index buffers as triangle lists or triangle strips.
-- Preview candidate geometry in the built-in software 3D viewer.
-- Scroll the ranked-candidate list with either the mouse wheel or its vertical
-  scrollbar. Use the horizontal scrollbar for longer item descriptions.
-- Hold **Ctrl** and use the mouse wheel to zoom.
-- Hold **Alt** and drag with the left mouse button to rotate.
-- Export a working candidate as Wavefront OBJ.
-- Export the current result as an Autodesk-compatible ASCII FBX. The scanner
-  still creates a valid empty FBX container when no vertices or faces were
-  found. Recovered bones are included in the FBX hierarchy when available;
-  skin weights cannot be created unless weight data is also recovered.
-
-The scanner is heuristic. It cannot automatically decode every proprietary,
-compressed, encrypted, interleaved, or specially quantized format. Ranked
-candidates are starting points for manual adjustment. A format-specific parser
-can be added later when sample files and their expected geometry are available.
-Console-specific Gamebryo render streams can contain display-list commands in
-addition to raw attributes, so a dedicated stream decoder may still be needed
-for perfect extraction from some games.
-
-## Textures
-
-AI Generator starts in an empty black top-level **Home** section. The existing
-image and video tools are grouped under **Images**, while **3D Models** and
-**Textures** remain separate neighboring sections. Each expanded tool runs
-inside the same application window with a **Back to Home** button.
-
-The embedded Textures section contains **Scan** and **UV Layout** subtabs. The
-Scan tool:
-
-- Opens any file extension and searches its raw bytes.
-- Detects embedded PNG, JPEG, DDS, BMP, KTX, KTX2, and PVR signatures.
-- Shows numbered results with format, byte offset, dimensions when available,
-  and B/KB/MB/GB size.
-- Displays scan progress and result count and supports stopping a scan.
-- Previews formats supported by the installed Pillow codecs.
-- Extracts one selected texture or every detected texture to a folder.
-- Uses vertical and horizontal result-list scrollbars plus mouse-wheel scrolling.
-- Adds a full **Raw Settings** decoder with width, height, decimal/hex data
-  offset, row stride, texture count, per-texture stride, little/big endian,
-  alpha mode, palette offset, palette type, and palette size controls.
-- Supports RGBA/BGRA/ARGB/ABGR 8888, RGB/BGR 888, RGB/BGR 565, RGBA5551,
-  ARGB1555, RGBA/ARGB4444, L8, A8, LA88, 4-bit and 8-bit indexed palettes,
-  DXT1/BC1, DXT3/BC2, DXT5/BC3, ATI1/BC4, and ATI2/BC5.
-- Provides Linear, Morton/Z-order, 4x4, 8x8, 16x16, PS2 GS, Wii/CMPR,
-  GameCube, and experimental Xbox 360 swizzle/tiling selections. Console game
-  formats can still use custom layouts, so these presets are best-effort.
-- Adds explicit platform choices for PC Linear/Direct3D and Morton layouts,
-  Switch Tegra block-linear/GOB, PS1 linear and twiddled, PS2 GS PSMCT32/PSMT8/
-  PSMT4, PS3 RSX linear/swizzled, PS4 GNM micro/macro tiled, and PS5 GNMX
-  tiled textures. A selectable tile/GOB block height helps tune platform data.
-  Switch, PS4, and PS5 presets are marked experimental because the exact layout
-  also depends on mip level, GPU surface mode, pitch, and game engine metadata.
-- Decompresses None/Auto, ZLIB, raw DEFLATE, GZIP, BZIP2, LZMA/XZ, two common
-  LZSS 12/4 flag orders, LZ4 frame/block, Zstandard, Brotli, Snappy, LZO,
-  PackBits RLE, byte-pair RLE, Nintendo LZ10/LZ11, and Nintendo Yaz0 data for
-  preview and decompressed export without changing the source file.
-- LZ4, Zstandard, Brotli, Snappy, and LZO use optional Python packages. When a
-  package is missing, the GUI displays the exact install command or requirement.
-  Decompressed output has a 1 GB safety limit.
-- Also supports LZF plus extracting the first payload from ZIP and 7-Zip
-  containers. LZF and 7-Zip use the optional `python-lzf` and `py7zr` packages.
-- The preview supports mouse-wheel zoom, left-button panning, Fit, and 100%.
-- Exports the current decoded texture as PNG, JPG, DDS, or TGA. **Export All**
-  converts all detected textures to PNG; **Export All Raw Textures** processes
-  configurable texture arrays into the selected PNG/JPG/DDS/TGA format.
-- **Stop Scan** interrupts automatic scanning or a long batch export while
-  preserving results and files already completed.
-
-The **UV Layout** workspace opens OBJ models in a split Model/UV editor. It uses
-supplied texture coordinates when present and can generate missing UVs with
-Auto UV, random selected-part islands, Flat, Edge, Top, Bottom, Left, Right,
-planar XY/XZ/YZ, Box, Cylindrical, Spherical, Shrink Wrap, Peel/Seam,
-Symmetrical, or Line projection. The model viewport supports mouse-wheel zoom,
-drag rotation, middle-drag movement, and Polygon/Line/Vertex modes. Alt-click
-selects a polygon, line, or vertex; Ctrl-click removes it. **Select Loop** follows
-connected mesh edges, highlights the loop in orange in both views, and **Apply
-Loops to UV** transfers its adjacent polygons to the UV selection. UVs can be
-generated from only the current selection. Both views support independent zoom
-and movement, with transparent UV PNG and UV-enabled OBJ export.
-- UV canvas loading controls reduce memory without changing the complete 3D
-  model viewport: **Load All** draws every UV polygon, **Load Half** draws every
-  second polygon, **Load Lowest** caps the preview near 1,500 representative
-  polygons while retaining selected faces, and **Clear** releases all UV canvas
-  objects until another loading level is chosen. Exports continue to use the
-  complete UV data rather than only the reduced preview.
-
-## Files
-
-The top-level **Files** section opens a built-in decompressor and extractor. It
-does not require QuickBMS or external scripts and does not attempt password
-cracking or encryption bypass.
-
-The **Convert** subtab also indexes the supplied `resources\PYTHON.zip`
-collection without importing all 1,385 scripts into memory. A selected script
-can be extracted into `Python\Coverters\Imported` for review and adaptation.
-Only trusted plug-ins implementing AI Generator's `convert_file()` interface
-are executed by the normal batch converter.
-
-- Opens every file extension as raw bytes.
-- Indexes recognizable headers, hexadecimal offsets, buffer sizes, stored
-  filenames, and little- or big-endian offset tables.
-- Extracts structured ZIP and TAR hierarchies and preserves stored subfolders.
-- Detects and attempts standard ZIP, TAR, GZIP, BZIP2, XZ/LZMA, ZLIB, and
-  DEFLATE-style streams supported by Python's installed decoders.
-- Recursively scans successfully decompressed buffers for nested files and
-  additional compressed streams.
-- Uses nearby filename tables when available; otherwise names buffers using
-  their offsets.
-- Displays results in a collapsible hierarchy with **Expand All** and
-  **Collapse All** controls.
-- Keeps the displayed identification results limited to the initial local
-  scan. The scanner does not automatically browse the web or merge online
-  guesses into the result list.
-- Adds an optional **Search Online** button for the selected result. It opens a
-  browser search using only the local filename/extension, detected header or
-  type, status, and suggested algorithm/tool. File contents are not uploaded,
-  and the online search does not alter the local scan results.
-- Extracts one buffer or reconstructs all detected folders and files.
-- Includes an embedded **Cutter** that accepts automatic, hexadecimal, or
-  decimal start offsets. Its optional end offset defaults to the end of the
-  input file, and the interface displays start, end, exact byte size, and the
-  detected file type before export.
-- Cutter exports accept a custom filename and selectable extension. When the
-  name is blank, a source-name plus hexadecimal-offset filename is generated;
-  existing files receive numbered suffixes instead of being overwritten.
-- Cutter type detection checks the bytes at the requested offset and
-  automatically selects known PNG, JPEG, DDS, BMP, GIF, WAV, AVI, OGG, ZIP,
-  compressed-stream, archive, executable, and related extensions.
-- Labels positively identified encrypted entries as **ENCRYPTED** and skips
-  decryption. Unknown high-entropy data is described as compressed or
-  encrypted rather than being guessed or cracked.
-- Adds a **Suggested Method / Tool** column. Recognized OpenSSL, PGP, encrypted
-  ZIP, 7z, RAR, and PDF data receive appropriate tool/key guidance. Embedded
-  strings are checked for hints such as AES, XTEA, XXTEA, Blowfish, ChaCha,
-  Salsa20, DES/3DES, and RSA.
-- For unknown proprietary formats, suggests looking for matching format
-  documentation or a QuickBMS `.bms` script using the game and archive name.
-  This is identification guidance only: no passwords, keys, or encryption are
-  brute-forced or bypassed.
-
-### Convert
-
-- Adds **Files → Convert**, based on the complete behavior found in the supplied
-  Python/PyInstaller mass converter without launching the external EXE.
-- Batch converts PNG, JPG/JPEG, and WebP images to DDS. Filters include all
-  three formats and every two-format or single-format combination from the
-  reference converter.
-- Creates the output folder, retains source basenames with `.dds`, continues
-  past individual errors, and reports per-file conversion status and progress.
-- Adds optional subfolder scanning, preserved directory structure, safe
-  skip-existing behavior, Stop, and explicit overwrite control.
-- Supports uncompressed RGBA, DXT1/BC1, DXT3/BC2, DXT5/BC3, and BC5 DDS output.
-- Converter plug-ins are discovered from `Python\Coverters`. The included
-  `image_to_dds.py` script supplies PNG/JPG/WebP conversion, and additional
-  trusted scripts can implement the same `convert_file()` interface.
-
-## Interface Improvements
-
-## Music Editor
-
-The Music workspace includes a fully local **Create** subtab powered by an
-ACE-Step 1.5 model installed on the same computer. It accepts a title, style,
-track description, structured lyrics, instrumental mode, duration, BPM, key,
-meter, language, inference steps, and deterministic or random seeds. Generated
-tracks can be played inside AI Generator and saved as WAV, MP3, FLAC, or Opus.
-Run `Setup_ACE_Step_Local.bat` once while online, then use
-`Start_ACE_Step_Local.bat` or **Start Local Engine**. Once the model files have
-been downloaded, generation uses `127.0.0.1` and requires no cloud API, API key,
-external account, or internet connection. ACE-Step uses a separate environment in
-`tools\ACE-Step-1.5`, so it does not alter AI Generator's Python 3.13 packages.
-The setup downloads the official source ZIP directly with PowerShell and does
-not require Git or `winget`; it also locates `uv.exe` even before Windows refreshes PATH.
-Extraction occurs inside the AI Generator `tools` folder to avoid cross-drive
-permission errors. An incomplete earlier installation is renamed with an
-`_incomplete_` suffix for recovery instead of being deleted.
-
-- Adds dedicated **Drums**, **Bass**, **Turntable**, and **Vocals** subtabs.
-- Drums provides an eight-lane step sequencer; Bass provides a low-register
-  twelve-note sequencer. Both can loop, export WAV/MP3/MIDI, and save patterns
-  into any of the ten Song mixer channels.
-- Turntable exposes the loaded track's speed and gain controls with WAV/MP3
-  mix export. Vocals embeds vocal/instrumental stem separation and optional
-  merged-stem output directly inside Music.
-- Vocals also records microphone input directly to WAV with selectable Mono or
-  Stereo capture through `sounddevice`. The finished recording is loaded into
-  the waveform editor. Sound-pack shortcuts open OpenGameArt and Freesound.
-
-The top-level **Music** section opens an embedded audio editor.
-
-- Opens MP3, WAV, FLAC, M4A, AAC, OGG, WMA, and other FFmpeg-supported audio.
-- Displays a compact waveform and file duration, sample rate, channels, and bit depth.
-- Trims by start/end time, changes playback speed and pitch together, adjusts volume in dB,
-  converts mono/stereo or selects a channel, and applies fade-in/fade-out.
-- Exports edited audio as WAV or MP3 with selectable MP3 bitrate.
-- Provides fast center-channel vocal cancellation and optional Demucs AI separation into
-  `vocals.wav` and `instrumental.wav`.
-- Transcribes detected musical pitches to MIDI. The built-in NumPy melody detector works
-  without Basic Pitch and writes a standard MIDI file directly; optional Basic Pitch AI
-  provides a higher-quality alternative when it supports the installed Python version.
-  MIDI is note transcription rather than an audio container, so dense mixes may need cleanup.
-- Long Demucs, MIDI, and export operations include a Stop button.
-- Includes an interactive two-octave piano-roll lesson view. Choose a root,
-  scale, chord, and octave to display the matching notes. White and black piano
-  keys turn orange when clicked, display the played note, and sound through
-  Windows when `winsound` is available.
-- Adds a **Guitar & Chords** lesson tab with a six-string standard-tuning
-  fretboard. Click any string/fret to hear its note, or hold the left mouse
-  button and drag across strings to strum the selected chord in real time.
-- Includes all 12 roots and 30 common chord qualities—360 generated chord
-  selections—including major/minor, power, diminished, augmented, suspended,
-  sixth, seventh, ninth, eleventh, thirteenth, altered dominant, and add chords.
-  The fretboard displays the chord notes, generated fret positions, orange
-  active strings, plus Play Chord and up/down strum controls.
-- Piano and guitar include compact horizontal step sequencers with no embedded
-  scrollbars. The Piano section adds a dedicated falling-note playback window
-  inspired by modern piano visualizers and a compact three-octave keyboard.
-- Each sequencer has independent volume and left/right panning plus customizable
-  note, background, measure-column, and bar/grid colors.
-- Piano and guitar patterns export from their own sections as WAV, MP3, or a
-  standard `.midi` note sequence. WAV/MIDI are generated directly; MP3 uses
-  Pydub and FFmpeg.
-- Guitar customization includes Standard, Drop D, half/whole-step down, DADGAD,
-  Open G, and Open D tunings; capo positions 0–12; and separate color pickers
-  for the wood fretboard, strings, metal frets, and fret dots.
-- Piano and guitar sequencers support 1–9,999 bars with horizontal scrolling.
-  Patterns can be saved into any of ten mixer channels.
-- The **Song** window places saved channel patterns on a multichannel timeline.
-  Blocks can be snapped by sixteenth, quarter, or bar; freely positioned;
-  dragged between channels; right-click removed; played; and mixed to WAV/MP3.
-- Demucs splitting saves vocals and instrumental as individual WAV files, with
-  an option to reconstruct and save `merged_stems.wav` in the same folder.
-- Audio separation now opens as its own **Audio Split** tool instead of being
-  mixed into the custom Song Studio. It offers a source file, output folder,
-  Demucs model choice, Stop control, individual vocal/instrumental outputs,
-  and optional merged-stem export.
-- Song Studio now locates `tools\\ffmpeg\\bin` directly in code, so opening
-  MP3/M4A/AAC files works even when `main.py` was launched without `Run.bat`.
-
-## Video Editor
-
-The top-level **Videos** section opens a dark embedded non-destructive editor.
-
-- Add multiple MP4, MOV, MKV, AVI, WebM, or M4V clips to a visual timeline.
-- Drag clips with frame, 0.1-second, 0.5-second, one-second, or free movement;
-  enter an exact custom timeline position; cut a selected clip at an exact time;
-  remove clips; or clear the project.
-- Crop, scale, rotate, zoom, change speed, and apply video fade-in/fade-out.
-- Adjust brightness, contrast, saturation, and hue with grayscale, sepia,
-  vintage, cool, warm, sharpen, and blur filters.
-- Exports the processed timeline to H.264/AAC MP4 using FFmpeg and includes a
-  Stop button. Every launch begins with empty clips and default settings.
-
-## Home Visuals
-
-- Uses the supplied blue binary artwork as a responsive cover background.
-- The spinning disc has been removed from Home. The blue cyber artwork, Matrix
-  rain, rolling fog, and support shortcuts remain.
-- Home is now background-only below the primary tabs. Image progress bars,
-  status controls, and processing buttons are hidden there.
-- Run `Install_Music_Tools.bat` from the main folder for complete audio setup.
-  It installs Pydub, Python 3.13's `audioop-lts`, ImageIO-FFmpeg, downloads a
-  private FFmpeg/FFprobe build into `tools\\ffmpeg\\bin`, installs Demucs when
-  compatible, and verifies the finished installation. `Run.bat` automatically
-  adds the private FFmpeg folder for AI Generator without changing system PATH.
-- Basic Pitch is installed only on its supported Python versions (3.7-3.11).
-  Python 3.13 installations continue to use the built-in MIDI detector.
-
-## Online Library
-
-- Adds an embedded **Library** tab with Tutorials, Instructions,
-  Configurations, and Research views.
-- Organizes searches by Games, Movies, Sports, TV, Stream, Music, Nature,
-  Companies, Jobs, Crypto, Stocks, and Gas.
-- Uses public Wikipedia and Google News results without requiring an API key.
-- Checks internet access automatically. When offline it displays
-  **Not Connected** at the bottom and disables online searching.
-- Opens broader Google searches in the default browser, Microsoft Edge,
-  Firefox, Safari, or every detected installed browser. Missing browsers are
-  reported instead of being launched blindly.
-
-## Remove
-
-- Adds a preview-first **Remove** main tab with separate **Folders** and **Files**
-  subtabs. Each scanner can filter by Name, Type, minimum/maximum Size, and
-  modified Date range, then displays Name, Type, Size, Date, and Path columns.
-  Folder scans calculate recursive folder sizes and can target empty,
-  non-empty, or all folders. File scans accept extension filters such as JPG,
-  PNG, WAV, or any other type. Selected results use the Recycle Bin whenever
-  `send2trash` is installed.
-- Scanning is read-only. Only explicitly selected results are removed after a
-  confirmation dialog. `send2trash` moves them to the Windows Recycle Bin when
-  available; the status clearly reports when permanent deletion is used.
-
-## Asset Sorter
-
-- Adds a dedicated **Sort** tab with directory selection and a complete move
-  preview before filesystem changes begin.
-- Creates Models, Textures, Animations, and Sounds folders while preserving
-  every source subdirectory beneath its assigned category.
-- Recognizes common model, animation, texture, and audio extensions. Unknown
-  types always prompt for Models, Textures, Animations, Sounds, or Skip.
-- For same-name `.fbx`, `.smd`, or `.cast` files, the largest is treated as the
-  model and smaller matches receive `_anim_1`, `_anim_2`, etc. in Animations.
-- Never overwrites a file. Every existing or planned collision receives a
-  numbered filename, including an existing `Extracted.zip` archive.
-- Builds `Extracted.zip` containing only the four organized category folders.
-
-## Design Studio
-
-- Adds a layered **Design** tab for blueprint drawing and UV-layout templates.
-- Includes Select, Paint, Erase, Clone Stamp, Smudge, Blur, and Sharpen tools;
-  raster filters operate on imported image layers.
-- Blueprint shapes include square, triangle, circle, and oval tools with
-  explicit width, height, scale, stroke, grid, and snapping controls.
-- Information shows X/Y position, width, height, and calculated path distance.
-- Electrical, plumbing, and water tools connect point-to-point; press Escape
-  to finish the active run. Each finished run becomes a separate layer.
-- Provides Blank, Room, House Grid, Cube UV Cross, Cylinder UV, and Sphere UV
-  templates plus an expanded modern item catalog: doors and framing, garage
-  doors, fireplaces, bathtubs, showers, steps, railings, windows, plumbing
-  fixtures, appliances, furniture, lighting, bedding, and cabinetry.
-- Adds a blueprint-style drawing information block with editable project
-  title, drawing number, revision, sheet, scale, and author fields. Each block
-  is an independent layer and is included in PNG exports.
-- Adds a **UV Mapping** tool inside Design. Open an OBJ, ASCII FBX/model file,
-  raw binary model, or image and choose **Scan & Generate** to create a flat UV
-  layer. OBJ texture coordinates and face indices are reconstructed directly;
-  ASCII FBX and generic aligned Float32 UV buffers have fallback scanners.
-- UV layouts support **Wireframe**, **Solid**, and **Vertices** viewing modes
-  and remain normal Design layers for visibility, ordering, coloring, project
-  saving, and PNG export.
-- Every inserted or drawn item is an independent layer with visibility,
-  ordering, deletion, selection, movement, and individual color controls.
-- The top Design header is collapsible. Projects save as `.aidesign` and the
-  visible document can export to PNG.
-
-## Research Workspace
-
-- Adds a **Research** tab with a collapsible input-file header and paged hex/
-  ASCII viewer.
-- Finds hexadecimal byte sequences or ASCII, UTF-8, and UTF-16LE strings,
-  clearing old results before every search and listing match counts and offsets.
-- Double-clicking a match jumps the hex viewer to that exact offset.
-- Detects common embedded PNG, JPEG, DDS, ZIP, WAV, OGG, PDF, GIF, BMP, KTX,
-  GZIP, and 7-Zip signatures with candidate offsets and sizes.
-- Includes Stop scan, Extract file, and Extract all controls. Output naming is
-  collision-safe. Detected results automatically use their real extension:
-  `.png`, `.jpg`, `.dds`, `.zip`, `.wav`, `.ogg`, `.pdf`, `.gif`, `.bmp`,
-  `.ktx`, `.gz`, or `.7z`. For example, BMP results become `TEST.bmp`,
-  `TEST_1.bmp`, and so on. The manual extension field is used only as a
-  fallback for an unknown type.
-
-## Sound Scanner
-
-- Sound scanning is embedded in **Extract > Sound**, immediately after the
-  Animations subtab, instead of occupying a separate top-level tab.
-- Scans arbitrary binary files and banks for documented WAV/WEM, AIFF, Ogg,
-  Opus, FLAC, MP3, AAC, MIDI, FSB4/FSB5, Wwise BNK, Sony VAG/PSF, CRI ADX,
-  Nintendo BRSTM/BFSTM/BCSTM, Xbox XMA, XM, S3M, and IT signatures.
-- Shows assumed format, offset, size, and the output structure for every match.
-- Opens ZIP-compatible packages and retains their internal folder and filename
-  structure when extracting sound assets.
-- Includes Stop scan, Extract selected, and Extract all controls. Existing
-  files are never overwritten; numbered suffixes are added automatically.
-- Adds Previous, Play, Pause, Next, seek slider, Repeat, Shuffle, and M3U/M3U8
-  playlist loading/saving. Playback uses Pygame and retains the discovered
-  items as the current playlist.
-- **Extract > Sound > Convert** converts selected or all discovered sounds to
-  WAV, MP3, OGG, FLAC, or AAC through Pydub and FFmpeg.
-
-## PS1 / PS2 Extract Workspace
-
-- Adds an embedded **Extract** main tab with Archives, Models, Textures,
-  Animations, Sound, and Batch Processing sections.
-- Archive, Model, Texture, and Animation searches use a split results-and-preview
-  layout. Selecting a result immediately displays metadata or a supported 2D
-  texture. Texture previews support mouse-wheel zoom and Fit.
-- Compressed or unsupported payloads remain visible in the result list; the
-  preview shows a clear red error with the detected compression type rather
-  than silently failing.
-- **Add Index File** accepts multiple companion index/name-table files for each
-  scan. Likely stored filenames are recovered from those files and assigned to
-  matching assets, while every selected index file remains associated with its
-  scan section.
-- The Models section can append exactly two ordered companion files: a skeleton
-  first and an animation sequence second. Their names and attachment state are
-  shown in the viewport.
-- Model results now use an interactive 3D viewport with wheel zoom, drag rotate,
-  and middle-drag movement. OBJ payloads are read directly; unknown raw formats
-  receive a bounded Float32 point-cloud test rather than consuming the entire
-  file as geometry.
-- Animations use the current model geometry and include **Test Animation**,
-  Play, Pause, Stop, and configurable frame skipping. Test rejects missing
-  models, tiny files, and data without enough plausible transform values before
-  enabling structural playback.
-- Archives now use one **Decompress** window. Auto handles GZIP, BZIP2, XZ,
-  ZLIB, and the existing bounded LZSS variant; the bundled QuickBMS executable
-  indexes 4,457 supplied BMS game scripts by filename. Scripts requesting DLL,
-  process, or network execution are blocked for manual review. Offzip is an
-  optional selectable engine for zlib streams when `offzip.exe` is supplied.
-- Offset-table results are named from recognized header bytes (`.png`, `.dds`,
-  `.wav`, `.tim`, `.tmd`, `.nif`, and others); unknown payloads use `.dat`
-  instead of inheriting the archive's extension.
-- **Extract > Blender** catalogs the supplied Blender and 3DS Max scripts by
-  game/purpose and format hints. Selected scripts can be exported; Blender
-  Python scripts can be run only through a user-selected trusted Blender
-  executable. 3DS Max scripts are references, not ML training material.
-- Includes Auto Detect, PS1 Generic, PSXPrev Compatible, Parasite Eve,
-  Parasite Eve 2, PS2 Generic, Speed Racer PS2 / NIF, Wild Arms 3,
-  Wild Arms Alter Code: F, PS3 Generic, Twisted Metal 2012, PSP / Vita Generic,
-  and PlayStation All-Stars Vita profiles.
-- The native PS1 scanner recognizes validated TIM textures and TMD models plus
-  HMD, BFF, PMD, MOD/Croc, PSX, TOD, VDF, AN, VAG, VAB, SEQ, CD-XA, CDF, and
-  PKG candidates. Archive scanning annotates recognized candidates aligned to
-  2048-byte data sectors or 2352-byte raw CD sectors, matching the useful BIN
-  scanning behavior identified in PSXPrev.
-- The supplied Parasite Eve, Parasite Eve 2, TMSB, MR-to-OBJ, and PSXPrev
-  executables were inspected as format references only. They are not bundled,
-  executed, or required by AI Generator.
-- PS2 Speed Racer support recognizes complete `.nif` files plus embedded
-  Gamebryo headers. NIF geometry, skin, texture, and animation blocks remain
-  available to the model scanner after extraction.
-- PS3 Twisted Metal 2012 support recognizes `.vram` geometry sources, C3D and
-  geometry markers, and the tool's ASCII/OBJ-oriented workflow. Proprietary
-  vertex branch decoding remains heuristic until representative game data can
-  be validated.
-- PlayStation All-Stars Vita support recognizes big-endian `MODL` version 8
-  `.cmdl`/`.cskn` models, `.ctxr` and GXT texture containers, and `.cesm`
-  animation containers. The reference scripts document Float/Half/Short vertex
-  streams, UVs, blend indices/weights, PVRTC, DXT1/3/5, and skeleton matrices.
-  Whole-file recognition ensures those files can be extracted even when stored
-  without a repeated internal signature.
-- Archives can scan BIN files for embedded headers and plausible little-endian
-  offset tables. The LZSS action implements the common PS2/Okumura 4 KB ring
-  buffer variant with LSB-first flags, 12-bit distance, and 4-bit length.
-- LZSS output is bounded and validated to prevent a wrong profile from causing
-  runaway memory use or writing an implausible expansion.
-- Detects PS2-oriented TIM2 textures, VAG/Sony sound banks, Gamebryo NIF and
-  RenderWare model markers, MOT/ANM animation markers, plus common embedded
-  image/audio/archive signatures.
-- Model, Texture, and Animation sections filter results for their asset type.
-  Extract Selected and Extract All never overwrite existing output files.
-- Batch Processing accepts a directory, preserves its relative structure,
-  optionally tries LZSS decompression, shows per-file progress, and can be
-  stopped safely. Source game files are always read-only.
-- Wild Arms-specific archive tables, mesh conversion, texture decoding, and
-  skeletal animation conversion are framework hooks until verified against
-  representative game files and the known Wild Arms utilities.
-
-## Animated interface
-
-- Main navigation uses precision-rounded buttons in this order: Home, Models,
-  Textures, Files, Extract, Music, Videos, Design, Sort, Research, Remove, and
-  Library. Library is restored as the final main tab.
-- The animated cyber background is restricted to **Home** so tool tables and
-  text fields stay readable. Blue Matrix-style data flows downward while a
-  soft blue fog layer rolls across the original cyber artwork.
-- Home contains icon-only Patreon, Discord, PayPal, and Website
-  shortcuts. The Website globe opens the 3D Model Archives site.
-- Home uses the supplied static 1920×1080 synthwave artwork with no Matrix
-  rain, fog, panning, rotation, or animation timer. The image is center-cropped
-  only as needed to cover the resized Home viewport and remains Home-only.
-- **Midi** is a dedicated subtab inside the Music studio.
-
-## Building the Windows EXE
-
-1. Install AI Generator normally with `Setup.bat` and confirm `Run.bat` works.
-2. Place `Build_EXE.bat`, `AI_Generator.spec`, and `main.py` together in the
-   main AI Generator directory.
-3. Double-click `Build_EXE.bat`. It uses `Scripts\python.exe` first, then a
-   `.venv` or installed Python 3.13 only when necessary.
-4. The builder verifies NumPy, SciPy, scikit-learn, scikit-image, and
-   InsightFace before PyInstaller starts. If SciPy has broken or mismatched
-   extension modules, compatible precompiled Python 3.13 wheels are
-   automatically reinstalled. The build stops instead of creating an
-   incomplete EXE if InsightFace still cannot import.
-5. The builder installs PyInstaller without upgrading Torch, then creates a
-   no-console one-folder application.
-6. Launch `dist\AI_Generator\AI Generator.exe`. A distributable
-   `AI_Generator_Windows_EXE.zip` is also created beside the build script.
-
-The one-folder format is intentional: ONNX Runtime, InsightFace, Torch,
-Diffusers, CUDA providers, FFmpeg, models, and dynamically loaded plugins are
-more reliable this way than in a single compressed executable. Existing
-`models` and `tools` folders are copied into the finished application, while
-personal `config.json`, API keys, indexed faces, and temporary files are not
-added automatically.
-- Requires `pydub` and FFmpeg for general audio. Optional features use `demucs` and
-  `basic-pitch`; missing packages produce an exact installation message in the GUI.
-
-- Application renamed to **AI Generator**.
-- Modern dark tabbed interface with separate top-level **Home**, **Images**,
-  **3D Models**, **Textures**, **Files**, **Music**, and **Videos** sections.
-- Global dark ttk styling now applies to every embedded tool, including its
-  frames, labels, buttons, entries, combo boxes, notebooks, trees, and panes.
-- Wider landscape layout keeps the image and video tools in one horizontal
-  tab row and reduces unnecessary vertical space.
-- Responsive weighted layout keeps progress bars and bottom action buttons
-  visible when the window is resized smaller. The center notebook absorbs the
-  size change instead of pushing controls below the screen.
-- Home tool tabs have vertical scrollbars and mouse-wheel scrolling, so longer
-  Prompt Edit, Crop, and Rename controls remain reachable in short windows.
-- Image processing progress bars and Run/Review/Clear/Stop controls are now
-  visible only inside the **Images** section and no longer appear beneath the
-  Home, Models, Textures, Files, Music, Videos, or Library sections.
-- Reduced minimum window size and compact bottom-button widths support smaller
-  desktop layouts without clipping the GUI.
-- Startup is centered at approximately 1120×700 with a 900×620 minimum.
-- The main tool bar uses compact navigation pages. Rounded left/right arrows
-  reveal the remaining tools without shrinking or clipping their labels, and
-  selecting a hidden tool automatically opens its button group.
-- The Rename utility now lives under **Files → Rename**, not Images.
-- The Models viewport adds Solid, Wireframe, Solid + outline, and Points modes,
-  customizable background/surface/outline/vertex colors, line width, and point size.
-- Texture scan results are validated by decoding them first. False detections
-  are hidden and verified images appear in a thumbnail filmstrip/gallery.
-- Slightly transparent main window.
-- Rounded controls and buttons.
-- Green indexing, task, and overall progress bars with percentages.
-- No permanent activity-log panel occupying the interface.
-- Larger startup window so bottom controls remain visible.
-- Customizable application icon from `resources/AI_Generator.ico` or `resources/AI_Generator.png`.
-- Icon-only Patreon, Discord, and PayPal buttons at the bottom-right.
-- Support artwork is loaded from:
-
-    resources/Patreon.png
-    resources/Discord.png
-    resources/PayPal.png
-
-- Settings are saved between sessions in `config.json`.
-- `Run.bat` uses `pythonw.exe` so the GUI does not keep a separate Command Prompt window open.
-
-## System Requirements
-
-Recommended:
-
-- Windows 10 or Windows 11, 64-bit
-- Python 3.13, 64-bit
-- 64 GB system RAM for Qwen Image 2.1 Local
-- NVIDIA Quadro P5000 or newer GPU
-- Current NVIDIA display driver
-- At least 40 GB of free disk space for Qwen Image 2.1 alone
-- Additional space for ONNX models, Hugging Face caches, temporary frames, and results
-- Internet access for initial setup and model downloads
-
-Cloud prompt engines always require internet access.
-
-## First-Time Installation
-
-1. Extract the complete AI Generator folder. Do not run it from inside a ZIP.
-2. Install 64-bit Python 3.13.
-3. During Python installation, enable **Add Python to PATH** and install the Python launcher.
-4. Place the newest setup files beside `main.py`.
-5. Run `Setup.bat`.
-6. Wait for **Setup completed successfully**.
-7. Run `Run.bat`.
-
-The Python environment is installed directly into the AI Generator directory. It creates:
-
-    Include/
-    Lib/
-    Scripts/
-    pyvenv.cfg
-
-The current setup does not use a `.venv` folder.
-
-Setup also applies these Python 3.13 compatibility requirements:
-
-- `setuptools==81.0.0` for current CUDA PyTorch compatibility.
-- NumPy 2.x for Python 3.13.
-- Precompiled `ml_dtypes==0.6.0` to avoid the failed `share.h` source build.
-
-### Microsoft C++ Build Tools
-
-Some Python packages may require Microsoft C++ Build Tools. Install the **Desktop development with C++** workload, including the MSVC x64/x86 compiler and Windows SDK.
-
-Official installer:
-
-https://visualstudio.microsoft.com/visual-cpp-build-tools/
-
-## Installing NVIDIA Prompt Support
-
-After `Setup.bat` completes, run:
-
-    Install_NVIDIA_Prompt.bat
-
-This installs:
-
-- CUDA-enabled PyTorch and TorchVision
-- Transformers 5.17 or newer
-- Accelerate
-- Safetensors
-- SentencePiece
-- A current Diffusers build with Qwen Image 2.1 support
-
-## Downloading Qwen 2.1 from a Hugging Face Bucket
-
-For the private bucket `Normality1/Qwen-Image-2.1-bucket`, open Command Prompt inside:
-
-    D:\PROGRAMS\AI_Generator
-
-If `Scripts\hf.exe` still points to an old `.venv`, recreate its launcher:
-
-    Scripts\python.exe -m pip install --force-reinstall --no-cache-dir huggingface_hub
-
-Log in:
-
-    Scripts\hf.exe auth login
-
-Download the complete bucket:
-
-    Scripts\hf.exe buckets sync hf://buckets/Normality1/Qwen-Image-2.1-bucket "models\Qwen-Image-2.1"
-
-The sync command can be run again after interruption. It compares the bucket and local directory and transfers only missing or changed files.
-
-## Application Folders
-
-| Folder or file | Purpose |
-| --- | --- |
-| `source/` | Source identity portraits |
-| `target/` | Target images and videos |
-| `result/` or configured output | Finished media |
-| `models/` | ONNX models, persistent face indexes, and optional local Qwen model |
-| `resources/` | GUI icons and support-button images |
-| `temp_processing/` | Temporary frames, prompt previews, and diagnostics |
-| `Lib/` | Main-directory Python packages |
-| `Scripts/` | Python executables and command-line launchers |
-| `pyvenv.cfg` | Identifies the main folder as the Python environment |
-| `config.json` | Saved local GUI settings |
-| `model_scanner.py` | Raw mesh scanner, 3D preview, and OBJ exporter |
-| `texture_scanner.py` | Embedded texture signature scanner, preview, and extractor |
-| `file_scanner.py` | Built-in archive, compression, header, offset-table, and buffer extractor |
-
-## Supported Swapper Models
-
-| GUI choice | Expected file |
-| --- | --- |
-| InsightFace 128 Quality | `inswapper_128.onnx` |
-| InsightFace 128 FP16 Speed | `inswapper_128_fp16.onnx` |
-| ReSwapper 256 Quality | `reswapper_256.onnx` |
-
-`reswapper_256.onnx` must be the original InsightFace/Inswapper-class-compatible build. An unrelated ONNX file renamed to `reswapper_256.onnx` will not work.
-
-## Automatic Model Downloads
-
-When a supported ONNX feature is enabled and its model is missing, AI Generator downloads the configured model into `models/`. Keep the original filenames because the loader uses them to select preprocessing and output behavior.
-
-## Clean Distribution
-
-Before sharing or publishing the application, do not include:
-
-- Personal files from `source/`, `target/`, `result/`, or `temp_processing/`
-- `config.json`
-- API keys or access tokens
-- `source_faces_*.pkl`
-- `.venv/`
-- `Lib/`
-- `Scripts/`
-- `Include/`
-- `pyvenv.cfg`
-- Hugging Face cache directories
-- Private Qwen model files unless their license permits redistribution
-
-New users should generate their own Python environment with `Setup.bat`.
-
-Never place API keys directly in `main.py`, `config.json`, screenshots, ZIP archives, or the GitHub repository.
-
-## Troubleshooting
-
-### Failed to locate pyvenv.cfg
-
-Run the newest `Setup.bat`. It detects an incomplete main-directory environment and recreates the missing `pyvenv.cfg`.
-
-### A launcher still references .venv
-
-Old executable launchers can retain the path where they were originally created. Reinstall the affected package through the active Python executable:
-
-    Scripts\python.exe -m pip install --force-reinstall --no-cache-dir PACKAGE_NAME
-
-For the Hugging Face CLI:
-
-    Scripts\python.exe -m pip install --force-reinstall --no-cache-dir huggingface_hub
-
-### setuptools conflict with PyTorch
-
-Repair it with:
-
-    Scripts\python.exe -m pip install --upgrade "setuptools==81.0.0"
-
-### ml_dtypes fails while compiling share.h
-
-Install the Python 3.13 wheel:
-
-    Scripts\python.exe -m pip install --upgrade --no-cache-dir --only-binary=:all: "numpy>=2,<3" "ml_dtypes==0.6.0"
-
-### Microsoft Visual C++ 14.0 or greater is required
-
-Install Microsoft C++ Build Tools with **Desktop development with C++**, then restart Windows and rerun `Setup.bat`.
-
-### Qwen 2.1 does not load
-
-Confirm the selected folder contains `model_index.json` and all five required component directories. Rerun the bucket sync to restore missing files.
-
-Also rerun:
-
-    Install_NVIDIA_Prompt.bat
-
-### CUDA is unavailable
-
-- Update the NVIDIA display driver.
-- Confirm CUDA-enabled PyTorch was installed.
-- Run:
-
-      Scripts\python.exe -c "import torch; print(torch.cuda.is_available()); print(torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'No CUDA GPU')"
-
-### A source folder indexes zero faces
-
-- Use clear, well-lit source portraits.
-- Make the face large enough in the frame.
-- Avoid heavy blur and extreme occlusion.
-- Enable the review pass.
-- Select **Rebuild face index this run** after changing the source folder.
-- Remove an obsolete or invalid `source_faces_*.pkl` only when rebuilding.
-
-### attempt to get argmin of an empty sequence
-
-No usable source faces were indexed. Fix the source-face detection problem and rebuild the index before processing targets.
-
-### Black squares or damaged output
-
-- Disable restoration, colorization, upscaling, and smart masking temporarily.
-- Test face swapping alone.
-- Re-enable one post-processing stage at a time.
-- Confirm each ONNX file matches the exact expected model rather than only having the expected filename.
-
-### Standalone colorization fails
-
-- Start with DDColor Natural, which is recommended for complete photographs.
-- Confirm the input folder contains PNG, JPG, JPEG, WebP, BMP, TIF, or TIFF images.
-- Confirm the output folder is writable and has enough free disk space.
-- Delete a partially downloaded colorizer ONNX file and run the Colorize tab
-  again so AI Generator can download a clean copy.
-- Try CPUExecutionProvider if a GPU provider returns invalid or black output.
-
-### Prompt result is unchanged
-
-- Confirm **Enable prompt editing** is selected.
-- Confirm the desired prompt engine is selected.
-- Use a direct instruction describing only the requested change.
-- Check `temp_processing/prompt_previews/` to see the image produced before face swapping.
-- For A2E, inspect the redacted `a2e_last_task.json` diagnostic.
-- Remember that the final face swap intentionally restores facial identity after the prompt edit.
-
-## Privacy and Responsible Use
-
-Only process media you own or have permission to edit. Follow applicable privacy, identity, copyright, model-license, and platform rules. Clearly label synthetic or altered media when appropriate.
-
-## Support Links
-
-- Patreon: https://www.patreon.com/c/3dmodelserver
-- Discord: https://discord.com/invite/sMZuNzhmxC
-- PayPal: https://www.paypal.com/paypalme/GameModNation?country.x=US&locale.x=en_US
-# Models Skeleton/Animation and Texture RGB Update
-
-## Home fog overlay
-
-- Home now layers `resources\HomeFog.png` over the static synthwave artwork.
-- The replacement RGBA fog uses its authored transparency with a restrained Lighten/Screen-style blend, preventing a visible rectangle and keeping the background vivid.
-- Horizontal fog edges are wrap-corrected and the original edge mismatch is crossfaded inside the tile, eliminating the vertical seam during motion.
-- The duplicated fog boundary pixel was removed so the moving layer no longer produces a one-pixel vertical stripe.
-- Clicking the Home artwork fires a fast green torus laser with a fading tracer trail into space.
-- The Home laser now uses a bright plasma core, concentric green energy rings and corkscrew tracer sparks matching the supplied shot reference.
-- The supplied seamless fog tile is used directly without edge shifting, feathering, duplicated pixels or cropping.
-- It moves slowly to the left and tiles continuously for a seamless loop.
-- Small stars now twinkle occasionally with randomized position, brightness, and timing.
-- The animation is Home-only; tool tabs retain their solid dark backgrounds for readability.
-
-## Models → Scan
-
-- **Skeleton Finder** searches any imported binary for common 4×4 and 3×4 float matrices, half-float matrices, TRS records, padded records, both endian orders, and likely repeated bone strides.
-- **Animation Finder** scans the appended animation file for repeated translation/quaternion and translation/quaternion/scale key blocks. Results show offset, assumed byte size, key count, stride, endian, and confidence.
-- Import the possible skeleton first, append the possible animation second, select the matching finder, and use **Scan** or **Deep Rescan**.
-- The scanner remains heuristic: proprietary game formats can still need a game-specific conversion script after the correct offsets and layouts are found.
-
-The supplied ASH (Amateur Skeleton Hunter) and ARC (Animation Recipe Cracker) packages were compiled programs without source code. Their useful search concepts—bone layout, translation/rotation/scale records, hierarchy-oriented strides, animation keys, endian choices, and offsets—were recreated in the embedded Models scanner. Their executable files are not required at runtime.
-
-## Textures → Scan: DDS and PVR
-
-- **Open DDS / PVR** previews a container directly.
-- **Convert DDS / PVR** converts between supported image/container formats.
-- Pillow is used first. If the codec is not available there, AI Generator uses `tools\PVRTexTool\PVRTexToolCLI.exe`.
-- The supplied RawTex helpers are stored under `tools\RawTex` for their original specialist DDS/raw workflows. AI Generator's embedded raw decoder remains the main interface for offsets, pixel formats, endian, swizzle, palette, compression, and bulk export.
-
-## Textures → RGB
-
-The **RGB** subtab builds a final packed texture from three source images.
-
-1. Import a source for the final R, G, and B outputs. You may import the same packed image in each slot or use three separate grayscale maps.
-2. For each output, choose the source channel: Red, Green, Blue, Alpha, or Luminance.
-3. Optionally invert a channel or change its strength from 0–200%.
-4. Choose **Mix / Refresh**, inspect the zoomable/pannable final result, then export PNG, TGA, TIFF, or BMP.
-
-Included presets:
-
-- RMA: R = roughness, G = metallic, B = ambient occlusion
-- ART: R = ambient occlusion, G = roughness, B = translucency
-- CSM: R = cavity, G = specular, B = mask
-- MK1 ID/Tone: extracts the ID blue channel and Tone green/blue channels for mask work
-
-Choose **Save Blender Node Functions** to save `blender_texture_nodes.py`. It contains reusable Blender functions for RMA, ART, and MK-style ID/Tone separation. The supplied `.blend` scene is not bundled or required.
 
